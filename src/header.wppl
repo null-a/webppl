@@ -1,3 +1,96 @@
+// Simple enumeration written in webppl using delimited continuations.
+
+var Enumerated = function(wpplFn) {
+  return runWithCoroutine(enumerateCoroutine(), wpplFn);
+};
+
+var enumerateCoroutine = function() {
+  var Q = [];
+  var score = 0;
+
+  var runNext = function() {
+    if (Q.length > 0) {
+      Q.shift()();
+    }
+  };
+
+  return {
+
+    sample: function(erp, params) {
+
+      var entryScore = score;
+
+      // Queue (delimited) continuations to run the rest of the program with
+      // each value from the ERP's support.
+      var value = shift(function(k) {
+        forEach(function(value) {
+          Q.push(function() {
+            score = entryScore + erp.score(params, value);
+            return k(value)
+          });
+        }, erp.support(params));
+        runNext();
+      });
+
+      return value;
+    },
+
+    factor: function(s) {
+      score += s;
+    },
+
+    run: function(wpplFn) {
+      var marginal = {};
+
+      // Delimit continuations.
+      reset(function() {
+        var retval = wpplFn();
+
+        if (score !== -Infinity) {
+          var r = JSON.stringify(retval);
+          if (!marginal.hasOwnProperty(r)) {
+            marginal[r] = {prob: 0, val: retval};
+          }
+          marginal[r].prob += Math.exp(score);
+        }
+
+        runNext();
+      });
+
+      return wpplMakeMarginalERP(marginal);
+    }
+
+  };
+}
+
+// Simulate delimited continuations using call/cc.
+// Taken from: http://mumble.net/~campbell/scheme/shift-reset.scm
+
+var reset = function(thunk) {
+  var mc = getMeta();
+  return callcc(function(k) {
+    setMeta(function(value) {
+      setMeta(mc);
+      return k(value);
+    });
+    var result = thunk();
+    return getMeta()(result);
+  });
+};
+
+var shift = function(f) {
+  return callcc(function(k) {
+    var result = f(function(value) {
+      return reset(function() {
+        return k(value);
+      });
+    });
+    return getMeta()(result);
+  });
+};
+
+
+
 // ERPs
 
 var flip = function(theta) {
@@ -192,6 +285,13 @@ var secondLast = function(xs) {
 };
 var last = function(xs) {
   return xs[xs.length - 1];
+};
+
+var forEach = function(fn, ar) {
+  if (ar.length > 0) {
+    fn(ar[0]);
+    forEach(fn, ar.slice(1));
+  }
 };
 
 var map = function(fn, ar) {
@@ -428,5 +528,3 @@ var sort = function(l, pred, key) {
 var sortOn = function(l, key, pred) {
   return _sort(l, (pred == undefined ? lt : pred), key);
 };
-
-

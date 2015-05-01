@@ -1,5 +1,6 @@
 'use strict';
 
+var makeMarginalERP = require('./erp.js').makeMarginalERP;
 
 module.exports = function(env) {
 
@@ -34,10 +35,56 @@ module.exports = function(env) {
     return wpplFn.apply(global, [s, k, a].concat(args));
   }
 
+  // TODO: Is there a better way to use this than wrapping it?
+  var wpplMakeMarginalERP = function(s, k, a, marginal) {
+    return k(s, makeMarginalERP(marginal));
+  };
+
+  // TODO: Do I need to extend the stack address here?
+  var runWithCoroutine = function(s, k, a, coroutine, wpplFn) {
+    // Store the current coroutine.
+    var entryCoroutine = env.coroutine;
+    // Install the new coroutine.
+    env.coroutine = coroutine;
+    // Run the wpplFn with the coroutine.
+    return coroutine.run(s, function(s, val) {
+      // Restore the original coroutine.
+      env.coroutine = entryCoroutine;
+      return k(s, val);
+    }, a, wpplFn);
+  };
+
+  // TODO: Do I need to extend the stack address here?
+  var callcc = function(s, k, a, f) {
+    return f(s, k, a, function(s, _, a, x) {
+      return k(s, x)
+    });
+  };
+
+  // Delimited continuations state and methods to manipulated it.
+
+  env.metaContinuation = function() {
+    throw 'No top-level reset.';
+  };
+
+  var getMeta = function(s, k, a) {
+    return k(s, env.metaContinuation);
+  };
+
+  var setMeta = function(s, k, a, value) {
+    env.metaContinuation = value;
+    return k(s);
+  };
+
   return {
     display: display,
     cache: cache,
-    apply: apply
+    apply: apply,
+    wpplMakeMarginalERP: wpplMakeMarginalERP,
+    runWithCoroutine: runWithCoroutine,
+    callcc: callcc,
+    getMeta: getMeta,
+    setMeta: setMeta
   };
 
 };
