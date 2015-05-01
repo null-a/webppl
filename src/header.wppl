@@ -32,19 +32,28 @@ var enumerateCoroutine = function() {
         runNext();
       });
 
+      globalStore.score += erp.score(params, value);
+
       return value;
     },
 
     factor: function(s) {
+      globalStore.score += s;
       score += s;
     },
 
     run: function(wpplFn) {
       var marginal = {};
 
+      // Use the store to score the score to test store handling in shift/reset.
+      entryGlobalScore = globalStore.score;
+      globalStore.score = 0;
+
       // Delimit continuations.
       reset(function() {
         var retval = wpplFn();
+
+        assert.equal(score, globalStore.score);
 
         if (score !== -Infinity) {
           var r = JSON.stringify(retval);
@@ -56,6 +65,8 @@ var enumerateCoroutine = function() {
 
         runNext();
       });
+
+      globalStore.score = entryGlobalScore;
 
       return wpplMakeMarginalERP(marginal);
     }
@@ -79,9 +90,11 @@ var reset = function(thunk) {
 };
 
 var shift = function(f) {
+  var store = getStore();
   return callcc(function(k) {
     var result = f(function(value) {
       return reset(function() {
+        setStore(_.clone(store));
         return k(value);
       });
     });

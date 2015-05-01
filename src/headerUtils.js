@@ -61,6 +61,14 @@ module.exports = function(env) {
     });
   };
 
+  var getStore = function(s, k, a) {
+    return k(s, s);
+  };
+
+  var setStore = function(s, k, a, store) {
+    return k(store);
+  };
+
   // Delimited continuations state and methods to manipulated it.
 
   env.metaContinuation = function() {
@@ -83,6 +91,8 @@ module.exports = function(env) {
     wpplMakeMarginalERP: wpplMakeMarginalERP,
     runWithCoroutine: runWithCoroutine,
     callcc: callcc,
+    getStore: getStore,
+    setStore: setStore,
     getMeta: getMeta,
     setMeta: setMeta
   };
