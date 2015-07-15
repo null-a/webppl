@@ -1,10 +1,16 @@
 'use strict';
 
 var _ = require('underscore');
-
+var crypto = require('crypto');
 
 function runningInBrowser() {
   return (typeof window !== 'undefined');
+}
+
+function md5Concat(a, b) {
+  var h = crypto.createHash('md5').update(a.concat(b)).digest('hex');
+  //console.log([a, b]);
+  return h;
 }
 
 function makeGensym() {
@@ -172,5 +178,6 @@ module.exports = {
   prettyJSON: prettyJSON,
   runningInBrowser: runningInBrowser,
   std: std,
-  sum: sum
+  sum: sum,
+  md5Concat: md5Concat
 };

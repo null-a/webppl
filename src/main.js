@@ -20,6 +20,8 @@ var analyze = require('./analysis/main').analyze;
 var util = require('./util');
 
 
+global.md5 = { concat: util.md5Concat };
+
 // Container for coroutine object and shared top-level
 // functions (sample, factor, exit)
 var env = {};

@@ -23,12 +23,20 @@ var genvar = null;
 
 var addresses = [];
 
+// function makeAddressExtension(address) {
+//   return build.callExpression(
+//       build.memberExpression(address,
+//                              build.identifier('concat'),
+//                              false),
+//       [genlit()]);
+// }
+
 function makeAddressExtension(address) {
   return build.callExpression(
-      build.memberExpression(address,
+      build.memberExpression(build.identifier('md5'),
                              build.identifier('concat'),
                              false),
-      [genlit()]);
+      [address, genlit()]);
 }
 
 function generating(node) {
