@@ -88,7 +88,7 @@ module.exports = function(env) {
     var val = reuse ? prev.val : erp.sample(params);
     // On proposal: bail out early if the value didn't change
     // Don't bail early as we're comparing with MH which doesn't have this optimization.
-    if (false && forceSample && prev.val === val) {
+    if (forceSample && prev.val === val) {
       this.vars = this.oldVars;
       this.varlist = this.oldvarlist;
       this.currScore = this.oldScore;
@@ -196,8 +196,8 @@ module.exports = function(env) {
         }
 
         // make a new proposal:
-        //this.propIdx = Math.floor(Math.random() * this.varlist.length);
-        this.propIdx = Math.floor(this.varlist.length / 2);
+        this.propIdx = Math.floor(Math.random() * this.varlist.length);
+        //this.propIdx = Math.floor(this.varlist.length / 2);
         var entry = this.varlist[this.propIdx];
         this.oldVars = this.vars;
         this.vars = _.clone(this.vars);

@@ -178,8 +178,8 @@ module.exports = function(env) {
         this.returnHist[stringifiedVal].prob += 1;
       }
       // make a new proposal:
-      //this.regenFrom = Math.floor(Math.random() * this.trace.length);
-      this.regenFrom = Math.floor(this.trace.length / 2);
+      this.regenFrom = Math.floor(Math.random() * this.trace.length);
+      //this.regenFrom = Math.floor(this.trace.length / 2);
       var regen = this.trace[this.regenFrom];
       this.oldTrace = this.trace;
       this.trace = this.trace.slice(0, this.regenFrom);
