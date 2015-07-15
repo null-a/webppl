@@ -10,6 +10,8 @@ function runningInBrowser() {
 function md5Concat(a, b) {
   var h = crypto.createHash('md5').update(a.concat(b)).digest('hex');
   //console.log([a, b]);
+  //var h = [a,b].join(''); // Force join.
+  //var h = a.concat(b); // Original.
   return h;
 }
 
