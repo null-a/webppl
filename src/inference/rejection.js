@@ -10,6 +10,7 @@
 
 var erp = require('../erp.js');
 var assert = require('assert');
+var _ = require('underscore');
 
 module.exports = function(env) {
 
@@ -24,6 +25,8 @@ module.exports = function(env) {
     this.numSamples = numSamples;
     this.oldCoroutine = env.coroutine;
     env.coroutine = this;
+
+    this.t0 = _.now();
 
     if (this.incremental) {
       assert(this.maxScore <= 0, 'maxScore cannot be positive for incremental rejection.');
@@ -73,6 +76,7 @@ module.exports = function(env) {
     if (this.numSamples === 0) {
       var dist = erp.makeMarginalERP(util.logHist(this.hist));
       env.coroutine = this.oldCoroutine;
+      dist.t = _.now() - this.t0;
       return this.k(this.s, dist);
     } else {
       return this.run();

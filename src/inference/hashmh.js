@@ -68,6 +68,7 @@ module.exports = function(env) {
     this.oldScore = -Infinity;
     this.query = new Query();
     env.query.clear();
+    this.t0 = _.now();
     return this.wpplFn(_.clone(this.s), env.exit, this.a);
   };
 
@@ -86,7 +87,8 @@ module.exports = function(env) {
     var reuse = ! (prev === undefined || forceSample);
     var val = reuse ? prev.val : erp.sample(params);
     // On proposal: bail out early if the value didn't change
-    if (forceSample && prev.val === val) {
+    // Don't bail early as we're comparing with MH which doesn't have this optimization.
+    if (false && forceSample && prev.val === val) {
       this.vars = this.oldVars;
       this.varlist = this.oldvarlist;
       this.currScore = this.oldScore;
@@ -194,7 +196,8 @@ module.exports = function(env) {
         }
 
         // make a new proposal:
-        this.propIdx = Math.floor(Math.random() * this.varlist.length);
+        //this.propIdx = Math.floor(Math.random() * this.varlist.length);
+        this.propIdx = Math.floor(this.varlist.length / 2);
         var entry = this.varlist[this.propIdx];
         this.oldVars = this.vars;
         this.vars = _.clone(this.vars);
@@ -233,6 +236,8 @@ module.exports = function(env) {
       env.coroutine = this.oldCoroutine;
 
       // console.log('Acceptance ratio: ' + this.acceptedProps / this.totalIterations);
+
+      dist.t = _.now() - this.t0;
 
       // Return by calling original continuation:
       return k(this.oldStore, dist);

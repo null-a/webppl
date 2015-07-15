@@ -110,6 +110,8 @@ module.exports = function(env) {
     this.s = s;
     this.a = a;
 
+    this.t0 = _.now();
+
     this.oldCoroutine = env.coroutine;
     env.coroutine = this;
   }
@@ -176,7 +178,8 @@ module.exports = function(env) {
         this.returnHist[stringifiedVal].prob += 1;
       }
       // make a new proposal:
-      this.regenFrom = Math.floor(Math.random() * this.trace.length);
+      //this.regenFrom = Math.floor(Math.random() * this.trace.length);
+      this.regenFrom = Math.floor(this.trace.length / 2);
       var regen = this.trace[this.regenFrom];
       this.oldTrace = this.trace;
       this.trace = this.trace.slice(0, this.regenFrom);
@@ -199,6 +202,7 @@ module.exports = function(env) {
       }
       // Return by calling original continuation:
       // console.log(this.acceptedProposals, this.rejectedProposals);
+      dist.t = _.now() - this.t0;
       return k(this.oldStore, dist);
     }
   };

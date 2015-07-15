@@ -1,0 +1,33 @@
+
+
+var bin = function(n) {
+  if (n == 0) {
+    0
+  } else {
+    bin(n - 1) + flip(0.5)
+  }
+};
+
+
+
+var iters = 5;
+
+
+var dists = map(function(n) {
+
+  var n = (n + 1) * 250;
+
+
+  //var dist = Enumerate(function() { return bin(n) });
+
+
+  var dist = HashMH(function() { return bin(n); }, iters);
+  //var dist = MH(function() { return bin(n); }, iters, 0);
+  //var dist = Rejection(function() { return bin(n); }, iters);
+  console.log('[' + n + ',' + dist.t + '],');
+  //dist
+}, _.range(30));
+
+
+//last(dists)
+{}
