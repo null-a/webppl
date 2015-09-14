@@ -2,8 +2,6 @@ language: node_js
 
 node_js:
   - "0.12"
-  - "0.11"
-  - "0.10"
   - "4.0.0"
 
 install:
@@ -11,6 +9,6 @@ install:
   - npm install -g nodeunit grunt-cli
 
 script:
-  - grunt
+  - node tests/perf.js
 
 sudo: false
