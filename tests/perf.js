@@ -119,6 +119,8 @@ var main = function() {
     if (onTravis()) {
       console.log('Recording result.');
       recordResult(example, result.elapsed, norm, travisNodeVersion(), true);
+    } else {
+      console.log(example, result.elapsed, norm);
     }
   });
 };
