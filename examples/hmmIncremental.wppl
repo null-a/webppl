@@ -6,7 +6,9 @@ var observe = function(s) {
   return s ? flip(0.9) : flip(0.1)
 }
 
-var trueObs = [false, false, false]
+var n = 9;
+
+var trueObs = repeat(n, falseF);
 
 var hmmRecur = function(n, states, observations) {
   var newState = transition(states[states.length - 1])
@@ -23,6 +25,6 @@ var hmm = function(n) {
 }
 
 Enumerate(function() {
-  var r = hmm(3)
+  var r = hmm(n)
   return r.states
-}, 100)
+})

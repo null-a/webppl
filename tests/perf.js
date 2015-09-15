@@ -11,7 +11,8 @@ var querystring = require('querystring');
 var examplesDir = './examples/';
 
 var examples = [
-  'lda'
+  'lda',
+  'hmmIncremental'
 ];
 
 var loadExample = function(example) {
