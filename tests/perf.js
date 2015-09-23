@@ -86,12 +86,13 @@ var postRequest = function(data, verbose) {
   req.end();
 };
 
-var recordResult = function(name, elapsed, norm, nodeVersion, verbose) {
+var recordResult = function(name, elapsed, norm, nodeVersion, commit, verbose) {
   postRequest({
     'entry.1021264083': name,
     'entry.1475555098': elapsed,
     'entry.983343629': norm,
     'entry.1570713488': nodeVersion,
+    'entry.2058119347': commit,
     'entry.264740260': 'not-a-bot'
   }, verbose);
 };
@@ -102,6 +103,10 @@ var onTravis = function() {
 
 var travisNodeVersion = function() {
   return process.env.TRAVIS_NODE_VERSION;
+};
+
+var travisCommit = function() {
+  return process.env.TRAVIS_COMMIT;
 };
 
 var main = function() {
@@ -121,7 +126,7 @@ var main = function() {
     });
     if (onTravis()) {
       console.log('Recording result.');
-      recordResult(example, result.elapsed, norm, travisNodeVersion(), true);
+      recordResult(example, result.elapsed, norm, travisNodeVersion(), travisCommit(), true);
     } else {
       console.log(example, result.elapsed, norm);
     }
