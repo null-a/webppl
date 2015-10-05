@@ -1,7 +1,27 @@
 'use strict';
 
 var _ = require('underscore');
+var assert = require('assert');
+var seedrandom = require('seedrandom');
 
+var rng = Math.random;
+
+function random() {
+  return rng();
+}
+
+function seedRNG(seed) {
+  rng = seedrandom(seed);
+}
+
+function resetRNG() {
+  rng = Math.random;
+}
+
+function assertValidRandomSeed(seed) {
+  var msg = 'Random seed should be a positive integer.';
+  assert(_.isFinite(seed) && seed >= 0, msg);
+}
 
 function runningInBrowser() {
   return (typeof window !== 'undefined');
@@ -70,51 +90,49 @@ function logsumexp(a) {
   return m + Math.log(sum);
 }
 
-function copyObj(obj) {
-  var newobj = {};
-  for (var k in obj) {
-    if (obj.hasOwnProperty(k)) {newobj[k] = obj[k];}
-  }
-  return newobj;
-}
-
-// More efficient version of (indexOf o map p)
-var indexOfPred = function(l, p, start) {
-  var start = start || 0;
-  for (var i = start; i < l.length; i++) {
-    if (p(l[i])) {
-      return i;
-    }
-  }
-  return -1;
-};
-
-// more efficient version of (indexOf o map p o reverse)
-var lastIndexOfPred = function(l, p, start) {
-  var start = start || l.length - 1;
-  for (var i = start; i >= 0; i--) {
-    if (p(l[i])) return i;
-  }
-  return -1;
-};
-
 var deleteIndex = function(arr, i) {
   return arr.slice(0, i).concat(arr.slice(i + 1))
 }
 
-// func(x, i, xs, nextK)
-// nextK()
-function cpsForEach(func, nextK, xs, i) {
+// func(x, i, xs, cont)
+// cont()
+function cpsForEach(func, cont, xs, i) {
   i = (i === undefined) ? 0 : i;
   if (i === xs.length) {
-    return nextK();
+    return cont();
   } else {
     return func(xs[i], i, xs, function() {
       return function() { // insert trampoline step
-        return cpsForEach(func, nextK, xs, i + 1);
-      }
+        return cpsForEach(func, cont, xs, i + 1);
+      };
     });
   }
+}
+
+function cpsLoop(n, func, cont, i) {
+  assert(_.isNumber(n), 'Number expected.');
+  i = (i === undefined) ? 0 : i;
+  if (i === n) {
+    return cont();
+  } else {
+    return func(i, function() {
+      return function() { // insert trampoline step
+        return cpsLoop(n, func, cont, i + 1);
+      };
+    });
+  }
+}
+
+function cpsIterate(n, initial, func, cont) {
+  var val = initial;
+  return cpsLoop(n,
+      function(i, next) {
+        return func(function(nextVal) {
+          val = nextVal;
+          return next();
+        }, val);
+      },
+      function() { return cont(val); });
 }
 
 function histsApproximatelyEqual(hist, expectedHist, tolerance) {
@@ -159,10 +177,8 @@ function std(hist) {
   return Math.sqrt(variance);
 }
 
-function getOpt(optObject, option, defaultValue) {
-  return (optObject && optObject[option] !== undefined) ?
-      optObject[option] :
-      defaultValue;
+function mergeDefaults(options, defaults) {
+  return _.defaults(options ? _.clone(options) : {}, defaults);
 }
 
 function InfToJSON(k, v) {
@@ -194,15 +210,18 @@ function deserialize(o) {
 }
 
 module.exports = {
-  copyObj: copyObj,
+  random: random,
+  seedRNG: seedRNG,
+  resetRNG: resetRNG,
+  assertValidRandomSeed: assertValidRandomSeed,
   cpsForEach: cpsForEach,
+  cpsLoop: cpsLoop,
+  cpsIterate: cpsIterate,
   expectation: expectation,
   gensym: gensym,
   histsApproximatelyEqual: histsApproximatelyEqual,
-  indexOfPred: indexOfPred,
   logsumexp: logsumexp,
   logHist: logHist,
-  lastIndexOfPred: lastIndexOfPred,
   deleteIndex: deleteIndex,
   makeGensym: makeGensym,
   normalizeArray: normalizeArray,
@@ -210,7 +229,7 @@ module.exports = {
   prettyJSON: prettyJSON,
   runningInBrowser: runningInBrowser,
   std: std,
-  getOpt: getOpt,
+  mergeDefaults: mergeDefaults,
   sum: sum,
   asArray: asArray,
   serialize: serialize,

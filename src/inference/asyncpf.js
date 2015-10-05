@@ -7,8 +7,8 @@
 'use strict';
 
 var _ = require('underscore');
-var util = require('../util.js');
-var erp = require('../erp.js');
+var util = require('../util');
+var erp = require('../erp');
 
 module.exports = function(env) {
 
@@ -66,7 +66,7 @@ module.exports = function(env) {
 
     // launch a new particle OR continue an existing one
     var p, launchP;
-    var i = Math.floor((this.buffer.length + 1) * Math.random());
+    var i = Math.floor((this.buffer.length + 1) * util.random());
     if (i == this.buffer.length) { // generate new particle
       p = initParticle(this.store, this.exitK);
     } else {                    // launch particle in queue
@@ -122,7 +122,7 @@ module.exports = function(env) {
 
       // compute number of children and their weights
       if (logRatio < 0) {
-        numChildrenAndWeight = Math.log(Math.random()) < logRatio ?
+        numChildrenAndWeight = Math.log(util.random()) < logRatio ?
             [1, wbar] :
             [0, -Infinity];
       } else {

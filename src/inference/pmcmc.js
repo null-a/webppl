@@ -4,7 +4,7 @@
 'use strict';
 
 var _ = require('underscore');
-var erp = require('../erp.js');
+var erp = require('../erp');
 
 module.exports = function(env) {
 
@@ -69,7 +69,7 @@ module.exports = function(env) {
 
   PMCMC.prototype.activeContinuationWithStore = function() {
     var k = last(this.activeParticle().continuations);
-    var s = _.clone(last(this.activeParticle().stores)); // FIXME: why is cloning here necessary?
+    var s = _.clone(last(this.activeParticle().stores));
     return function() {
       return k(s);
     };
