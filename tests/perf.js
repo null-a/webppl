@@ -102,7 +102,8 @@ var onTravis = function() {
 };
 
 var travisNodeVersion = function() {
-  return process.env.TRAVIS_NODE_VERSION;
+  //return process.env.TRAVIS_NODE_VERSION;
+  return process.version;
 };
 
 var travisCommit = function() {
