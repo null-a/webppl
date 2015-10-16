@@ -1,0 +1,66 @@
+var getMatrixCol = function(m, col) {
+  assert.ok(0 <= col && col < m.length);
+  return numeric.transpose(numeric.getBlock(m, [0, col], [m.length - 1, col]))[0];
+};
+
+// TODO: Test.
+var median = function(ar) {
+  assert.ok(ar.length > 0);
+  //display(ar);
+  return sort(ar)[Math.floor((ar.length - 1) / 2)];
+};
+
+var partition = function(ar, pred) {
+  var recur = function(ar, l, r) {
+    if (ar.length === 0) {
+      return [l, r];
+    } else {
+      var x = first(ar);
+      if (pred(x)) {
+        return recur(rest(ar), snoc(l, x), r);
+      } else {
+        return recur(rest(ar), l, snoc(r, x));
+      }
+    }
+  };
+  return recur(ar, [], []);
+};
+
+
+// TODO: Check this agrees with the supplied code.
+
+// Then I can use this to try different variations of the model to see how they compare.
+
+
+
+var estimateTVD = function(X, Y, minLeaf) {
+  // X and Y are both numSamples x numDims matricies of samples.
+  var Xdim = numeric.dim(X);
+  var Ydim = numeric.dim(Y);
+  assert.strictEqual(Xdim[1], Ydim[1]);
+  assert.ok(minLeaf !== undefined);
+  var recur = function(A, B) {
+
+    //display(A);
+    //display(B);
+
+    var Adim = numeric.dim(A);
+    var Bdim = numeric.dim(B);
+    if (Adim[0] < minLeaf || Bdim[0] < minLeaf) {
+      return 0.5 * Math.abs(Adim[0] / Xdim[0] - Bdim[0] / Ydim[0]);
+    } else {
+      var d = randomInteger(Xdim[1]);
+
+      //display(getMatrixCol(A, 0));
+      var m = median(getMatrixCol(A, d).concat(getMatrixCol(B, d)));
+      display(d);
+      display(m);
+      var partA = partition(A, function(x) { return x[d] < m; });
+      var partB = partition(B, function(x) { return x[d] < m; });
+      //display(partA);
+      //display(partB);
+      return recur(partA[0], partB[0]) + recur(partA[1], partB[1]);
+    }
+  };
+  return recur(X, Y);
+};

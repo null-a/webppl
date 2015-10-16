@@ -2,7 +2,7 @@
 
 var _ = require('underscore');
 var assert = require('assert');
-var erp = require('../erp');
+var _erp = require('../erp');
 var util = require('../util');
 
 module.exports = function(env) {
@@ -56,11 +56,18 @@ module.exports = function(env) {
   MHKernel.prototype.sample = function(s, k, a, erp, params, forceSample) {
     var val, prevChoice = this.oldTrace.findChoice(a);
 
+
+
     if (forceSample) {
       assert(prevChoice);
       var proposalErp = erp.proposer || erp;
       var proposalParams = erp.proposer ? [params, prevChoice.val] : params;
       val = proposalErp.sample(proposalParams);
+
+      // if (erp === _erp.multivariateGaussianERP) {
+      //   console.log(val);
+      // }
+
       // Optimization: Bail early if same value is re-sampled.
       if (prevChoice.val === val) {
         return this.cont(this.oldTrace, true);

@@ -285,7 +285,7 @@ var wishartERP = new ERP({
     var dof = params[1];
     var p = V.length;
     assert.ok(dof > p - 1);
-    // TODO: Try to avoid recomputing this for every sample.
+    // TODO: Try to avoid recomputing this for every sample?
     var chol = cholesky(V);
     var Z = repeatM([p, dof], stdGaussianSample);
     var X = numeric.dot(chol, Z);
@@ -699,6 +699,12 @@ function gaussianProposalParams(params, prevVal) {
   return [mu, sigma];
 }
 
+function mvGaussianProposalParams(params, prevVal) {
+  var mu = prevVal;
+  var Sigma = numeric.mul(numeric.identity(prevVal.length), 0.1);
+  return [mu, Sigma];
+};
+
 function dirichletProposalParams(params, prevVal) {
   var concentration = 0.1;
   var driftParams = params.map(function(x) {return concentration * x});
@@ -723,12 +729,19 @@ function buildProposer(baseERP, getProposalParams) {
 }
 
 var gaussianProposerERP = buildProposer(gaussianERP, gaussianProposalParams);
+var mvGaussianProposerERP = buildProposer(multivariateGaussianERP, mvGaussianProposalParams);
 var dirichletProposerERP = buildProposer(dirichletERP, dirichletProposalParams);
 
 var gaussianDriftERP = new ERP({
   sample: gaussianERP.sample,
   score: gaussianERP.score,
   proposer: gaussianProposerERP
+});
+
+var mvGaussianDriftERP = new ERP({
+  sample: multivariateGaussianERP.sample,
+  score: multivariateGaussianERP.score,
+  proposer: mvGaussianProposerERP
 });
 
 var dirichletDriftERP = new ERP({
@@ -781,8 +794,10 @@ module.exports = setErpNames({
   makeCategoricalERP: makeCategoricalERP,
   makeMultiplexERP: makeMultiplexERP,
   gaussianDriftERP: gaussianDriftERP,
+  mvGaussianDriftERP: mvGaussianDriftERP,
   dirichletDriftERP: dirichletDriftERP,
   gaussianProposerERP: gaussianProposerERP,
+  mvGaussianProposerERP: mvGaussianProposerERP,
   dirichetProposerERP: dirichletProposerERP,
   withImportanceDist: withImportanceDist,
   isErp: isErp,

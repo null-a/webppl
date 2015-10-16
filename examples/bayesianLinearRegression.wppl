@@ -1,0 +1,88 @@
+// Helpers.
+
+var toCSV = function(ar) {
+  // ar is expected to be a 2d array.
+  return map(function(row) {
+    return map(function(entry) {
+      return JSON.stringify(entry);
+    }, row).join(', ');
+  }, ar).join('\n');
+};
+
+var observe = function(erp, params, val) {
+  factor(erp.score(params, val));
+};
+
+var loadData = function() {
+  // TODO: Should we expose just readFile/writeFile functions since
+  // lots of fs isn't useful.
+  // TODO: Should we make paths relative to the current program?
+  var allData = numeric.parseCSV(fs.readFileSync('../ppaml-cp4/problems/problem1/problem-1-data.csv', 'utf8'));
+  var X = numeric.getBlock(allData, [1,1], [500, 5]);
+  var ys = numeric.transpose(numeric.getBlock(allData, [1,6], [500, 6]))[0];
+  return { X: X, ys: ys };
+};
+
+var wTrue = [-1.731855, 2.986017, 2.698284, -3.591651, -3.714157];
+
+var sqError = function(w) {
+  return numeric.norm2Squared(numeric.sub(w, wTrue));
+};
+
+var computeMetric1 = function(posterior) {
+  return expectation(posterior, sqError);
+};
+
+var data = loadData();
+
+var dim = 5; // Including bias term.
+var I = numeric.identity(dim);
+
+var model = function() {
+
+  var mu = repeat(dim, function() { gaussian(0, 2); });
+  var Prec = sample(wishartERP, [I, dim]);
+
+  //var w = multivariateGaussian(mu, numeric.inv(Prec));
+  var w = sample(mvGaussianDriftERP, [mu, numeric.inv(Prec)]);
+
+  // It's unclear from the description how this gamma should be
+  // parameterized. The code seems to suggest it's like this:
+  var tau = gamma(0.5, 2);
+
+  // TODO: No need to accumulate results, perhaps add a forEach2.
+  // Although slicing off the tail will still lead to run time
+  // quadratic in the length the the input array(s) I think.
+  map2(function(xs, y) {
+    observe(gaussianERP, [numeric.dot(xs, w), 1 / tau], y);
+  }, data.X, data.ys);
+
+  return w;
+};
+
+// TODO: We need both samples /and/ the full ERP to compute both
+// metrics, so making the options justSample etc. more flexible would
+// be useful.
+
+var posterior = MCMC(model, { burn: 20000, lag: 20, samples: 4000, verbose: true, justSample: true });
+fs.writeFileSync('posteriorSamples.csv', toCSV(posterior.samples));
+
+//display('Expected squared error:');
+//display(computeMetric1(posterior));
+
+'done';
+//posterior;
+
+// TODO: Callbacks to compute this periodically during inference.
+
+// 104K iterations: ~8 minutes.
+
+// Expected squared error:
+// 5.306494627398419
+
+// Metric 2:
+// 0.83
+
+// Metric 2:
+// (with mvGaussianDriftERP)
+// 0.65

@@ -18,6 +18,7 @@
 
 'use strict';
 
+var fs = require('fs');
 var assert = require('assert');
 var _ = require('underscore');
 
@@ -122,7 +123,8 @@ module.exports = function(env) {
   addExports({
     _: _,
     util: util,
-    assert: assert
+    assert: assert,
+    fs: fs
   });
 
   // Inference functions and header utils
