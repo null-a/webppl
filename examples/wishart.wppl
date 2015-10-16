@@ -1,0 +1,25 @@
+var s = function() {
+  sample(wishartERP, [numeric.identity(2), 2]);
+};
+
+var n = 10;
+
+var ar = repeat(n, s);
+
+//display(ar);
+
+
+// var f= numeric.add;
+// f(ar[0], numeric.rep([2,2], 0)) |> display;
+// display('***');
+
+
+// The mean looks OK:
+
+numeric.div(reduce(function(x,y) { numeric.add(x,y) }, numeric.rep([3, 3], 0), ar), n) |> numeric.prettyPrint;
+
+
+var s1 = s();
+display(s1);
+
+wishartERP.score([numeric.identity(2), 2], [[2,0], [0,2]]);

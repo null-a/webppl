@@ -227,6 +227,84 @@ var multivariateGaussianERP = new ERP({
   score: multivariateGaussianScore
 });
 
+var cholesky = function(A) {
+  // A is d x d.
+  var d = A.length;
+  var L = numeric.rep([d, d], 0);
+  var i, j, k, s;
+  for (i = 0; i < d; i++) {
+    for (j = 0; j < i + 1; j++) {
+      s = 0;
+      for (k = 0; k < j; k++) {
+        s += L[i][k] * L[j][k];
+      }
+      L[i][j] = (i === j) ? Math.sqrt(A[i][i] - s) : (1 / L[j][j] * (A[i][j] - s));
+    }
+  }
+  return L;
+};
+
+
+var stdGaussianSample = function() {
+  return gaussianSample([0, 1]);
+};
+
+var repeatM = function(shape, f) {
+  // shape = (rows, cols)
+  var ret = Array(shape[0]);
+  var i, j;
+  for (i = 0; i < shape[0]; i++) {
+    ret[i] = Array(shape[1]);
+    for (j = 0; j < shape[1]; j++) {
+      ret[i][j] = f();
+    }
+  }
+  return ret;
+};
+
+var trace = function(A) {
+  var d = A.length;
+  var tr = 0;
+  for (var i = 0; i < d; i++) {
+    tr += A[i][i];
+  }
+  return tr;
+};
+
+var logMVGamma = function(a, p) {
+  var ret = p / 4 * (p - 1) * Math.log(Math.PI);
+  for (var j = 1; j <= p; j++) {
+    ret += logGamma(a + (1 - j) / 2);
+  }
+  return ret;
+};
+
+var wishartERP = new ERP({
+  sample: function(params) {
+    var V = params[0]; // Scale matrix.
+    var dof = params[1];
+    var p = V.length;
+    assert.ok(dof > p - 1);
+    // TODO: Try to avoid recomputing this for every sample.
+    var chol = cholesky(V);
+    var Z = repeatM([p, dof], stdGaussianSample);
+    var X = numeric.dot(chol, Z);
+    return numeric.dot(X, numeric.transpose(X));
+  },
+  score: function(params, val) {
+    // This is a naive implementation and probably not very
+    // fast/accurate/stable.
+    var X = val;
+    var V = params[0];
+    var dof = params[1];
+    var p = V.length;
+    var Vinv = numeric.inv(V); // Solve?
+    var logNumer = (dof - p - 1) * Math.log(numeric.det(X)) - trace(numeric.dot(Vinv, X));
+    var logDenom = dof * p * Math.log(2) + dof * Math.log(numeric.det(V)) + 2 * logMVGamma(dof / 2, p);
+    return (logNumer - logDenom) / 2;
+  }
+});
+
 var discreteERP = new ERP({
   sample: function(params) {
     return multinomialSample(params[0]);
@@ -695,6 +773,7 @@ module.exports = setErpNames({
   gaussianERP: gaussianERP,
   multinomialSample: multinomialSample,
   multivariateGaussianERP: multivariateGaussianERP,
+  wishartERP: wishartERP,
   poissonERP: poissonERP,
   randomIntegerERP: randomIntegerERP,
   uniformERP: uniformERP,
