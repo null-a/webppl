@@ -13,6 +13,36 @@ var observe = function(erp, params, val) {
   factor(erp.score(params, val));
 };
 
+var repeatMatrix = function(shape, f) {
+  var rows = shape[0];
+  var cols = shape[1];
+  return repeat(rows, function() {
+    return repeat(cols, f);
+  });
+};
+
+// It's interesting to consider writing these in WebPPL.
+
+var sampleWishart = function(V, dof) {
+  var p = V.length;
+  assert.ok(dof > p - 1);
+  var chol = cholesky2(V); // For this model V == I hence chol == I?
+  var Z = repeatMatrix([p, dof], function() { gaussian(0, 1); });
+  var X = numeric.dot(chol, Z);
+  return numeric.dot(X, numeric.transpose(X));
+};
+
+var sampleMVGaussian = function(mu, Sigma) {
+  var d = mu.length;
+  var svd = numeric.svd(Sigma);
+  var scaledV = map(function(x) {
+    numeric.mul(numeric.sqrt(svd.S), x);
+  }, numeric.transpose(svd.V));
+  var draws = repeat(d, function() { gaussian(0, 1); });
+  var xs = numeric.dot(draws, numeric.transpose(scaledV));
+  return numeric.add(xs, mu);
+};
+
 var loadData = function() {
   // TODO: Should we expose just readFile/writeFile functions since
   // lots of fs isn't useful.
@@ -41,10 +71,12 @@ var I = numeric.identity(dim);
 var model = function() {
 
   var mu = repeat(dim, function() { gaussian(0, 2); });
-  var Prec = sample(wishartERP, [I, dim]);
+  //var Prec = sample(wishartERP, [I, dim]);
+  var Prec = sampleWishart(I, dim);
 
   //var w = multivariateGaussian(mu, numeric.inv(Prec));
-  var w = sample(mvGaussianDriftERP, [mu, numeric.inv(Prec)]);
+  //var w = sample(mvGaussianDriftERP, [mu, numeric.inv(Prec)]);
+  var w = sampleMVGaussian(mu, numeric.inv(Prec));
 
   // It's unclear from the description how this gamma should be
   // parameterized. The code seems to suggest it's like this:
@@ -77,7 +109,7 @@ fs.writeFileSync('posteriorSamples.csv', toCSV(posterior.samples));
 
 // 104K iterations: ~8 minutes.
 
-// Expected squared error:
+// Metric 1 - expected squared error:
 // 5.306494627398419
 
 // Metric 2:
@@ -86,3 +118,7 @@ fs.writeFileSync('posteriorSamples.csv', toCSV(posterior.samples));
 // Metric 2:
 // (with mvGaussianDriftERP)
 // 0.65
+
+// Metric 2:
+// (with sampleWishart & sampleMVGaussian)
+// 0.52

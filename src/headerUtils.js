@@ -1,11 +1,16 @@
 'use strict';
 
+var erp = require('./erp');
 
 module.exports = function(env) {
 
   function display(s, k, a, x) {
     return k(s, console.log(x));
   }
+
+  function cholesky(s, k, a, m) {
+    return k(s, erp.cholesky(m));
+  };
 
   // Caching for a wppl function f.
   //
@@ -59,7 +64,8 @@ module.exports = function(env) {
     display: display,
     cache: cache,
     apply: apply,
-    _Fn: _Fn
+    _Fn: _Fn,
+    cholesky2: cholesky
   };
 
 };

@@ -801,5 +801,6 @@ module.exports = setErpNames({
   dirichetProposerERP: dirichletProposerERP,
   withImportanceDist: withImportanceDist,
   isErp: isErp,
-  isErpWithSupport: isErpWithSupport
+  isErpWithSupport: isErpWithSupport,
+  cholesky: cholesky
 });
