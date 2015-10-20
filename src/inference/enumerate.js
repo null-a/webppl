@@ -89,9 +89,13 @@ module.exports = function(env) {
   };
 
   Enumerate.prototype.factor = function(s, cc, a, score) {
-    // Update score and continue
     this.score += score;
-    return cc(s);
+    if (this.score === -Infinity) {
+      // Bail early.
+      return this.nextInQueue();
+    } else {
+      return cc(s);
+    }
   };
 
   Enumerate.prototype.sampleWithFactor = function(store, cc, a, dist, params, scoreFn) {
