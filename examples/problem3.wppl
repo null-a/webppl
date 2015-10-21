@@ -1,0 +1,186 @@
+var numStates = 5;
+
+// These paths are relative to the webppl executable.
+
+var pDir = '../ppaml-cp4/problems/problem3/';
+var sDir = '../ppaml-cp4/solutions/problem3/';
+
+var loadData = function() {
+
+  var trueStateFn = pDir + 'problem-3-true-state.csv';
+  var outputsFn = pDir + 'problem-3-outputs.csv';
+
+  var mapFn = sDir + 'problem-3-solution-map.csv';
+
+  var numObs = 20;
+
+  var T = function(matrix) { numeric.transpose(matrix); };
+  var readCSV = function(fn) { numeric.parseCSV(fs.readFileSync(fn, 'utf8')); };
+
+  var get = function(topLeft, bottomRight) {
+    return function(matrix) { numeric.getBlock(matrix, topLeft, bottomRight); };
+  };
+
+  var indexOneOfK = function(vec) {
+    vec.indexOf(1);
+  };
+
+  var sub1 = function(x) { x - 1 };
+
+  // Data is switched from 1 to 0 based indexes.
+
+  return {
+    states:
+      readCSV(trueStateFn) |>
+      get([1, 1], [numStates, numObs]) |>
+      T |>
+      function(m) { map(indexOneOfK, m); },
+    obs:
+      readCSV(outputsFn) |>
+      get([1, 1], [numObs, 1]) |>
+      T |>
+      first |>
+      function(xs) { map(sub1, xs); },
+    map:
+      readCSV(mapFn) |>
+      get([0, 0], [numObs - 1, 17]) |>
+      T |>
+      function(m) { map(function(row) { map(sub1, row) }, m) }
+  };
+
+};
+
+var hammingDistance = function(xs, ys) {
+  sum(map2(function(x, y) { x !== y ? 1 : 0; }, xs, ys));
+};
+
+var minHammingDistance = function(mapEst, trueMapStates) {
+  _.min(map(function(mapTrue) { hammingDistance(mapEst, mapTrue); }, trueMapStates));
+};
+
+var toCSV = function(matrix) {
+  map(function(row) {
+    map(function(x) {
+      JSON.stringify(x);
+    }, row).join(',');
+  }, matrix).join('\n') + '\n';
+};
+
+var writeFile = function(fn, data) {
+  fs.writeFileSync(fn, data);
+};
+
+var computeTVD = function(groundTruthFn, inputFn, outputFn) {
+  exec('java -jar ' + sDir + 'tvd-score-hmm/TVDScoreHMM.jar ' + sDir +
+       '/' + groundTruthFn + ' ' + inputFn + ' ' + outputFn);
+};
+
+var hmm = function(n, observations) {
+
+  // If observations are given the executions will be weighted
+  // accordingly. Otherwise, observations will be drawn from the
+  // prior.
+  assert.ok(observations === undefined || observations.length === n);
+
+  var transition = function(state) {
+    (state + randomInteger(3)) % numStates;
+  };
+
+  var emissionProbs = cache(function(state) {
+    mapN(function(i) { i === state ? 0.6 : 0.1 }, numStates);
+  });
+
+  var emit = function(state, obs) {
+    var ps = emissionProbs(state);
+    if (obs) {
+      factor(discreteERP.score([ps], obs));
+      obs;
+    } else {
+      discrete(ps);
+    }
+  };
+
+  var iter = function(n, states, emissions, observations) {
+    if (n === 0) {
+      return {
+        states: states.reverse(),
+        emissions: emissions.reverse()
+      };
+    } else {
+      var newState = states.length === 0 ? 0 : transition(first(states));
+      var obs = observations ? first(observations) : undefined;
+      var restObs = observations ? rest(observations) : undefined;
+      var newEmission = emit(newState, obs);
+      return iter(n - 1, cons(newState, states), cons(newEmission, emissions), restObs);
+    }
+  };
+
+  return iter(n, [], [], observations);
+
+};
+
+var data = loadData();
+
+var modelWithObs = function() {
+  hmm(data.obs.length, data.obs).states;
+};
+
+var query1 = function() {
+  display('True states:');
+  display(data.states);
+
+  display('True MAP states:');
+  display(data.map);
+
+  var posterior = SMC(modelWithObs, { particles: 1000 });
+  var mapEst = posterior.MAP().val;
+
+  display('MAP estimate:');
+  display(mapEst);
+
+  display('Minimum Hamming distance:');
+  display(minHammingDistance(mapEst, data.map));
+};
+
+// TODO: Some of these smoothing/filtering dists (e.g. last time step)
+// are a long way off.
+
+// e.g. The last smoothing dist puts too much mass of state=4.
+// Interestingly the MAP estimates usually seem to finish in state 4.
+// Have I made a mistake somewhere?
+
+var query2 = function() {
+  var posterior = SMC(modelWithObs, { particles: 1000 });
+  var marginals = mapN(function(t) {
+    Enumerate(function() {
+      sample(posterior)[t];
+    });
+  }, data.obs.length);
+  var matrix = map(function(d) {
+    mapN(function(s) {
+      Math.exp(d.score([], s));
+    }, numStates);
+  }, marginals);
+  matrix |> toCSV |> function(csv) { writeFile('smoothing.csv', csv) };
+  computeTVD('problem-3-solution-smoothing.csv', 'smoothing.csv', 'smoothing-tvd.csv');
+  'done';
+};
+
+var query3 = function() {
+  var filteringDist = function(t) {
+    SMC(function() {
+      hmm(t + 1, data.obs.slice(0, t + 1)).states[t];
+    }, { particles: 1000 });
+  };
+  var dists = mapN(filteringDist, data.obs.length);
+  var matrix = map(function(d) {
+    mapN(function(s) {
+      Math.exp(d.score([], s));
+    }, numStates);
+  }, dists);
+  matrix |> toCSV |> function(csv) { writeFile('filtering.csv', csv) };
+  computeTVD('problem-3-solution-filtering.csv', 'filtering.csv', 'filtering-tvd.csv');
+  'done';
+};
+
+query1();

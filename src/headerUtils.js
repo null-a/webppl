@@ -1,5 +1,6 @@
 'use strict';
 
+var child_process = require('child_process');
 
 module.exports = function(env) {
 
@@ -43,6 +44,10 @@ module.exports = function(env) {
     return wpplFn.apply(global, [s, k, a].concat(args));
   }
 
+  function exec(s, k, a, cmd) {
+    return k(s, child_process.execSync(cmd));
+  };
+
   // Annotating a function object with its lexical id and
   //    a list of its free variable values.
   var __uniqueid = 0;
@@ -59,6 +64,7 @@ module.exports = function(env) {
     display: display,
     cache: cache,
     apply: apply,
+    exec: exec,
     _Fn: _Fn
   };
 
