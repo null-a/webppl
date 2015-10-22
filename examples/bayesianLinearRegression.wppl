@@ -18,6 +18,11 @@ var matrixRepeat = function(shape, f) {
 
 // It's interesting to consider writing these in WebPPL.
 
+
+var gaussianD = function(mean, std) {
+  sample(gaussianDriftERP, [mean, std]);
+};
+
 var sampleWishart = function(V, dof) {
   var p = V.length;
   assert.ok(dof > p - 1);
@@ -74,12 +79,16 @@ var model = function() {
 
   var mu = repeat(dim, function() { gaussian(0, 2); });
 
-  //var Prec = sample(wishartERP, [I, dim]);
-  var Prec = sampleWishart(I, dim);
+  var Prec = sample(wishartDriftERP, [I, dim]);
+  //var Prec = sampleWishart(I, dim);
 
   //var w = multivariateGaussian(mu, numeric.inv(Prec));
-  //var w = sample(mvGaussianDriftERP, [mu, numeric.inv(Prec)]);
-  var w = sampleMVGaussian(mu, numeric.inv(Prec));
+  //var w = sampleMVGaussian(mu, numeric.inv(Prec));
+  var w = sample(mvGaussianDriftERP, [mu, numeric.inv(Prec)]);
+
+  // The version of the model from the Stan code. (Doesn't depend on
+  // Prec.)
+  //var w = map(function(m) { gaussianD(m, 1); }, mu);
 
   // It's unclear from the description how this gamma should be
   // parameterized. The code seems to suggest it's like this:
@@ -95,35 +104,55 @@ var model = function() {
   return w;
 };
 
+// TODO: Callbacks to compute this periodically during inference. Even
+// better (perhaps) would be the ability to continute inference.
 
-var posterior = MCMC(model, { burn: 0, lag: 0, samples: 100, verbose: true, justSample: true });
+var computeMetrics = function() {
+  var outputFn = 'posteriorSamples.csv';
 
-var outputFn = 'posteriorSamples.csv';
-fs.writeFileSync(outputFn, util.toCSV(posterior.samples));
-var mse = computeMSE(posterior.samples);
-var tvd = computeTVD(outputFn);
+  var samples = MCMC(model, {
+    burn: 0,
+    lag: 0,
+    samples: 80e3,
+    verbose: true,
+    justSample: true
+  }).samples;
 
-display('');
-display('Mean squared error:       ' + mse);
-display('Total variation distance: ' + tvd);
+  fs.writeFileSync(outputFn, util.toCSV(samples));
+  var mse = computeMSE(samples);
+  var tvd = computeTVD(outputFn);
+
+  display('');
+  display('Mean squared error:       ' + mse);
+  display('Total variation distance: ' + tvd);
+};
+
+var computeMarginals = function() {
+  // From supplied problem-1-solution-posterior.csv
+  //        mean  standard deviation
+  // w1    -0.65  0.46
+  // w2     3.05  0.75
+  // w3     2.45  0.76
+  // w4    -3.99  0.78
+  // w5    -3.52  0.79
+  // noise  10.4  0.33
+  var posterior = MCMC(model, {
+    samples: 2000,
+    verbose: true
+  });
+
+  var marginals = mapN(function(i) {
+    expectation(Enumerate(function() {
+      sample(posterior)[i];
+    }));
+  }, dim);
+
+  display('');
+  display('Marginals:');
+  display(marginals);
+};
+
+computeMetrics();
+//computeMarginals();
 
 'done';
-
-// TODO: Callbacks to compute this periodically during inference.
-// TODO: Even better would be the ability to continute inference.
-
-// 104K iterations: ~8 minutes.
-
-// Metric 1 - expected squared error:
-// 5.306494627398419
-
-// Metric 2:
-// 0.83
-
-// Metric 2:
-// (with mvGaussianDriftERP)
-// 0.65
-
-// Metric 2:
-// (with sampleWishart & sampleMVGaussian)
-// 0.52
