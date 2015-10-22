@@ -134,6 +134,25 @@ var matrixRepeat = function(shape, f) {
   return ret;
 };
 
+var toCSV = function(A) {
+  // A is a 2d array.
+  return _.map(A, function(row) {
+    return _.map(row, function(entry) {
+      return JSON.stringify(entry);
+    }).join(',');
+  }).join('\n') + '\n';
+};
+
+var mse = function(A, trueVec) {
+  // A is a matrix (2d array) in which each row is an estimate of
+  // trueVec.
+  var n = A.length;
+  assert.ok(n > 0 && A[0].length === trueVec.length);
+  return sum(_.map(A, function(row) {
+    return numeric.norm2Squared(numeric.sub(row, trueVec));
+  })) / n;
+};
+
 // func(x, i, xs, cont)
 // cont()
 function cpsForEach(func, cont, xs, i) {
@@ -285,6 +304,8 @@ module.exports = {
   cholesky: cholesky,
   trace: trace,
   matrixRepeat: matrixRepeat,
+  toCSV: toCSV,
+  mse: mse,
   makeGensym: makeGensym,
   normalizeArray: normalizeArray,
   normalizeHist: normalizeHist,

@@ -4,15 +4,6 @@ var pDir = '../ppaml-cp4/problems/problem1/';
 
 // Helpers.
 
-var toCSV = function(ar) {
-  // ar is expected to be a 2d array.
-  return map(function(row) {
-    return map(function(entry) {
-      return JSON.stringify(entry);
-    }, row).join(', ');
-  }, ar).join('\n');
-};
-
 var observe = function(erp, params, val) {
   factor(erp.score(params, val));
 };
@@ -65,7 +56,7 @@ var sqError = function(w) {
 
 // Metric 1.
 var computeMSE = function(samples) {
-  return listMean(map(sqError, samples));
+  return util.mse(samples, wTrue);
 };
 
 // Metric 2.
@@ -108,7 +99,7 @@ var model = function() {
 var posterior = MCMC(model, { burn: 0, lag: 0, samples: 100, verbose: true, justSample: true });
 
 var outputFn = 'posteriorSamples.csv';
-fs.writeFileSync(outputFn, toCSV(posterior.samples));
+fs.writeFileSync(outputFn, util.toCSV(posterior.samples));
 var mse = computeMSE(posterior.samples);
 var tvd = computeTVD(outputFn);
 
