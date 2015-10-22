@@ -1,16 +1,12 @@
 'use strict';
 
 var child_process = require('child_process');
-var erp = require('./erp');
+var util = require('./util');
 
 module.exports = function(env) {
 
   function display(s, k, a, x) {
     return k(s, console.log(x));
-  }
-
-  function cholesky(s, k, a, m) {
-    return k(s, erp.cholesky(m));
   }
 
   function exec(s, k, a, command) {
@@ -70,8 +66,7 @@ module.exports = function(env) {
     exec: exec,
     cache: cache,
     apply: apply,
-    _Fn: _Fn,
-    cholesky2: cholesky
+    _Fn: _Fn
   };
 
 };

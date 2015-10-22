@@ -2,6 +2,7 @@
 
 var _ = require('underscore');
 var assert = require('assert');
+var numeric = require('numeric');
 var seedrandom = require('seedrandom');
 
 var rng = Math.random;
@@ -93,6 +94,45 @@ function logsumexp(a) {
 var deleteIndex = function(arr, i) {
   return arr.slice(0, i).concat(arr.slice(i + 1))
 }
+
+var cholesky = function(A) {
+  // A is a d x d matrix represented as a 2d array.
+  var d = A.length;
+  var L = numeric.rep([d, d], 0);
+  var i, j, k, s;
+  for (i = 0; i < d; i++) {
+    for (j = 0; j < i + 1; j++) {
+      s = 0;
+      for (k = 0; k < j; k++) {
+        s += L[i][k] * L[j][k];
+      }
+      L[i][j] = (i === j) ? Math.sqrt(A[i][i] - s) : (1 / L[j][j] * (A[i][j] - s));
+    }
+  }
+  return L;
+};
+
+var trace = function(A) {
+  var d = A.length;
+  var tr = 0;
+  for (var i = 0; i < d; i++) {
+    tr += A[i][i];
+  }
+  return tr;
+};
+
+var matrixRepeat = function(shape, f) {
+  // shape = [rows, cols]
+  var ret = Array(shape[0]);
+  var i, j;
+  for (i = 0; i < shape[0]; i++) {
+    ret[i] = Array(shape[1]);
+    for (j = 0; j < shape[1]; j++) {
+      ret[i][j] = f();
+    }
+  }
+  return ret;
+};
 
 // func(x, i, xs, cont)
 // cont()
@@ -242,6 +282,9 @@ module.exports = {
   logsumexp: logsumexp,
   logHist: logHist,
   deleteIndex: deleteIndex,
+  cholesky: cholesky,
+  trace: trace,
+  matrixRepeat: matrixRepeat,
   makeGensym: makeGensym,
   normalizeArray: normalizeArray,
   normalizeHist: normalizeHist,

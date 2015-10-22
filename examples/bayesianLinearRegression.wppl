@@ -17,7 +17,7 @@ var observe = function(erp, params, val) {
   factor(erp.score(params, val));
 };
 
-var repeatMatrix = function(shape, f) {
+var matrixRepeat = function(shape, f) {
   var rows = shape[0];
   var cols = shape[1];
   return repeat(rows, function() {
@@ -30,8 +30,8 @@ var repeatMatrix = function(shape, f) {
 var sampleWishart = function(V, dof) {
   var p = V.length;
   assert.ok(dof > p - 1);
-  var chol = cholesky2(V); // For this model V == I hence chol == I?
-  var Z = repeatMatrix([p, dof], function() { gaussian(0, 1); });
+  var chol = util.cholesky(V); // For this model V == I hence chol == I?
+  var Z = matrixRepeat([p, dof], function() { gaussian(0, 1); });
   var X = numeric.dot(chol, Z);
   return numeric.dot(X, numeric.transpose(X));
 };
@@ -82,6 +82,7 @@ var I = numeric.identity(dim);
 var model = function() {
 
   var mu = repeat(dim, function() { gaussian(0, 2); });
+
   //var Prec = sample(wishartERP, [I, dim]);
   var Prec = sampleWishart(I, dim);
 

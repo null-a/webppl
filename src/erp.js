@@ -227,48 +227,8 @@ var multivariateGaussianERP = new ERP({
   score: multivariateGaussianScore
 });
 
-var cholesky = function(A) {
-  // A is d x d.
-  var d = A.length;
-  var L = numeric.rep([d, d], 0);
-  var i, j, k, s;
-  for (i = 0; i < d; i++) {
-    for (j = 0; j < i + 1; j++) {
-      s = 0;
-      for (k = 0; k < j; k++) {
-        s += L[i][k] * L[j][k];
-      }
-      L[i][j] = (i === j) ? Math.sqrt(A[i][i] - s) : (1 / L[j][j] * (A[i][j] - s));
-    }
-  }
-  return L;
-};
-
-
 var stdGaussianSample = function() {
   return gaussianSample([0, 1]);
-};
-
-var repeatM = function(shape, f) {
-  // shape = (rows, cols)
-  var ret = Array(shape[0]);
-  var i, j;
-  for (i = 0; i < shape[0]; i++) {
-    ret[i] = Array(shape[1]);
-    for (j = 0; j < shape[1]; j++) {
-      ret[i][j] = f();
-    }
-  }
-  return ret;
-};
-
-var trace = function(A) {
-  var d = A.length;
-  var tr = 0;
-  for (var i = 0; i < d; i++) {
-    tr += A[i][i];
-  }
-  return tr;
 };
 
 var logMVGamma = function(a, p) {
@@ -286,8 +246,8 @@ var wishartERP = new ERP({
     var p = V.length;
     assert.ok(dof > p - 1);
     // TODO: Try to avoid recomputing this for every sample?
-    var chol = cholesky(V);
-    var Z = repeatM([p, dof], stdGaussianSample);
+    var chol = util.cholesky(V);
+    var Z = util.matrixRepeat([p, dof], stdGaussianSample);
     var X = numeric.dot(chol, Z);
     return numeric.dot(X, numeric.transpose(X));
   },
@@ -299,7 +259,7 @@ var wishartERP = new ERP({
     var dof = params[1];
     var p = V.length;
     var Vinv = numeric.inv(V); // Solve?
-    var logNumer = (dof - p - 1) * Math.log(numeric.det(X)) - trace(numeric.dot(Vinv, X));
+    var logNumer = (dof - p - 1) * Math.log(numeric.det(X)) - util.trace(numeric.dot(Vinv, X));
     var logDenom = dof * p * Math.log(2) + dof * Math.log(numeric.det(V)) + 2 * logMVGamma(dof / 2, p);
     return (logNumer - logDenom) / 2;
   }
@@ -801,6 +761,5 @@ module.exports = setErpNames({
   dirichetProposerERP: dirichletProposerERP,
   withImportanceDist: withImportanceDist,
   isErp: isErp,
-  isErpWithSupport: isErpWithSupport,
-  cholesky: cholesky
+  isErpWithSupport: isErpWithSupport
 });
