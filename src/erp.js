@@ -661,7 +661,7 @@ function gaussianProposalParams(params, prevVal) {
 
 function mvGaussianProposalParams(params, prevVal) {
   var mu = prevVal;
-  var Sigma = numeric.mul(numeric.identity(prevVal.length), 0.1);
+  var Sigma = numeric.mul(numeric.identity(prevVal.length), 1);
   return [mu, Sigma];
 };
 
@@ -670,6 +670,11 @@ function dirichletProposalParams(params, prevVal) {
   var driftParams = params.map(function(x) {return concentration * x});
   return driftParams;
 }
+
+function wishartProposalParams(params, prevVal) {
+  var dof = prevVal.length + 100;
+  return [numeric.div(prevVal, dof), dof];
+};
 
 function buildProposer(baseERP, getProposalParams) {
   return new ERP({
@@ -691,6 +696,7 @@ function buildProposer(baseERP, getProposalParams) {
 var gaussianProposerERP = buildProposer(gaussianERP, gaussianProposalParams);
 var mvGaussianProposerERP = buildProposer(multivariateGaussianERP, mvGaussianProposalParams);
 var dirichletProposerERP = buildProposer(dirichletERP, dirichletProposalParams);
+var wishartProposerERP = buildProposer(wishartERP, wishartProposalParams);
 
 var gaussianDriftERP = new ERP({
   sample: gaussianERP.sample,
@@ -708,6 +714,12 @@ var dirichletDriftERP = new ERP({
   sample: dirichletERP.sample,
   score: dirichletERP.score,
   proposer: dirichletProposerERP
+});
+
+var wishartDriftERP = new ERP({
+  sample: wishartERP.sample,
+  score: wishartERP.score,
+  proposer: wishartProposerERP
 });
 
 function withImportanceDist(s, k, a, erp, importanceERP) {
@@ -756,9 +768,11 @@ module.exports = setErpNames({
   gaussianDriftERP: gaussianDriftERP,
   mvGaussianDriftERP: mvGaussianDriftERP,
   dirichletDriftERP: dirichletDriftERP,
+  wishartDriftERP: wishartDriftERP,
   gaussianProposerERP: gaussianProposerERP,
   mvGaussianProposerERP: mvGaussianProposerERP,
   dirichetProposerERP: dirichletProposerERP,
+  wishartProposerERP: wishartProposerERP,
   withImportanceDist: withImportanceDist,
   isErp: isErp,
   isErpWithSupport: isErpWithSupport
