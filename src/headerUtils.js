@@ -1,5 +1,6 @@
 'use strict';
 
+var child_process = require('child_process');
 var erp = require('./erp');
 
 module.exports = function(env) {
@@ -10,7 +11,11 @@ module.exports = function(env) {
 
   function cholesky(s, k, a, m) {
     return k(s, erp.cholesky(m));
-  };
+  }
+
+  function exec(s, k, a, command) {
+    return k(s, child_process.execSync(command).toString());
+  }
 
   // Caching for a wppl function f.
   //
@@ -62,6 +67,7 @@ module.exports = function(env) {
 
   return {
     display: display,
+    exec: exec,
     cache: cache,
     apply: apply,
     _Fn: _Fn,

@@ -1,3 +1,7 @@
+// These are relative to the webppl executable.
+var sDir = '../ppaml-cp4/solutions/problem1/';
+var pDir = '../ppaml-cp4/problems/problem1/';
+
 // Helpers.
 
 var toCSV = function(ar) {
@@ -47,7 +51,7 @@ var loadData = function() {
   // TODO: Should we expose just readFile/writeFile functions since
   // lots of fs isn't useful.
   // TODO: Should we make paths relative to the current program?
-  var allData = numeric.parseCSV(fs.readFileSync('../ppaml-cp4/problems/problem1/problem-1-data.csv', 'utf8'));
+  var allData = numeric.parseCSV(fs.readFileSync(pDir + 'problem-1-data.csv', 'utf8'));
   var X = numeric.getBlock(allData, [1,1], [500, 5]);
   var ys = numeric.transpose(numeric.getBlock(allData, [1,6], [500, 6]))[0];
   return { X: X, ys: ys };
@@ -59,12 +63,19 @@ var sqError = function(w) {
   return numeric.norm2Squared(numeric.sub(w, wTrue));
 };
 
-var computeMetric1 = function(posterior) {
-  return expectation(posterior, sqError);
+// Metric 1.
+var computeMSE = function(samples) {
+  return listMean(map(sqError, samples));
+};
+
+// Metric 2.
+var computeTVD = function(samplesFn) {
+  var output = exec('java -jar ' + sDir + 'problem-1-total-variation-java/totalvar.jar ' +
+                    sDir + 'problem-1-solution-samples.csv ' + samplesFn);
+  return output.split('\n').slice(-2, -1)[0].slice(36);
 };
 
 var data = loadData();
-
 var dim = 5; // Including bias term.
 var I = numeric.identity(dim);
 
@@ -92,20 +103,22 @@ var model = function() {
   return w;
 };
 
-// TODO: We need both samples /and/ the full ERP to compute both
-// metrics, so making the options justSample etc. more flexible would
-// be useful.
 
-var posterior = MCMC(model, { burn: 20000, lag: 20, samples: 4000, verbose: true, justSample: true });
-fs.writeFileSync('posteriorSamples.csv', toCSV(posterior.samples));
+var posterior = MCMC(model, { burn: 0, lag: 0, samples: 100, verbose: true, justSample: true });
 
-//display('Expected squared error:');
-//display(computeMetric1(posterior));
+var outputFn = 'posteriorSamples.csv';
+fs.writeFileSync(outputFn, toCSV(posterior.samples));
+var mse = computeMSE(posterior.samples);
+var tvd = computeTVD(outputFn);
+
+display('');
+display('Mean squared error:       ' + mse);
+display('Total variation distance: ' + tvd);
 
 'done';
-//posterior;
 
 // TODO: Callbacks to compute this periodically during inference.
+// TODO: Even better would be the ability to continute inference.
 
 // 104K iterations: ~8 minutes.
 
