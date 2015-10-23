@@ -77,14 +77,16 @@ var I = numeric.identity(dim);
 
 var model = function() {
 
-  var mu = repeat(dim, function() { gaussianD(0, 2); });
+  var mu = repeat(dim, function() { gaussian(0, 2); });
 
-  var Prec = sample(wishartDriftERP, [I, dim]);
+  var Prec = sample(wishartERP, [I, dim]);
   //var Prec = sampleWishart(I, dim);
 
   //var w = multivariateGaussian(mu, numeric.inv(Prec));
   //var w = sampleMVGaussian(mu, numeric.inv(Prec));
-  var w = sample(mvGaussianDriftERP, [mu, numeric.inv(Prec)]);
+  var w = sample(multivariateGaussianERP, [mu, numeric.inv(Prec)]);
+
+  query.add('w', w);
 
   // The version of the model from the Stan code. (Doesn't depend on
   // Prec.)
@@ -97,11 +99,15 @@ var model = function() {
   // TODO: No need to accumulate results, perhaps add a forEach2.
   // Although slicing off the tail will still lead to run time
   // quadratic in the length the the input array(s) I think.
+
+  // Writing this as a single factor of the sum of the score speeds up
+  // IncrementalMH, recoering the runtime of MCMC.
+
   map2(function(xs, y) {
     observe(gaussianERP, [numeric.dot(xs, w), 1 / tau], y);
   }, data.X, data.ys);
 
-  return w;
+  return query;
 };
 
 // TODO: Callbacks to compute this periodically during inference. Even
@@ -110,13 +116,18 @@ var model = function() {
 var computeMetrics = function() {
   var outputFn = 'posteriorSamples.csv';
 
-  var samples = MCMC(model, {
-    burn: 0,
-    lag: 0,
-    samples: 80e3,
+  // var samples = MCMC(model, {
+  //   burn: 0,
+  //   lag: 0,
+  //   samples: 80e3,
+  //   verbose: true,
+  //   justSample: true
+  // }).samples;
+
+  var samples = _.pluck(_.pluck(IncrementalMH(model, 10e3, {
     verbose: true,
     justSample: true
-  }).samples;
+  }).samples, 'value'), 'w');
 
   fs.writeFileSync(outputFn, util.toCSV(samples));
   var mse = computeMSE(samples);
