@@ -86,8 +86,6 @@ var model = function() {
   //var w = sampleMVGaussian(mu, numeric.inv(Prec));
   var w = sample(multivariateGaussianERP, [mu, numeric.inv(Prec)]);
 
-  query.add('w', w);
-
   // The version of the model from the Stan code. (Doesn't depend on
   // Prec.)
   //var w = map(function(m) { gaussianD(m, 1); }, mu);
@@ -103,11 +101,13 @@ var model = function() {
   // Writing this as a single factor of the sum of the score speeds up
   // IncrementalMH, recoering the runtime of MCMC.
 
-  map2(function(xs, y) {
-    observe(gaussianERP, [numeric.dot(xs, w), 1 / tau], y);
-  }, data.X, data.ys);
+  factor(sum(map2(function(xs, y) {
+    gaussianERP.score([numeric.dot(xs, w), 1 / tau], y);
+  }, data.X, data.ys)));
 
-  return query;
+
+
+  return w;
 };
 
 // TODO: Callbacks to compute this periodically during inference. Even
@@ -124,10 +124,17 @@ var computeMetrics = function() {
   //   justSample: true
   // }).samples;
 
-  var samples = _.pluck(_.pluck(IncrementalMH(model, 10e3, {
-    verbose: true,
+  // var samples = _.pluck(_.pluck(IncrementalMH(model, 10e3, {
+  //   verbose: true,
+  //   justSample: true
+  // }).samples, 'value'), 'w');
+
+  var n = 40e3;
+  var posterior = SMC(model, { particles: n });
+  var samples = MCMC(function() { sample(posterior); }, {
+    samples: n,
     justSample: true
-  }).samples, 'value'), 'w');
+  }).samples;
 
   fs.writeFileSync(outputFn, util.toCSV(samples));
   var mse = computeMSE(samples);
