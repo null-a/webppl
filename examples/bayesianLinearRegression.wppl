@@ -81,16 +81,16 @@ var model = function() {
 
   var mu = repeat(dim, function() { gaussian(0, 2); });
 
-  var Prec = sample(wishartERP, [I, dim]);
+  //var Prec = sample(wishartERP, [I, dim]);
   //var Prec = sampleWishart(I, dim);
 
   //var w = multivariateGaussian(mu, numeric.inv(Prec));
   //var w = sampleMVGaussian(mu, numeric.inv(Prec));
-  var w = sample(multivariateGaussianERP, [mu, numeric.inv(Prec)]);
+  //var w = sample(multivariateGaussianERP, [mu, numeric.inv(Prec)]);
 
   // The version of the model from the Stan code. (Doesn't depend on
   // Prec.)
-  //var w = map(function(m) { gaussianD(m, 1); }, mu);
+  var w = map(function(m) { gaussian(m, 1); }, mu);
 
   // It's unclear from the description how this gamma should be
   // parameterized. The code seems to suggest it's like this:
@@ -107,8 +107,6 @@ var model = function() {
     gaussianERP.score([numeric.dot(xs, w), 1 / tau], y);
   }, data.X, data.ys)));
 
-
-
   return w;
 };
 
@@ -118,25 +116,25 @@ var model = function() {
 var computeMetrics = function() {
   var outputFn = 'posteriorSamples.csv';
 
-  // var samples = MCMC(model, {
-  //   burn: 0,
-  //   lag: 0,
-  //   samples: 80e3,
-  //   verbose: true,
-  //   justSample: true
-  // }).samples;
+  var samples = MCMC(model, {
+    burn: 0,
+    lag: 0,
+    samples: 5e3,
+    verbose: true,
+    justSample: true
+  }).samples;
 
   // var samples = _.pluck(_.pluck(IncrementalMH(model, 10e3, {
   //   verbose: true,
   //   justSample: true
   // }).samples, 'value'), 'w');
 
-  var n = 40e3;
-  var posterior = SMC(model, { particles: n });
-  var samples = MCMC(function() { sample(posterior); }, {
-    samples: n,
-    justSample: true
-  }).samples;
+  // var n = 40e3;
+  // var posterior = SMC(model, { particles: n });
+  // var samples = MCMC(function() { sample(posterior); }, {
+  //   samples: n,
+  //   justSample: true
+  // }).samples;
 
   fs.writeFileSync(outputFn, util.toCSV(samples));
   var mse = computeMSE(samples);
@@ -150,6 +148,11 @@ var computeMetrics = function() {
 var computeMarginals = function() {
   // From supplied problem-1-solution-posterior.csv
   //        mean  standard deviation
+
+  // These marginals are /very/ similar (in mean and std dev) to those
+  // you get from running the simple version of the Stan model.
+  // Perhaps this is where they come from?
+
   // w1    -0.65  0.46
   // w2     3.05  0.75
   // w3     2.45  0.76
