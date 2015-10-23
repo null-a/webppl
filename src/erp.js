@@ -655,13 +655,13 @@ var makeMultiplexERP = function(vs, erps) {
 
 function gaussianProposalParams(params, prevVal) {
   var mu = prevVal;
-  var sigma = params[1] * 0.7;
+  var sigma = params[1] * 0.3;
   return [mu, sigma];
 }
 
 function mvGaussianProposalParams(params, prevVal) {
   var mu = prevVal;
-  var Sigma = numeric.mul(numeric.identity(prevVal.length), 1);
+  var Sigma = numeric.mul(numeric.identity(prevVal.length), 0.15);
   return [mu, Sigma];
 };
 
@@ -672,7 +672,7 @@ function dirichletProposalParams(params, prevVal) {
 }
 
 function wishartProposalParams(params, prevVal) {
-  var dof = prevVal.length + 100;
+  var dof = prevVal.length + 40;
   return [numeric.div(prevVal, dof), dof];
 };
 

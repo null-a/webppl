@@ -77,7 +77,7 @@ var I = numeric.identity(dim);
 
 var model = function() {
 
-  var mu = repeat(dim, function() { gaussian(0, 2); });
+  var mu = repeat(dim, function() { gaussianD(0, 2); });
 
   var Prec = sample(wishartDriftERP, [I, dim]);
   //var Prec = sampleWishart(I, dim);
