@@ -66,8 +66,10 @@ var computeMSE = function(samples) {
 
 // Metric 2.
 var computeTVD = function(samplesFn) {
-  var output = exec('java -jar ' + sDir + 'problem-1-total-variation-java/totalvar.jar ' +
-                    sDir + 'problem-1-solution-samples.csv ' + samplesFn);
+  var cmd = 'java -jar ' + sDir + 'problem-1-total-variation-java/totalvar.jar ' +
+        sDir + 'problem-1-solution-samples.csv ' + samplesFn + ' 10';
+  display(cmd);
+  var output = exec(cmd);
   return output.split('\n').slice(-2, -1)[0].slice(36);
 };
 
