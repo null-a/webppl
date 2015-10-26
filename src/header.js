@@ -20,7 +20,6 @@
 
 var fs = require('fs');
 var assert = require('assert');
-var fs = require('fs');
 var _ = require('underscore');
 
 var util = require('./util');
