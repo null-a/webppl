@@ -1,0 +1,86 @@
+var loadData = function() {
+  var numDiseases = 20;
+  var numFindings = 151;
+  var numCases = 4;
+
+  var dir = '../ppaml-cp4/problems/problem2/';
+
+  var priorsFn = dir + 'problem-2-disease-priors.csv';
+  var edgesFn = dir + 'problem-2-edges.csv';
+  var findingsFn = dir + 'problem-2-cases-findings.csv';
+  var groundTruthFn = dir + 'problem-2-cases-findings.csv';
+
+  var T = function(matrix) { numeric.transpose(matrix); };
+  var readCSV = function(fn) { numeric.parseCSV(fs.readFileSync(fn, 'utf8')); };
+
+  var get = function(topLeft, bottomRight) {
+    return function(matrix) {
+      numeric.getBlock(matrix, topLeft, bottomRight);
+    };
+  };
+
+  return {
+    priors:      readCSV(priorsFn)      |> get([1, 1], [numDiseases, 1]) |> T |> first,
+    edges:       readCSV(edgesFn)       |> get([1, 1], [numDiseases, numFindings]) |> T,
+    findings:    readCSV(findingsFn)    |> get([1, 1], [numFindings, numCases]) |> T,
+    groundTruth: readCSV(groundTruthFn) |> get([1, 1], [numDiseases, numCases])
+  };
+};
+
+// Comment out when using linked lists.
+var $map = map;
+var $map2 = map2;
+var $reduce = reduce;
+var $sum = sum;
+var $filter = filter;
+var $zip = zip;
+var $first = first;
+var $second = second;
+
+// Work with 1/0 to save converting data. Also more compact when displayed.
+var binary = function(p) { flip(p) ? 1 : 0; };
+
+var bitwiseOr = function(x, y) { x | y };
+
+var noisyOr = function(diseases, probs) {
+  assert.ok(diseases.length === probs.length);
+  // OPTIMIZE: Exit early from reduce when a 1/true is sampled.
+  $reduce(bitwiseOr, 0,
+         $map2(function(d, p) {
+           // OPTIMIZE: Don't flip when p == 0.
+           d & binary(p);
+         }, diseases, probs));
+};
+
+var noisyOrFactor = function(diseases, probs, observation) {
+  var noiseProbs = $map($second, $filter(function(pair) {
+    var disease = $first(pair), prob = $second(pair);
+    disease && prob > 0;
+  }, $zip(diseases, probs)));
+  // Log prob of observing a 0/false.
+  // i.e. of all noise flips coming up 0/false;
+  var logProb = $sum($map(function(p) { Math.log(1 - p); }, noiseProbs));
+  factor(observation === 0 ? logProb : Math.log(1 - Math.exp(logProb)));
+};
+
+var model = function(priors, edges, observations) {
+  assert.ok(edges.length === observations.length);
+  var diseases = $map(binary, priors);
+  var findings = $map2(function(probs, observation) {
+    //condition(noisyOr(diseases, probs) === observation);
+    noisyOrFactor(diseases, probs, observation);
+  }, edges, observations);
+  diseases;
+};
+
+var data = loadData();
+
+var dist = Enumerate(function() {
+  //model($fromArray(data.priors), $map($fromArray, $fromArray(data.edges)), $fromArray(data.findings[0]));
+  model(data.priors, data.edges, data.findings[0]);
+}, 100);
+
+//display(dist.toJSON());
+//'done';
+
+dist;
