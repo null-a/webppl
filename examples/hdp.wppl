@@ -1,0 +1,182 @@
+var makeCRP = function(alpha, baseDist) {
+
+  globalStore.CRPindex = (globalStore.CRPindex === undefined) ? 0 : globalStore.CRPindex + 1;
+
+  var id = globalStore.CRPindex;
+  var tablesId = ['crp$' + id + '$tables'].join();
+  var dishesId = ['crp$' + id + '$dishes'].join();
+
+  globalStore[tablesId] = [];
+  globalStore[dishesId] = [];
+
+  var incIndex = function(xs, index) {
+    return mapIndexed(function(i, x) {
+      return (i === index) ? x + 1 : x;
+    }, xs);
+  };
+
+  var sample = function() {
+    var tables = getTables();
+    var dishes = getDishes();
+
+    // Un-normalized probs.
+    var ps = tables.concat([alpha]);
+    var t = discrete(ps);
+
+    if (t === ps.length - 1) {
+      // New table;
+      var newDish = baseDist();
+      setTables(tables.concat([1]));
+      setDishes(dishes.concat([newDish]));
+      return newDish;
+    } else {
+      var newTables = incIndex(tables, t);
+      setTables(newTables);
+      return dishes[t];
+    }
+  };
+
+  var getTables = function() {
+    return globalStore[tablesId];
+  };
+
+  var setTables = function(tables) {
+    globalStore[tablesId] = tables;
+  };
+
+  var getDishes = function() {
+    return globalStore[dishesId];
+  };
+
+  var setDishes = function(dishes) {
+    globalStore[dishesId] = dishes;
+  };
+
+  return {
+    sample: sample,
+    getTables: getTables,
+    getDishes: getDishes
+  };
+
+};
+
+// IDEA: Macro to make it possible to call member functions as wppl rather than JS.
+
+// Toy Data
+
+var genTopics = function(n) {
+  var h = mapN(function(i) { genH(i, n); }, n);
+  var v = mapN(function(i) { genV(i, n); }, n);
+  return h.concat(v);
+};
+
+// e.g. genV(0, 3) => [.33, 0, 0,
+//                     .33, 0, 0,
+//                     .33, 0, 0]
+
+var genV = function(i, n)  {
+  assert.ok(0 <= i && i < n);
+  return mapN(function(j) { return (j - i) % n == 0 ? 1 / n : 0; }, n * n);
+};
+
+// e.g. genH(0, 3) => [.33, .33, .33,
+//                     0,   0,   0,
+//                     0,   0,   0]
+
+var genH = function(i, n) {
+  assert.ok(0 <=i && i < n);
+  return mapN(function(j) { return (i * n) <= j && j < ((i + 1) * n) ? 1 / n : 0; } , n * n);
+};
+
+var genDocument = function(wordsPerDoc, topics) {
+  assert.ok(topics.length > 0);
+  var alpha = 0.1;
+  var vocabSize = topics[0].length;
+  var topicDist = dirichlet(repeat(topics.length, constF(alpha)));
+  //display(topicDist);
+  var doc = repeat(wordsPerDoc, function() {
+    var topic = categorical(topicDist, topics);
+    return discrete(topic);
+  });
+  return doc;
+};
+
+var doc2Counts = function(doc, vocabSize) {
+  // This converts a document of word indexes to an array of counts.
+  assert.ok(_.isNumber(vocabSize));
+  var lookupCount = _.countBy(doc, _.identity);
+  var counts = mapN(function(i) {
+    return lookupCount[i] || 0;
+  }, vocabSize);
+  return counts;
+};
+
+// Reshape a vector into a (square) matrix.
+var vector2Matrix = function(v) {
+  var d = Math.sqrt(v.length);
+  return mapN(function(row) {
+    return mapN(function(col) {
+      return v[row * d + col];
+    }, d);
+  }, d);
+};
+
+var ppTopic = function(topic) {
+  topic |> vector2Matrix |> numeric.prettyPrint |> function(s) { s + '\n\n'; } |> display;
+};
+
+var _ppDoc = function(doc, vocabSize) {
+  doc2Counts(doc, vocabSize) |> util.normalizeArray |> ppTopic;
+};
+
+// Model
+
+var sampleDirichlet = function(alpha) {
+  var theta = map(function(a) { gamma(a, 1); }, alpha);
+  return util.normalizeArray(theta);
+};
+
+var model = function(corpus, vocabSize) {
+
+  // TODO: dirichletDriftERP doesn't seem to be based in the current
+  // location.
+
+  var alpha = repeat(vocabSize, constF(0.1));
+  var baseMeasure = function() {
+    //return dirichlet(alpha);
+    return sampleDirichlet(alpha);
+  };
+  var g0 = makeCRP(1, baseMeasure);
+
+  mapIndexed(function(i, document) {
+    var sampleCRP = makeCRP(1, g0.sample).sample;
+    map(function(word) {
+      var topic = sampleCRP();
+      factor(discreteERP.score([topic], word));
+    }, document);
+  }, corpus);
+
+  var getDishes = g0.getDishes;
+  var topics = getDishes();
+  // TODO: Move this to callback.
+  map(ppTopic, map(function(t) { map(function(x) { Math.round(x * 100); }, t); }, topics));
+  return topics;
+};
+
+var vocabSize = 9;
+var ppDoc = function(doc) { _ppDoc(doc, vocabSize); };
+var topics = genTopics(Math.sqrt(vocabSize));
+var corpus = repeat(40, function() { genDocument(20, topics); });
+
+display('Topics:');
+map(ppTopic, topics);
+display('Documents:');
+map(ppDoc, corpus.slice(0, 5));
+
+//assert.ok(false);
+
+var dist = MCMC(function() {
+  return model(corpus, vocabSize);
+}, { samples: 10, verbose: true });
+
+'done';
