@@ -1,0 +1,25 @@
+var binomial = function() {
+  var aParam = sample(uniformERP, [0, 1], { paramChoice: true });
+  var aGuide = sample(bernoulliERP, [aParam], { guideChoice: true });
+  var      a = sample(bernoulliERP, [0.5], { guideVal: aGuide });
+
+  var bParam = sample(uniformERP, [0, 1], { paramChoice: true });
+  var bGuide = sample(bernoulliERP, [bParam], { guideChoice: true });
+  var      b = sample(bernoulliERP, [0.5], { guideVal: bGuide });
+
+  var cParam = sample(uniformERP, [0, 1], { paramChoice: true });
+  var cGuide = sample(bernoulliERP, [cParam], { guideChoice: true });
+  var      c = sample(bernoulliERP, [0.5], { guideVal: cGuide });
+
+  factor(a || b ? 0 : -1);
+
+  return a + b + c;
+};
+
+// Exact posterior:
+// 2 | 0.445384113713482
+// 1 | 0.3515386287621726
+// 3 | 0.14846137123782735
+// 0 | 0.05461588628651796
+
+Variational(binomial, { stepSize: 0.001, samplesPerStep: 100, steps: 500, returnSamples: 1000 });

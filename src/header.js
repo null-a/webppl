@@ -59,8 +59,8 @@ module.exports = function(env) {
 
   env.defaultCoroutine = env.coroutine;
 
-  env.sample = function(s, k, a, dist, params) {
-    return env.coroutine.sample(s, k, a, dist, params);
+  env.sample = function(s, k, a, dist, params, options) {
+    return env.coroutine.sample(s, k, a, dist, params, options);
   };
 
   env.factor = function(s, k, a, score) {

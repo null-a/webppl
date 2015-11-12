@@ -1,163 +1,267 @@
-////////////////////////////////////////////////////////////////////
-// Simple Variational inference wrt the (pseudo)mean-field program.
-// We do stochastic gradient descent on the ERP params.
-// On sample statements: sample and accumulate grad-log-score, orig-score, and variational-score
-// On factor statements accumulate into orig-score.
-
 'use strict';
 
-var erp = require('../erp');
+var _ = require('underscore');
+var numeric = require('numeric');
+var assert = require('assert');
+var util = require('../util.js');
+var Histogram = require('../aggregation').Histogram;
 
+var logLevel = parseInt(process.env.LOG_LEVEL) || 2;
+
+function logger(level) {
+  if (logLevel >= level) {
+    console.log.apply(console, _.toArray(arguments).slice(1));
+  }
+}
+
+var log = _.partial(logger, 0);
+var info = _.partial(logger, 1);
+var debug = _.partial(logger, 2);
+var trace = _.partial(logger, 3);
 
 module.exports = function(env) {
 
-  function Variational(s, k, a, wpplFn, estS) {
+  function Variational(s, k, a, wpplFn, options) {
+    var options = util.mergeDefaults(options, {
+      steps: 100,
+      stepSize: 0.001,
+      samplesPerStep: 100,
+      returnSamples: 1000
+    });
 
-    this.wpplFn = wpplFn;
-    this.estimateSamples = estS;
-    this.numS = 0;
-    this.t = 1;
-    this.variationalParams = {};
-    //historic gradient squared for each variational param, used for adagrad update:
-    this.runningG2 = {};
-    //gradient estimate per iteration:
-    this.grad = {};
-    //gradient of each sample used to estimate gradient:
-    this.samplegrad = {};
-    //running score accumulation per sample:
-    this.jointScore = 0;
-    this.variScore = 0;
+    this.steps = options.steps;
+    this.stepSize = options.stepSize;
+    this.samplesPerStep = options.samplesPerStep;
+    this.returnSamples = options.returnSamples;
 
-    // Move old coroutine out of the way and install this as the current
-    // handler.
+    this.s = s;
     this.k = k;
-    this.oldCoroutine = env.coroutine;
+    this.a = a;
+    this.wpplFn = wpplFn;
+
+    this.coroutine = env.coroutine;
     env.coroutine = this;
-
-    this.initialStore = s; // will be reinstated at the end
-    this.initialAddress = a;
-
-    //kick off the estimation:
-    this.takeGradSample();
   }
 
-  Variational.prototype.takeGradSample = function() {
-    //reset sample info
-    this.samplegrad = {};
-    this.jointScore = 0;
-    this.variScore = 0;
-    //get another sample
-    this.numS++;
-    this.wpplFn(this.initialStore, env.exit, this.initialAddress);
+  Variational.prototype.run = function() {
+
+    //var optimize = gd(this.stepSize);
+    var optimize = adagrad(this.stepSize);
+
+    // TODO: Tensor values params?
+    // All variational parameters. Maps addresses to numbers/reals.
+    this.params = Object.create(null);
+
+    return util.cpsLoop(
+      this.steps,
+      function(i, nextStep) {
+        trace('\n********************************************************************************');
+        info('Step: ' + i);
+        trace('********************************************************************************\n');
+
+        // Maps param address to estimate of grad of lower bound.
+        this.LgradEst = Object.create(null);
+        this.meanScoreGrad = Object.create(null);
+
+        // Estimate of optimal (global) control variate is:
+        // cvCov / cvVar;
+        this.cvCov = 0;
+        this.cvVar = 0;
+
+        this.estELBO = 0;
+
+        //log(this.grad);
+
+        return util.cpsLoop(
+          this.samplesPerStep,
+          function(j, nextSample) {
+            trace('\n--------------------------------------------------------------------------------');
+            trace('Sample: ' + j);
+            trace('--------------------------------------------------------------------------------\n');
+
+            // Run the program.
+            this.logp = 0;
+            this.logq = 0;
+            // Maps addresses to tapes.
+            // (Params seen this execution.)
+            this.paramsSeen = Object.create(null);
+
+            return this.wpplFn(_.clone(this.s), function(s, val) {
+              trace('Program returned: ' + val);
+              trace('logp: ' + this.logp);
+              trace('logq: ' + ad.untapify(this.logq));
+
+              // Compute gradients.
+              ad.yGradientR(this.logq);
+
+              var scoreDiff = ad.untapify(this.logq) - this.logp;
+              this.estELBO -= scoreDiff / this.samplesPerStep;
+
+              _.each(this.paramsSeen, function(val, a) {
+                // Accumulate gradients.
+                if (!_.has(this.LgradEst, a)) {
+                  this.LgradEst[a] = 0;
+                }
+                if (!_.has(this.meanScoreGrad, a)) {
+                  this.meanScoreGrad[a] = 0;
+                }
+                trace('Score gradient w.r.t. ' + a + ': ' + val.sensitivity);
+
+                this.LgradEst[a] += (val.sensitivity * scoreDiff) / this.samplesPerStep;
+                this.meanScoreGrad[a] += val.sensitivity / this.samplesPerStep;
+
+                // TODO: Better names, not even Cov now simplified.
+                this.cvCov += this.LgradEst[a] * val.sensitivity;
+                this.cvVar += Math.pow(val.sensitivity, 2);
+
+              }, this);
+
+
+              return nextSample();
+            }.bind(this), this.a);
+
+
+          }.bind(this),
+          function() {
+
+            // Take gradient step.
+            trace('\n================================================================================');
+            trace('Taking gradient step');
+            trace('================================================================================\n');
+            debug('Estimated ELBO before gradient step: ' + this.estELBO);
+
+            // Compute gradient estimate using (global) control variate.
+            var grad = Object.create(null);
+            var optimalScalar = this.cvCov / this.cvVar;
+
+            trace("Optimal scalar: " + optimalScalar);
+            trace('Params before step:');
+            trace(this.params);
+
+            _.each(this.LgradEst, function(g, a) {
+              assert(_.has(this.meanScoreGrad, a));
+              grad[a] = g;// - optimalScalar * this.meanScoreGrad[a];
+            }, this);
+
+            optimize(this.params, grad);
+
+            trace('Params after step:');
+            debug(this.params);
+
+            return nextStep();
+          }.bind(this));
+
+      }.bind(this),
+      this.finish.bind(this));
   };
 
-  Variational.prototype.sample = function(s, k, a, erp, params) {
-    //sample from variational dist
-    if (!this.variationalParams.hasOwnProperty(a)) {
-      //initialize at prior (for this sample)...
-      this.variationalParams[a] = params;
-      this.runningG2[a] = [0];//fixme: vec size
+
+  function gd(stepSize) {
+    return function(params, grad) {
+      _.each(grad, function(g, a) {
+        assert(_.has(params, a));
+        params[a] -= stepSize * g;
+      });
+    };
+  }
+  
+  function adagrad(stepSize) {
+    // State.
+    // Map from a to running sum of grad^2.
+    var g2 = Object.create(null);
+    return function(params, grad) {
+      _.each(grad, function(g, a) {
+        assert(_.has(params, a));
+        if (!_.has(g2, a)) {
+          g2[a] = 0;
+        }
+        g2[a] += Math.pow(g, 2);
+        params[a] -= (stepSize / Math.sqrt(g2[a])) * g;
+      });
+    };
+  }
+
+  Variational.prototype.finish = function() {
+    // Build distribution and compute final estimate of ELBO.
+    var hist = new Histogram();
+    var estELBO = 0;
+
+    return util.cpsLoop(
+      this.returnSamples,
+      function(i, next) {
+        this.logp = 0;
+        this.logq = 0;
+        return this.wpplFn(_.clone(this.s), function(s, val) {
+          var scoreDiff = ad.untapify(this.logq) - this.logp;
+          estELBO -= scoreDiff / this.returnSamples;
+          hist.add(val);
+          return next();
+        }.bind(this), this.a);
+      }.bind(this),
+      function() {
+        info('\n================================================================================');
+        info('Estimated ELBO: ' + estELBO);
+        info('\nOptimized variational parameters:');
+        info(this.params);
+        env.coroutine = this.coroutine;
+        var erp = hist.toERP();
+        erp.estELBO = estELBO;
+        erp.parameters = this.params;
+        return this.k(this.s, erp);
+      }.bind(this));
+  };
+
+  // TODO: This options arg clashes with the forceSample arg used in MH.
+  Variational.prototype.sample = function(s, k, a, erp, params, options) {
+    var options = options || {};
+    // Assume 1-to-1 correspondence between guide and target for now.
+
+    var val;
+
+    if (options.paramChoice) {
+      if (!_.has(this.params, a)) {
+        // New variational parameter.
+        var _val = erp.sample(params);
+        this.params[a] = _val;
+        trace('Initialized parameter ' + a + ' to ' + _val);
+      } else {
+        _val = this.params[a];
+        trace('Seen parameter ' + a + ' before. Value is: ' + _val);
+      }
+      val = ad.tapify(_val);
+      this.paramsSeen[a] = val;
+    } else if (options.guideChoice) {
+      // Sample from q.
+      // Update log q.
+      // What if a random choice from p is given as a param?
+      var _params = ad.untapify(params);
+      val = erp.sample(_params);
+      this.logq = ad.add(this.logq, erp.score(params, val));
+      trace('Sampled ' + val + ' for ' + a + ' (' + erp.name + ' with params = ' + JSON.stringify(_params) + ')');
+    } else if (_.has(options, 'guideVal')) {
+      // Update log p.
+      val = options.guideVal;
+      trace('Using guide value ' + val + ' for ' + a + ' (' + erp.name + ')');
+      this.logp += erp.score(params, val);
+    } else {
+      throw 'No guide value given';
     }
-    var vParams = this.variationalParams[a];
-    var val = erp.sample(vParams);
 
-    //compute variational dist grad
-    this.samplegrad[a] = erp.grad(vParams, val);
-
-    //compute target score + variational score
-    this.jointScore += erp.score(params, val);
-    this.variScore += erp.score(vParams, val);
-
-    k(s, val); //TODO: need a?
+    return k(s, val);
   };
 
   Variational.prototype.factor = function(s, k, a, score) {
-
-    //update joint score and keep going
-    this.jointScore += score;
-
-    k(s); //TODO: need a?
-  };
-
-  Variational.prototype.exit = function(s, retval) {
-    //FIXME: params are arrays, so need vector arithmetic or something..
-
-    //update gradient estimate
-    for (var a in this.samplegrad) {
-      if (!this.grad.hasOwnProperty(a)) {
-        //FIXME: size param vec:
-        this.grad[a] = [0];
-      }
-      this.grad[a] = vecPlus(
-          this.grad[a],
-          vecScalarMult(this.samplegrad[a],
-          (this.jointScore - this.variScore)));
-    }
-
-    //do we have as many samples as we need for this gradient estimate?
-    if (this.numS < this.estimateSamples) {
-      return this.takeGradSample();
-    }
-
-    //we have all our samples to do a gradient step.
-    //use AdaGrad update rule.
-    //update variational parameters:
-    for (a in this.variationalParams) {
-      for (var i in this.variationalParams[a]) {
-        var grad = this.grad[a][i] / this.numS;
-        this.runningG2[a][i] += Math.pow(grad, 2);
-        var weight = 1.0 / Math.sqrt(this.runningG2[a][i]);
-        // console.log(a+" "+i+": weight "+ weight +" grad "+ grad +" vparam "+this.variationalParams[a][i])
-        this.variationalParams[a][i] += weight * grad;
-      }
-    }
-    this.t++;
-    console.log(this.variationalParams);
-
-    //if we haven't converged then do another gradient estimate and step:
-    //FIXME: converence test instead of fixed number of grad steps?
-    if (this.t < 500) {
-      this.grad = {};
-      this.numS = 0;
-      return this.takeGradSample();
-    }
-
-    //return variational dist as ERP:
-    //FIXME
-    console.log(this.variationalParams);
-    var dist = null;
-
-    // Reinstate previous coroutine
-    env.coroutine = this.oldCoroutine;
-
-    // Return from particle filter by calling original continuation:
-    this.k(this.initialStore, dist);
+    // Update log p.
+    this.logp += score;
+    return k(s);
   };
 
   Variational.prototype.incrementalize = env.defaultCoroutine.incrementalize;
 
-  function vecPlus(a, b) {
-    var c = [];
-    for (var i = 0; i < a.length; i++) {
-      c[i] = a[i] + b[i];
-    }
-    return c;
-  }
-
-  function vecScalarMult(a, s) {
-    var c = [];
-    for (var i = 0; i < a.length; i++) {
-      c[i] = a[i] * s;
-    }
-    return c;
-  }
-
-  function vari(s, cc, a, wpplFn, estS) {
-    return new Variational(s, cc, a, wpplFn, estS);
-  }
-
   return {
-    Variational: vari
+    Variational: function(s, k, a, wpplFn, options) {
+      return new Variational(s, k, a, wpplFn, options).run();
+    }
   };
 
 };
