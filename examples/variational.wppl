@@ -1,14 +1,14 @@
 var binomial = function() {
-  var aParam = sample(uniformERP, [0, 1], { paramChoice: true });
-  var aGuide = sample(bernoulliERP, [aParam], { guideChoice: true });
+  var aParam = paramChoice(uniformERP, [0, 1]);
+  var aGuide = sampleGuide(bernoulliERP, [aParam]);
   var      a = sample(bernoulliERP, [0.5], { guideVal: aGuide });
 
-  var bParam = sample(uniformERP, [0, 1], { paramChoice: true });
-  var bGuide = sample(bernoulliERP, [bParam], { guideChoice: true });
+  var bParam = paramChoice(uniformERP, [0, 1]);
+  var bGuide = sampleGuide(bernoulliERP, [bParam]);
   var      b = sample(bernoulliERP, [0.5], { guideVal: bGuide });
 
-  var cParam = sample(uniformERP, [0, 1], { paramChoice: true });
-  var cGuide = sample(bernoulliERP, [cParam], { guideChoice: true });
+  var cParam = paramChoice(uniformERP, [0, 1]);
+  var cGuide = sampleGuide(bernoulliERP, [cParam]);
   var      c = sample(bernoulliERP, [0.5], { guideVal: cGuide });
 
   factor(a || b ? 0 : -1);
@@ -22,4 +22,4 @@ var binomial = function() {
 // 3 | 0.14846137123782735
 // 0 | 0.05461588628651796
 
-Variational(binomial, { stepSize: 0.001, samplesPerStep: 100, steps: 500, returnSamples: 1000 });
+Variational(binomial, { stepSize: 0.01, samplesPerStep: 100, steps: 500, returnSamples: 1000 });

@@ -207,37 +207,14 @@ module.exports = function(env) {
     var options = options || {};
     // Assume 1-to-1 correspondence between guide and target for now.
 
-    var val;
-
-    if (options.paramChoice) {
-      if (!_.has(this.params, a)) {
-        // New variational parameter.
-        var _val = erp.sample(params);
-        this.params[a] = _val;
-        trace('Initialized parameter ' + a + ' to ' + _val);
-      } else {
-        _val = this.params[a];
-        trace('Seen parameter ' + a + ' before. Value is: ' + _val);
-      }
-      val = ad.tapify(_val);
-      this.paramsSeen[a] = val;
-    } else if (options.guideChoice) {
-      // Sample from q.
-      // Update log q.
-      // What if a random choice from p is given as a param?
-      var _params = ad.untapify(params);
-      val = erp.sample(_params);
-      this.logq = ad.add(this.logq, erp.score(params, val));
-      trace('Sampled ' + val + ' for ' + a + ' (' + erp.name + ' with params = ' + JSON.stringify(_params) + ')');
-    } else if (_.has(options, 'guideVal')) {
-      // Update log p.
-      val = options.guideVal;
-      trace('Using guide value ' + val + ' for ' + a + ' (' + erp.name + ')');
-      this.logp = ad.add(this.logp, erp.score(params, val));
-    } else {
+    if (!_.has(options, 'guideVal')) {
       throw 'No guide value given';
     }
 
+    // Update log p.
+    var val = options.guideVal;
+    trace('Using guide value ' + val + ' for ' + a + ' (' + erp.name + ')');
+    this.logp = ad.add(this.logp, erp.score(params, val));
     return k(s, val);
   };
 
@@ -247,12 +224,50 @@ module.exports = function(env) {
     return k(s);
   };
 
+  Variational.prototype.paramChoice = function(s, k, a, erp, params) {
+    if (!_.has(this.params, a)) {
+      // New parameter.
+      var _val = erp.sample(params);
+      this.params[a] = _val;
+      trace('Initialized parameter ' + a + ' to ' + _val);
+    } else {
+      _val = this.params[a];
+      trace('Seen parameter ' + a + ' before. Value is: ' + _val);
+    }
+    var val = ad.tapify(_val);
+    this.paramsSeen[a] = val;
+    return k(s, val);
+  };
+
+  Variational.prototype.sampleGuide = function(s, k, a, erp, params) {
+    // Sample from q.
+    // Update log q.
+    // What if a random choice from p is given as a param?
+    var _params = ad.untapify(params);
+    var val = erp.sample(_params);
+    this.logq = ad.add(this.logq, erp.score(params, val));
+    trace('Sampled ' + val + ' for ' + a + ' (' + erp.name + ' with params = ' + JSON.stringify(_params) + ')');
+    return k(s, val);
+  };
+
+  function paramChoice(s, k, a, erp, params) {
+    assert.ok(env.coroutine instanceof Variational);
+    return env.coroutine.paramChoice(s, k, a, erp, params);
+  }
+
+  function sampleGuide(s, k, a, erp, params) {
+    assert.ok(env.coroutine instanceof Variational);
+    return env.coroutine.sampleGuide(s, k, a, erp, params);
+  }
+
   Variational.prototype.incrementalize = env.defaultCoroutine.incrementalize;
 
   return {
     Variational: function(s, k, a, wpplFn, options) {
       return new Variational(s, k, a, wpplFn, options).run();
-    }
+    },
+    paramChoice: paramChoice,
+    sampleGuide: sampleGuide
   };
 
 };
