@@ -59,18 +59,12 @@ module.exports = function(env) {
         info('Step: ' + i);
         trace('********************************************************************************\n');
 
-        // Maps param address to estimate of grad of lower bound.
-        this.LgradEst = Object.create(null);
-        this.meanScoreGrad = Object.create(null);
+        // Acuumulate gradients for this step.
+        // Maps addresses to gradients.
+        this.grad = Object.create(null);
 
-        // Estimate of optimal (global) control variate is:
-        // cvCov / cvVar;
-        this.cvCov = 0;
-        this.cvVar = 0;
-
+        // Accumulate an estimate of the lower-bound.
         this.estELBO = 0;
-
-        //log(this.grad);
 
         return util.cpsLoop(
           this.samplesPerStep,
@@ -82,38 +76,45 @@ module.exports = function(env) {
             // Run the program.
             this.logp = 0;
             this.logq = 0;
+
+            // Params seen this execution.
             // Maps addresses to tapes.
-            // (Params seen this execution.)
             this.paramsSeen = Object.create(null);
 
             return this.wpplFn(_.clone(this.s), function(s, val) {
               trace('Program returned: ' + val);
-              trace('logp: ' + this.logp);
+              trace('logp: ' + ad.untapify(this.logp));
               trace('logq: ' + ad.untapify(this.logq));
 
-              // Compute gradients.
-              ad.yGradientR(this.logq);
-
-              var scoreDiff = ad.untapify(this.logq) - this.logp;
+              var scoreDiff = ad.untapify(this.logq) - ad.untapify(this.logp);
               this.estELBO -= scoreDiff / this.samplesPerStep;
 
+              // Initialize gradients to zero.
               _.each(this.paramsSeen, function(val, a) {
-                // Accumulate gradients.
-                if (!_.has(this.LgradEst, a)) {
-                  this.LgradEst[a] = 0;
+                if (!_.has(this.grad, a)) {
+                  this.grad[a] = 0;
                 }
-                if (!_.has(this.meanScoreGrad, a)) {
-                  this.meanScoreGrad[a] = 0;
-                }
-                trace('Score gradient w.r.t. ' + a + ': ' + val.sensitivity);
+              }, this);
 
-                this.LgradEst[a] += (val.sensitivity * scoreDiff) / this.samplesPerStep;
-                this.meanScoreGrad[a] += val.sensitivity / this.samplesPerStep;
+              // TODO: This isn't quite right as it's sensitive to
+              // switching the order of in which the gradients of log
+              // p and log q are computed. (This is unexpected.)
 
-                // TODO: Better names, not even Cov now simplified.
-                this.cvCov += this.LgradEst[a] * val.sensitivity;
-                this.cvVar += Math.pow(val.sensitivity, 2);
+              // Compute gradient w.r.t log q.
+              ad.yGradientR(this.logq);
+              _.each(this.paramsSeen, function(val, a) {
+                assert(_.has(this.grad, a));
+                trace('Score gradient of log q w.r.t. ' + a + ': ' + val.sensitivity);
+                this.grad[a] += (val.sensitivity * scoreDiff) / this.samplesPerStep;
+              }, this);
 
+
+              // Compute gradient w.r.t log p.
+              ad.yGradientR(this.logp);
+              _.each(this.paramsSeen, function(val, a) {
+                assert(_.has(this.grad, a)); // Initialized while accumulating grad. log p term.
+                trace('Score gradient of log p w.r.t. ' + a + ': ' + val.sensitivity);
+                this.grad[a] -= val.sensitivity / this.samplesPerStep;
               }, this);
 
 
@@ -130,20 +131,10 @@ module.exports = function(env) {
             trace('================================================================================\n');
             debug('Estimated ELBO before gradient step: ' + this.estELBO);
 
-            // Compute gradient estimate using (global) control variate.
-            var grad = Object.create(null);
-            var optimalScalar = this.cvCov / this.cvVar;
-
-            trace("Optimal scalar: " + optimalScalar);
             trace('Params before step:');
             trace(this.params);
 
-            _.each(this.LgradEst, function(g, a) {
-              assert(_.has(this.meanScoreGrad, a));
-              grad[a] = g;// - optimalScalar * this.meanScoreGrad[a];
-            }, this);
-
-            optimize(this.params, grad);
+            optimize(this.params, this.grad);
 
             trace('Params after step:');
             debug(this.params);
@@ -242,7 +233,7 @@ module.exports = function(env) {
       // Update log p.
       val = options.guideVal;
       trace('Using guide value ' + val + ' for ' + a + ' (' + erp.name + ')');
-      this.logp += erp.score(params, val);
+      this.logp = ad.add(this.logp, erp.score(params, val));
     } else {
       throw 'No guide value given';
     }
@@ -252,7 +243,7 @@ module.exports = function(env) {
 
   Variational.prototype.factor = function(s, k, a, score) {
     // Update log p.
-    this.logp += score;
+    this.logp = ad.add(this.logp, score);
     return k(s);
   };
 
