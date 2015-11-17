@@ -96,10 +96,6 @@ module.exports = function(env) {
                 }
               }, this);
 
-              // TODO: This isn't quite right as it's sensitive to
-              // switching the order of in which the gradients of log
-              // p and log q are computed. (This is unexpected.)
-
               // Compute gradient w.r.t log q.
               ad.yGradientR(this.logq);
               _.each(this.paramsSeen, function(val, a) {
@@ -108,6 +104,14 @@ module.exports = function(env) {
                 this.grad[a] += (val.sensitivity * scoreDiff) / this.samplesPerStep;
               }, this);
 
+              // TODO: Is there a better way to handle this?
+
+              // It might be the case that logp doesn't depend on all
+              // parameters. We reset sensitivities here so that
+              // parameters which aren't affected by yGradientR(logp)
+              // have sensitivity 0 rather than the sensitivity left
+              // over from yGradientR(logp).
+              resetSensitivities(this.logq);
 
               // Compute gradient w.r.t log p.
               ad.yGradientR(this.logp);
@@ -201,6 +205,17 @@ module.exports = function(env) {
         return this.k(this.s, erp);
       }.bind(this));
   };
+
+  function isTape(obj) {
+    return _.has(obj, 'sensitivity');
+  }
+
+  function resetSensitivities(tape) {
+    if (isTape(tape)) {
+      tape.sensitivity = 0;
+      _.each(tape.tapes, resetSensitivities);
+    }
+  }
 
   // TODO: This options arg clashes with the forceSample arg used in MH.
   Variational.prototype.sample = function(s, k, a, erp, params, options) {

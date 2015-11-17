@@ -8,9 +8,6 @@ var model = function() {
   // TODO: Why doesn't this work? mu is optimized to -4 as expected,
   // but std goes towards 0 rather than 3?
 
-  // TODO: Understand why switching the order in which grad log p and
-  // grad log q are computed causes this to blow up.
-
   // Guide distribution, q.
   var u = sampleGuide(gaussianERP, [0, 1]);
   var guideVal = std * u + mu;
