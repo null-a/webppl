@@ -5,19 +5,34 @@ var model = function() {
   var std = paramChoice(deltaERP(1));
   //assert.ok(std > 0, 'std cannot be < 0');
 
-  // TODO: Why doesn't this work? mu is optimized to -4 as expected,
-  // but std goes towards 0 rather than 3?
-
+  // Inference with this guide works.
+  // After optimization: mu = -4, std = 3
   // Guide distribution, q.
+  // var u = sampleGuide(gaussianERP, [mu, std]);
+  // var guideVal = u;
+
+
+  // This doesn't work.
+
+  // Both gradients are 0 which I think is as expected given the
+  // current implementation. (Neither logp nor logq depend on the
+  // variational parameters as both p and q have fixed parameters.) To
+  // make this work I think we *do* need to take account of the change
+  // of volume when transforming u to guideVal.
+
+  // Example of this working (with just the std parameter) is here:
+  // https://gist.github.com/null-a/834ffa4de05c515cd5a9
+
+  // (Use GD to avoid division by 0 in adagrad.)
+
   var u = sampleGuide(gaussianERP, [0, 1]);
   var guideVal = std * u + mu;
+
 
   // p.
   var x = sample(gaussianERP, [-4, 3], { guideVal: guideVal });
 
   return x;
 };
-
-// This seems to work better with GD.
 
 Variational(model, { steps: 1000, stepSize: 0.1, samplesPerStep: 100, returnSamples: 1 });

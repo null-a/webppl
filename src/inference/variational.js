@@ -45,8 +45,8 @@ module.exports = function(env) {
 
   Variational.prototype.run = function() {
 
-    //var optimize = gd(this.stepSize);
-    var optimize = adagrad(this.stepSize);
+    var optimize = gd(this.stepSize);
+    //var optimize = adagrad(this.stepSize);
 
     // TODO: Tensor values params?
     // All variational parameters. Maps addresses to numbers/reals.
@@ -228,9 +228,14 @@ module.exports = function(env) {
 
     // Update log p.
     var val = options.guideVal;
-    trace('Using guide value ' + val + ' for ' + a + ' (' + erp.name + ')');
-    this.logp = ad.add(this.logp, erp.score(params, val));
-    return k(s, val);
+    // Untapify as logp can depend on the variational parameters via
+    // its parameters, but it shouldn't depend on the parameters via
+    // the value sampled from q. (I'm thinking of exo.wppl here, and
+    // I'm not 100% sure yet.)
+    var _val = ad.untapify(val);
+    trace('Using guide value ' + _val + ' for ' + a + ' (' + erp.name + ')');
+    this.logp = ad.add(this.logp, erp.score(params, _val));
+    return k(s, val); // _val or val?
   };
 
   Variational.prototype.factor = function(s, k, a, score) {
