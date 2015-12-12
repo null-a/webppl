@@ -76,6 +76,7 @@ module.exports = function(env) {
             // Run the program.
             this.logp = 0;
             this.logq = 0;
+            this.logq2 = 0; // The q which aren't reparameterized.
 
             // Params seen this execution.
             // Maps addresses to tapes.
@@ -96,22 +97,9 @@ module.exports = function(env) {
                 }
               }, this);
 
-              // Compute gradient w.r.t log q.
-              ad.yGradientR(this.logq);
-              _.each(this.paramsSeen, function(val, a) {
-                assert(_.has(this.grad, a));
-                trace('Score gradient of log q w.r.t. ' + a + ': ' + val.sensitivity);
-                this.grad[a] += (val.sensitivity * scoreDiff) / this.samplesPerStep;
-              }, this);
 
               // TODO: Is there a better way to handle this?
-
-              // It might be the case that logp doesn't depend on all
-              // parameters. We reset sensitivities here so that
-              // parameters which aren't affected by yGradientR(logp)
-              // have sensitivity 0 rather than the sensitivity left
-              // over from yGradientR(logp).
-              resetSensitivities(this.logq);
+              // Can't I find the gradients of a single expression?
 
               // Compute gradient w.r.t log p.
               ad.yGradientR(this.logp);
@@ -119,6 +107,31 @@ module.exports = function(env) {
                 assert(_.has(this.grad, a)); // Initialized while accumulating grad. log p term.
                 trace('Score gradient of log p w.r.t. ' + a + ': ' + val.sensitivity);
                 this.grad[a] -= val.sensitivity / this.samplesPerStep;
+              }, this);
+
+              // It might be the case that logp doesn't depend on all
+              // parameters. We reset sensitivities here so that
+              // parameters which aren't affected by yGradientR(logp)
+              // have sensitivity 0 rather than the sensitivity left
+              // over from yGradientR(logp).
+              resetSensitivities(this.logp);
+
+              // Compute gradient w.r.t log q.
+              ad.yGradientR(this.logq);
+              _.each(this.paramsSeen, function(val, a) {
+                assert(_.has(this.grad, a));
+                trace('Score gradient of log q w.r.t. ' + a + ': ' + val.sensitivity);
+                // NOTE: This scoreDiff term doesn't appear in the simple 1D reparameterization example.
+                this.grad[a] += (val.sensitivity) / this.samplesPerStep;
+              }, this);
+
+              resetSensitivities(this.logq);
+
+              ad.yGradientR(this.logq2);
+              _.each(this.paramsSeen, function(val, a) {
+                assert(_.has(this.grad, a));
+                trace('Score gradient of log q2 w.r.t. ' + a + ': ' + val.sensitivity);
+                this.grad[a] += val.sensitivity * scoreDiff / this.samplesPerStep;
               }, this);
 
 
@@ -234,7 +247,7 @@ module.exports = function(env) {
     // I'm not 100% sure yet.)
     var _val = ad.untapify(val);
     trace('Using guide value ' + _val + ' for ' + a + ' (' + erp.name + ')');
-    this.logp = ad.add(this.logp, erp.score(params, _val));
+    this.logp = ad.add(this.logp, erp.score(params, val));
     return k(s, val); // _val or val?
   };
 
@@ -259,7 +272,7 @@ module.exports = function(env) {
     return k(s, val);
   };
 
-  Variational.prototype.sampleGuide = function(s, k, a, erp, params) {
+  Variational.prototype.sampleGuide = function(s, k, a, erp, params, transform) {
     // Sample from q.
     // Update log q.
     // What if a random choice from p is given as a param?
@@ -267,7 +280,36 @@ module.exports = function(env) {
     var val = erp.sample(_params);
     this.logq = ad.add(this.logq, erp.score(params, val));
     trace('Sampled ' + val + ' for ' + a + ' (' + erp.name + ' with params = ' + JSON.stringify(_params) + ')');
-    return k(s, val);
+
+    // Handle transform.
+    assert.ok(transform === undefined || _.isFunction(transform));
+
+    if (transform) {
+
+      var f = function(x) {
+        var retval;
+        // HACK: Might need to do CPS properly here? Transform is
+        // deterministic, so maybe OK?
+        var z = transform({}, function(s, val) {
+          retval = val;
+        }, '', x);
+        // Trampoline.
+        while (z) {
+          z = z();
+        }
+        return retval;
+      };
+
+      var J = ad.derivativeR(f);
+      //console.log('Calling f: '+f(0).primal);
+      //console.log('Calling J: ' + J(1).primal);
+      // Account for change of volume form transform:
+      this.logq = ad.sub(this.logq, ad.maths.log(J(val)));
+      return transform(s, k, a, val);
+    } else {
+      this.logq2 = ad.add(this.logq2, erp.score(params, val));
+      return k(s, val);
+    }
   };
 
   function paramChoice(s, k, a, erp, params) {
@@ -275,9 +317,9 @@ module.exports = function(env) {
     return env.coroutine.paramChoice(s, k, a, erp, params);
   }
 
-  function sampleGuide(s, k, a, erp, params) {
+  function sampleGuide(s, k, a, erp, params, transform) {
     assert.ok(env.coroutine instanceof Variational);
-    return env.coroutine.sampleGuide(s, k, a, erp, params);
+    return env.coroutine.sampleGuide(s, k, a, erp, params, transform);
   }
 
   Variational.prototype.incrementalize = env.defaultCoroutine.incrementalize;

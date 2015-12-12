@@ -1,38 +1,28 @@
-var model = function() {
+var model1 = function() {
 
-  // Variational parameter.
   var mu = paramChoice(deltaERP(0));
   var std = paramChoice(deltaERP(1));
-  //assert.ok(std > 0, 'std cannot be < 0');
-
-  // Inference with this guide works.
-  // After optimization: mu = -4, std = 3
-  // Guide distribution, q.
-  // var u = sampleGuide(gaussianERP, [mu, std]);
-  // var guideVal = u;
-
-
-  // This doesn't work.
-
-  // Both gradients are 0 which I think is as expected given the
-  // current implementation. (Neither logp nor logq depend on the
-  // variational parameters as both p and q have fixed parameters.) To
-  // make this work I think we *do* need to take account of the change
-  // of volume when transforming u to guideVal.
-
-  // Example of this working (with just the std parameter) is here:
-  // https://gist.github.com/null-a/834ffa4de05c515cd5a9
-
-  // (Use GD to avoid division by 0 in adagrad.)
-
-  var u = sampleGuide(gaussianERP, [0, 1]);
-  var guideVal = std * u + mu;
-
-
-  // p.
-  var x = sample(gaussianERP, [-4, 3], { guideVal: guideVal });
-
+  var guide = sampleGuide(gaussianERP, [mu, std]);
+  var x = sample(gaussianERP, [1, 3], { guideVal: guide });
   return x;
+
 };
 
-Variational(model, { steps: 1000, stepSize: 0.1, samplesPerStep: 100, returnSamples: 1 });
+var model2 = function() {
+
+  var mu = paramChoice(deltaERP(0));
+  var std = paramChoice(deltaERP(1));
+  // Re-parameterization trick:
+  var guide = sampleGuide(gaussianERP, [0, 1], function(u) {
+    return u * std + mu;
+  });
+  var x = sample(gaussianERP, [1, 3], { guideVal: guide });
+  return x;
+
+};
+
+
+// TODO: The model2 doesn't appear to coverge any faster which I find
+// surprising.
+
+Variational(model2, { steps: 200, stepSize: 0.2, samplesPerStep: 100, returnSamples: 1 });
