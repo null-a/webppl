@@ -9,7 +9,7 @@ var Histogram = function() {
 };
 
 Histogram.prototype.add = function(value) {
-  var value = untapify(value);
+  var value = ad.value(value);
   var k = util.serialize(value);
   if (this.hist[k] === undefined) {
     this.hist[k] = { prob: 0, val: value };
@@ -47,16 +47,6 @@ MAP.prototype.toERP = function() {
   }
   return erp;
 };
-
-// Recursively untapify objects.
-function untapify(x) {
-  // TODO: More robust way of checking whether x is a tape. (Push into ad.js?)
-  if (!_.isArray(x) && !_.isFunction(x) && _.isObject(x) && !x.primal) {
-    return _.mapObject(x, untapify);
-  } else {
-    return ad.untapify(x);
-  }
-}
 
 module.exports = {
   Histogram: Histogram,

@@ -13,7 +13,7 @@
     "test": "tests"
   },
   "dependencies": {
-    "ad.js": "^1.4.1",
+    "adnn": "git+https://github.com/dritchie/adnn.git",
     "amdefine": "^1.0.0",
     "ast-types": "^0.8.13",
     "escodegen": "^1.7.0",

@@ -20,7 +20,6 @@
 
 var assert = require('assert');
 var _ = require('underscore');
-var ad = require('ad.js')({ mode: 'r' });
 
 var util = require('./util');
 var erp = require('./erp');
@@ -34,7 +33,7 @@ var rejection = require('./inference/rejection');
 var incrementalmh = require('./inference/incrementalmh');
 var headerUtils = require('./headerUtils');
 var Query = require('./query').Query;
-
+var ad = require('adnn/ad');
 
 module.exports = function(env) {
 
@@ -64,7 +63,7 @@ module.exports = function(env) {
   };
 
   env.factor = function(s, k, a, score) {
-    assert.ok(!isNaN(ad.untapify(score)));
+    assert.ok(!isNaN(ad.value(score)));
     return env.coroutine.factor(s, k, a, score);
   };
 

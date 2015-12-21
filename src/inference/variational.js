@@ -75,65 +75,47 @@ module.exports = function(env) {
 
             // Run the program.
             this.logp = 0;
-            this.logq = 0;
-            this.logq2 = 0; // The q which aren't reparameterized.
+            this.logq = 0; // The log prob of the variational approximation to p
+            this.logr = 0; // The log prob of the sampling distribution
 
             // Params seen this execution.
             // Maps addresses to tapes.
             this.paramsSeen = Object.create(null);
 
             return this.wpplFn(_.clone(this.s), function(s, val) {
-              trace('Program returned: ' + val);
-              trace('logp: ' + ad.untapify(this.logp));
-              trace('logq: ' + ad.untapify(this.logq));
+              trace('Program returned: ' + ad.value(val));
+              trace('logp: ' + ad.value(this.logp));
+              trace('logq: ' + ad.value(this.logq));
+              trace('logr: ' + ad.value(this.logr));
 
-              var scoreDiff = ad.untapify(this.logq) - ad.untapify(this.logp);
+              var scoreDiff = ad.value(this.logq) - ad.value(this.logp);
+              trace('score diff: ' + scoreDiff);
               this.estELBO -= scoreDiff / this.samplesPerStep;
 
-              // Initialize gradients to zero.
+
+              // Make sure we don't differentiate through scoreDiff in
+              // objective.
+              assert(typeof scoreDiff === 'number');
+              var objective = ad.scalar.sub(
+                ad.scalar.add(
+                  ad.scalar.mul(this.logr, scoreDiff),
+                  // TODO: Without reparameterization, the expectation
+                  // of the following is 0. Optimize?
+                  this.logq
+                ),
+                this.logp);
+
+              objective.backprop();
+
               _.each(this.paramsSeen, function(val, a) {
                 if (!_.has(this.grad, a)) {
+                  // Initialize gradients to zero.
                   this.grad[a] = 0;
                 }
+                trace('Gradient of objective w.r.t. ' + a + ': ' + ad.derivative(val));
+                this.grad[a] += ad.derivative(val) / this.samplesPerStep;
+
               }, this);
-
-
-              // TODO: Is there a better way to handle this?
-              // Can't I find the gradients of a single expression?
-
-              // Compute gradient w.r.t log p.
-              ad.yGradientR(this.logp);
-              _.each(this.paramsSeen, function(val, a) {
-                assert(_.has(this.grad, a)); // Initialized while accumulating grad. log p term.
-                trace('Score gradient of log p w.r.t. ' + a + ': ' + val.sensitivity);
-                this.grad[a] -= val.sensitivity / this.samplesPerStep;
-              }, this);
-
-              // It might be the case that logp doesn't depend on all
-              // parameters. We reset sensitivities here so that
-              // parameters which aren't affected by yGradientR(logp)
-              // have sensitivity 0 rather than the sensitivity left
-              // over from yGradientR(logp).
-              resetSensitivities(this.logp);
-
-              // Compute gradient w.r.t log q.
-              ad.yGradientR(this.logq);
-              _.each(this.paramsSeen, function(val, a) {
-                assert(_.has(this.grad, a));
-                trace('Score gradient of log q w.r.t. ' + a + ': ' + val.sensitivity);
-                // NOTE: This scoreDiff term doesn't appear in the simple 1D reparameterization example.
-                this.grad[a] += (val.sensitivity) / this.samplesPerStep;
-              }, this);
-
-              resetSensitivities(this.logq);
-
-              ad.yGradientR(this.logq2);
-              _.each(this.paramsSeen, function(val, a) {
-                assert(_.has(this.grad, a));
-                trace('Score gradient of log q2 w.r.t. ' + a + ': ' + val.sensitivity);
-                this.grad[a] += val.sensitivity * scoreDiff / this.samplesPerStep;
-              }, this);
-
 
               return nextSample();
             }.bind(this), this.a);
@@ -200,7 +182,7 @@ module.exports = function(env) {
         this.logp = 0;
         this.logq = 0;
         return this.wpplFn(_.clone(this.s), function(s, val) {
-          var scoreDiff = ad.untapify(this.logq) - this.logp;
+          var scoreDiff = ad.value(this.logq) - ad.value(this.logp);
           estELBO -= scoreDiff / this.returnSamples;
           hist.add(val);
           return next();
@@ -231,8 +213,8 @@ module.exports = function(env) {
   }
 
   // TODO: This options arg clashes with the forceSample arg used in MH.
-  Variational.prototype.sample = function(s, k, a, erp, params, options) {
-    var options = options || {};
+  Variational.prototype.sample = function(s, k, a, erp, params, opts) {
+    var options = opts || {};
     // Assume 1-to-1 correspondence between guide and target for now.
 
     if (!_.has(options, 'guideVal')) {
@@ -241,19 +223,15 @@ module.exports = function(env) {
 
     // Update log p.
     var val = options.guideVal;
-    // Untapify as logp can depend on the variational parameters via
-    // its parameters, but it shouldn't depend on the parameters via
-    // the value sampled from q. (I'm thinking of exo.wppl here, and
-    // I'm not 100% sure yet.)
-    var _val = ad.untapify(val);
+    var _val = ad.value(val);
     trace('Using guide value ' + _val + ' for ' + a + ' (' + erp.name + ')');
-    this.logp = ad.add(this.logp, erp.score(params, val));
-    return k(s, val); // _val or val?
+    this.logp = ad.scalar.add(this.logp, erp.score(params, val));
+    return k(s, val);
   };
 
   Variational.prototype.factor = function(s, k, a, score) {
     // Update log p.
-    this.logp = ad.add(this.logp, score);
+    this.logp = ad.scalar.add(this.logp, score);
     return k(s);
   };
 
@@ -267,49 +245,37 @@ module.exports = function(env) {
       _val = this.params[a];
       trace('Seen parameter ' + a + ' before. Value is: ' + _val);
     }
-    var val = ad.tapify(_val);
+    var val = ad.lift(_val);
     this.paramsSeen[a] = val;
     return k(s, val);
   };
 
-  Variational.prototype.sampleGuide = function(s, k, a, erp, params, transform) {
+  Variational.prototype.sampleGuide = function(s, k, a, erp, params, opts) {
     // Sample from q.
-    // Update log q.
     // What if a random choice from p is given as a param?
-    var _params = ad.untapify(params);
-    var val = erp.sample(_params);
-    this.logq = ad.add(this.logq, erp.score(params, val));
-    trace('Sampled ' + val + ' for ' + a + ' (' + erp.name + ' with params = ' + JSON.stringify(_params) + ')');
 
-    // Handle transform.
-    assert.ok(transform === undefined || _.isFunction(transform));
+    var options = opts || {};
+    var _params = params.map(ad.value);
 
-    if (transform) {
-
-      var f = function(x) {
-        var retval;
-        // HACK: Might need to do CPS properly here? Transform is
-        // deterministic, so maybe OK?
-        var z = transform({}, function(s, val) {
-          retval = val;
-        }, '', x);
-        // Trampoline.
-        while (z) {
-          z = z();
-        }
-        return retval;
-      };
-
-      var J = ad.derivativeR(f);
-      //console.log('Calling f: '+f(0).primal);
-      //console.log('Calling J: ' + J(1).primal);
-      // Account for change of volume form transform:
-      this.logq = ad.sub(this.logq, ad.maths.log(J(val)));
-      return transform(s, k, a, val);
+    var val;
+    if (options.reparam) {
+      // Reparameterization trick.
+      // Requires ERP implement baseParams and transform.
+      assert.ok(erp.baseParams && erp.transform, erp.name + ' ERP does not support reparameterization.');
+      var z = erp.sample(erp.baseParams);
+      this.logr = ad.scalar.add(this.logr, erp.score(erp.baseParams, z));
+      val = erp.transform(z, params);
+      trace('Sampled ' + ad.value(val) + ' for ' + a);
+      trace('  ' + erp.name + '(' + _params + ') reparameterized as ' + erp.name + '(' + erp.baseParams + ') + transform');
     } else {
-      this.logq2 = ad.add(this.logq2, erp.score(params, val));
-      return k(s, val);
+      val = erp.sample(_params);
+      this.logr = ad.scalar.add(this.logr, erp.score(params, val));
+      trace('Sampled ' + val + ' for ' + a);
+      trace('  ' + erp.name + '(' + _params + ')');
     }
+
+    this.logq = ad.scalar.add(this.logq, erp.score(params, val));
+    return k(s, val);
   };
 
   function paramChoice(s, k, a, erp, params) {

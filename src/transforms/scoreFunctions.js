@@ -9,7 +9,7 @@ var build = require('ast-types').builders;
 var sweet = require('sweet.js');
 var util = require('../util');
 
-var adMacros = sweet.loadNodeModule(null, 'ad.js/macros');
+var adMacros = sweet.loadNodeModule(null, 'adnn/ad/macros.sjs');
 var sweetOptions = { modules: adMacros, readableNames: true, ast: true };
 
 function expandMacros(code) {
@@ -58,7 +58,7 @@ function addAdRequire(ast) {
   var body = ast.body;
   assert.ok(isUseStrictExpr(body[0]), 'Strict mode expected.');
   var useStrictNode = body[0];
-  var requireNode = parse("var ad = require('ad.js')({ mode: 'r' });").body[0];
+  var requireNode = parse("var ad = require('adnn/ad');").body[0];
   var rest = body.slice(1);
   return build.program([useStrictNode, requireNode].concat(rest));
 }

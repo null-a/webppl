@@ -203,6 +203,14 @@ function gaussianScore(params, x) {
 var gaussianERP = new ERP({
   sample: gaussianSample,
   score: gaussianScore,
+  baseParams: [0, 1],
+  transform: function(x, params) {
+    // Transform a sample x from the base distribution to the
+    // distribution described by params.
+    var mu = params[0];
+    var sigma = params[1];
+    return ad.scalar.add(ad.scalar.mul(sigma, x), mu);
+  },
   isContinuous: true
 });
 
