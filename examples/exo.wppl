@@ -19,11 +19,6 @@ var model2 = function() {
 
 };
 
-// TODO: The model2 doesn't appear to coverge any faster than model 1
-// which I find surprising. (I thought I'd confirmed elsewhere that
-// using reparam is faster here.)
-
-
 var observe = function(erp, params, val) {
   factor(erp.score(params, val));
 };
