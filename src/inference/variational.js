@@ -100,7 +100,8 @@ module.exports = function(env) {
                 ad.scalar.add(
                   ad.scalar.mul(this.logr, scoreDiff),
                   // TODO: Without reparameterization, the expectation
-                  // of the following is 0. Optimize?
+                  // of the following is 0. This is usually simplified
+                  // analytically. Optimize?
                   this.logq
                 ),
                 this.logp);
