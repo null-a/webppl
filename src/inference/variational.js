@@ -53,97 +53,97 @@ module.exports = function(env) {
     this.params = Object.create(null);
 
     return util.cpsLoop(
-      this.steps,
-      function(i, nextStep) {
-        trace('\n********************************************************************************');
-        info('Step: ' + i);
-        trace('********************************************************************************\n');
+        this.steps,
+        function(i, nextStep) {
+          trace('\n********************************************************************************');
+          info('Step: ' + i);
+          trace('********************************************************************************\n');
 
-        // Acuumulate gradients for this step.
-        // Maps addresses to gradients.
-        this.grad = Object.create(null);
+          // Acuumulate gradients for this step.
+          // Maps addresses to gradients.
+          this.grad = Object.create(null);
 
-        // Accumulate an estimate of the lower-bound.
-        this.estELBO = 0;
+          // Accumulate an estimate of the lower-bound.
+          this.estELBO = 0;
 
-        return util.cpsLoop(
-          this.samplesPerStep,
-          function(j, nextSample) {
-            trace('\n--------------------------------------------------------------------------------');
-            trace('Sample: ' + j);
-            trace('--------------------------------------------------------------------------------\n');
+          return util.cpsLoop(
+              this.samplesPerStep,
+              function(j, nextSample) {
+                trace('\n--------------------------------------------------------------------------------');
+                trace('Sample: ' + j);
+                trace('--------------------------------------------------------------------------------\n');
 
-            // Run the program.
-            this.logp = 0;
-            this.logq = 0; // The log prob of the variational approximation to p
-            this.logr = 0; // The log prob of the sampling distribution
+                // Run the program.
+                this.logp = 0;
+                this.logq = 0; // The log prob of the variational approximation to p
+                this.logr = 0; // The log prob of the sampling distribution
 
-            // Params seen this execution.
-            // Maps addresses to tapes.
-            this.paramsSeen = Object.create(null);
+                // Params seen this execution.
+                // Maps addresses to tapes.
+                this.paramsSeen = Object.create(null);
 
-            return this.wpplFn(_.clone(this.s), function(s, val) {
-              trace('Program returned: ' + ad.value(val));
-              trace('logp: ' + ad.value(this.logp));
-              trace('logq: ' + ad.value(this.logq));
-              trace('logr: ' + ad.value(this.logr));
+                return this.wpplFn(_.clone(this.s), function(s, val) {
+                  trace('Program returned: ' + ad.value(val));
+                  trace('logp: ' + ad.value(this.logp));
+                  trace('logq: ' + ad.value(this.logq));
+                  trace('logr: ' + ad.value(this.logr));
 
-              var scoreDiff = ad.value(this.logq) - ad.value(this.logp);
-              trace('score diff: ' + scoreDiff);
-              this.estELBO -= scoreDiff / this.samplesPerStep;
-
-
-              // Make sure we don't differentiate through scoreDiff in
-              // objective.
-              assert(typeof scoreDiff === 'number');
-              var objective = ad.scalar.sub(
-                ad.scalar.add(
-                  ad.scalar.mul(this.logr, scoreDiff),
-                  // TODO: Without reparameterization, the expectation
-                  // of the following is 0. This is usually simplified
-                  // analytically. Optimize?
-                  this.logq
-                ),
-                this.logp);
-
-              objective.backprop();
-
-              _.each(this.paramsSeen, function(val, a) {
-                if (!_.has(this.grad, a)) {
-                  // Initialize gradients to zero.
-                  this.grad[a] = 0;
-                }
-                trace('Gradient of objective w.r.t. ' + a + ': ' + ad.derivative(val));
-                this.grad[a] += ad.derivative(val) / this.samplesPerStep;
-
-              }, this);
-
-              return nextSample();
-            }.bind(this), this.a);
+                  var scoreDiff = ad.value(this.logq) - ad.value(this.logp);
+                  trace('score diff: ' + scoreDiff);
+                  this.estELBO -= scoreDiff / this.samplesPerStep;
 
 
-          }.bind(this),
-          function() {
+                  // Make sure we don't differentiate through scoreDiff in
+                  // objective.
+                  assert(typeof scoreDiff === 'number');
+                  var objective = ad.scalar.sub(
+                      ad.scalar.add(
+                          ad.scalar.mul(this.logr, scoreDiff),
+                          // TODO: Without reparameterization, the expectation
+                          // of the following is 0. This is usually simplified
+                          // analytically. Optimize?
+                          this.logq
+                      ),
+                      this.logp);
 
-            // Take gradient step.
-            trace('\n================================================================================');
-            trace('Taking gradient step');
-            trace('================================================================================\n');
-            debug('Estimated ELBO before gradient step: ' + this.estELBO);
+                  objective.backprop();
 
-            trace('Params before step:');
-            trace(this.params);
+                  _.each(this.paramsSeen, function(val, a) {
+                    if (!_.has(this.grad, a)) {
+                      // Initialize gradients to zero.
+                      this.grad[a] = 0;
+                    }
+                    trace('Gradient of objective w.r.t. ' + a + ': ' + ad.derivative(val));
+                    this.grad[a] += ad.derivative(val) / this.samplesPerStep;
 
-            optimize(this.params, this.grad);
+                  }, this);
 
-            trace('Params after step:');
-            debug(this.params);
+                  return nextSample();
+                }.bind(this), this.a);
 
-            return nextStep();
-          }.bind(this));
 
-      }.bind(this),
-      this.finish.bind(this));
+              }.bind(this),
+              function() {
+
+                // Take gradient step.
+                trace('\n================================================================================');
+                trace('Taking gradient step');
+                trace('================================================================================\n');
+                debug('Estimated ELBO before gradient step: ' + this.estELBO);
+
+                trace('Params before step:');
+                trace(this.params);
+
+                optimize(this.params, this.grad);
+
+                trace('Params after step:');
+                debug(this.params);
+
+                return nextStep();
+              }.bind(this));
+
+        }.bind(this),
+        this.finish.bind(this));
   };
 
 
@@ -155,7 +155,7 @@ module.exports = function(env) {
       });
     };
   }
-  
+
   function adagrad(stepSize) {
     // State.
     // Map from a to running sum of grad^2.
@@ -178,28 +178,28 @@ module.exports = function(env) {
     var estELBO = 0;
 
     return util.cpsLoop(
-      this.returnSamples,
-      function(i, next) {
-        this.logp = 0;
-        this.logq = 0;
-        return this.wpplFn(_.clone(this.s), function(s, val) {
-          var scoreDiff = ad.value(this.logq) - ad.value(this.logp);
-          estELBO -= scoreDiff / this.returnSamples;
-          hist.add(val);
-          return next();
-        }.bind(this), this.a);
-      }.bind(this),
-      function() {
-        info('\n================================================================================');
-        info('Estimated ELBO: ' + estELBO);
-        info('\nOptimized variational parameters:');
-        info(this.params);
-        env.coroutine = this.coroutine;
-        var erp = hist.toERP();
-        erp.estELBO = estELBO;
-        erp.parameters = this.params;
-        return this.k(this.s, erp);
-      }.bind(this));
+        this.returnSamples,
+        function(i, next) {
+          this.logp = 0;
+          this.logq = 0;
+          return this.wpplFn(_.clone(this.s), function(s, val) {
+            var scoreDiff = ad.value(this.logq) - ad.value(this.logp);
+            estELBO -= scoreDiff / this.returnSamples;
+            hist.add(val);
+            return next();
+          }.bind(this), this.a);
+        }.bind(this),
+        function() {
+          info('\n================================================================================');
+          info('Estimated ELBO: ' + estELBO);
+          info('\nOptimized variational parameters:');
+          info(this.params);
+          env.coroutine = this.coroutine;
+          var erp = hist.toERP();
+          erp.estELBO = estELBO;
+          erp.parameters = this.params;
+          return this.k(this.s, erp);
+        }.bind(this));
   };
 
   function isTape(obj) {
@@ -267,7 +267,8 @@ module.exports = function(env) {
       this.logr = ad.scalar.add(this.logr, erp.score(erp.baseParams, z));
       val = erp.transform(z, params);
       trace('Sampled ' + ad.value(val) + ' for ' + a);
-      trace('  ' + erp.name + '(' + _params + ') reparameterized as ' + erp.name + '(' + erp.baseParams + ') + transform');
+      trace('  ' + erp.name + '(' + _params + ') reparameterized as ' +
+            erp.name + '(' + erp.baseParams + ') + transform');
     } else {
       val = erp.sample(_params);
       this.logr = ad.scalar.add(this.logr, erp.score(params, val));

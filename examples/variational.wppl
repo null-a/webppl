@@ -1,15 +1,15 @@
 var binomial = function() {
   var aParam = paramChoice(uniformERP, [0, 1]);
   var aGuide = sampleGuide(bernoulliERP, [aParam]);
-  var      a = sample(bernoulliERP, [0.5], { guideVal: aGuide });
+  var a = sample(bernoulliERP, [0.5], { guideVal: aGuide });
 
   var bParam = paramChoice(uniformERP, [0, 1]);
   var bGuide = sampleGuide(bernoulliERP, [bParam]);
-  var      b = sample(bernoulliERP, [0.5], { guideVal: bGuide });
+  var b = sample(bernoulliERP, [0.5], { guideVal: bGuide });
 
   var cParam = paramChoice(uniformERP, [0, 1]);
   var cGuide = sampleGuide(bernoulliERP, [cParam]);
-  var      c = sample(bernoulliERP, [0.5], { guideVal: cGuide });
+  var c = sample(bernoulliERP, [0.5], { guideVal: cGuide });
 
   factor(a || b ? 0 : -1);
 
