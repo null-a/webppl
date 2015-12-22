@@ -33,7 +33,7 @@ var model3 = function() {
 
   // q.
   var theta = paramChoice(deltaERP(1));
-  var guide = sampleGuide(gaussianERP, [x * theta, 0.5], { reparam: 0 });
+  var guide = sampleGuide(gaussianERP, [x * theta, Math.sqrt(0.5)], { reparam: 0 });
 
   // p.
   var z = sample(gaussianERP, [0, 1], { guideVal: guide });
