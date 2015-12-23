@@ -22,6 +22,7 @@
 'use strict';
 
 var numeric = require('numeric');
+var Tensor = require('./tensor');
 var _ = require('underscore');
 var util = require('./util');
 var assert = require('assert');
@@ -215,30 +216,35 @@ var gaussianERP = new ERP({
 });
 
 function multivariateGaussianSample(params) {
+  // TODO: Drop dependency on numeric, instead write in terms of
+  // Tensor. Need SVD function adding.
   var mu = params[0];
-  var cov = params[1];
-  var xs = mu.map(function() {return gaussianSample([0, 1]);});
+  var cov = params[1].toArray();
+  var n = cov.length;
+  var xs = _.times(n, function() { return gaussianSample([0, 1]); });
   var svd = numeric.svd(cov);
   var scaledV = numeric.transpose(svd.V).map(function(x) {
     return numeric.mul(numeric.sqrt(svd.S), x);
   });
   xs = numeric.dot(xs, numeric.transpose(scaledV));
-  return numeric.add(xs, mu);
+  return (new Tensor([n, 1]).fromFlatArray(xs)).add(mu);
 }
 
-function multivariateGaussianScore(params, x) {
+// adified by hand for now.
+function multivariateGaussianScoreSkipT(params, x) {
   var mu = params[0];
   var cov = params[1];
-  var n = mu.length;
-  var coeffs = n * LOG_2PI + Math.log(numeric.det(cov));
-  var xSubMu = numeric.sub(x, mu);
-  var exponents = numeric.dot(numeric.dot(xSubMu, numeric.inv(cov)), xSubMu);
-  return -0.5 * (coeffs + exponents);
+  var n = ad.value(mu).dims[0];
+  var coeffs = ad.scalar.add(n * LOG_2PI, ad.scalar.log(ad.tensor.det(cov)));
+  var xSubMu = ad.tensor.sub(x, mu);
+  // Would using solve here be more accurate. Compare results (numerically) with e.g. scipy.
+  var exponents = ad.tensor.dot(ad.tensor.dot(ad.tensor.transpose(xSubMu), ad.tensor.inv(cov)), xSubMu);
+  return ad.scalar.mul(-0.5, ad.scalar.add(coeffs, ad.tensorEntry(exponents, 0)));
 }
 
 var multivariateGaussianERP = new ERP({
   sample: multivariateGaussianSample,
-  score: multivariateGaussianScore,
+  score: multivariateGaussianScoreSkipT,
   // HACK: Avoid tapifying a matrix as it's not yet supported.
   isContinuous: false
 });

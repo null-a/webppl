@@ -1,6 +1,7 @@
 'use strict';
 
 var serialize = require('./util').serialize
+var Tensor = require('./tensor');
 
 module.exports = function(env) {
 
@@ -56,11 +57,21 @@ module.exports = function(env) {
     }
   };
 
+  var Vector = function(s, k, a, arr) {
+    return k(s, new Tensor([arr.length, 1]).fromFlatArray(arr));
+  };
+
+  var Matrix = function(s, k, a, arr) {
+    return k(s, new Tensor([arr.length, arr[0].length]).fromArray(arr));
+  };
+
   return {
     display: display,
     cache: cache,
     apply: apply,
-    _Fn: _Fn
+    _Fn: _Fn,
+    Vector: Vector,
+    Matrix: Matrix
   };
 
 };

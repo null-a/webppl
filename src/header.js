@@ -33,7 +33,7 @@ var rejection = require('./inference/rejection');
 var incrementalmh = require('./inference/incrementalmh');
 var headerUtils = require('./headerUtils');
 var Query = require('./query').Query;
-var ad = require('adnn/ad');
+var ad = require('./ad');
 
 module.exports = function(env) {
 
