@@ -61,12 +61,12 @@ Tensor.prototype.inv = function() {
     }
   }
 
-  for(j = 0; j < n; ++j) {
+  for (j = 0; j < n; ++j) {
     var i0 = -1;
     var v0 = -1;
-    for(i = j; i !== n; ++i) {
+    for (i = j; i !== n; ++i) {
       k = Math.abs(A[i][j]);
-      if(k > v0) {
+      if (k > v0) {
         i0 = i; v0 = k;
       }
     }
@@ -77,29 +77,29 @@ Tensor.prototype.inv = function() {
     I[i0] = I[j];
     I[j] = Ij;
     x = Aj[j];
-    for(k = j; k !== n; ++k) {
+    for (k = j; k !== n; ++k) {
       Aj[k] /= x;
     }
-    for(k = n - 1; k !== -1; --k) {
+    for (k = n - 1; k !== -1; --k) {
       Ij[k] /= x;
     }
-    for(i = n - 1; i !== -1; --i) {
+    for (i = n - 1; i !== -1; --i) {
       if (i !== j) {
         Ai = A[i];
         Ii = I[i];
         x = Ai[j];
-        for(k = j + 1; k !== n; ++k) {
+        for (k = j + 1; k !== n; ++k) {
           Ai[k] -= Aj[k] * x;
         }
-        for(k = n - 1; k > 0; --k) {
+        for (k = n - 1; k > 0; --k) {
           Ii[k] -= Ij[k] * x;
           --k;
           Ii[k] -= Ij[k] * x;
         }
-        if(k===0) {
+        if (k === 0) {
           Ii[0] -= Ij[0] * x;
         }
-        }
+      }
     }
   }
   return new Tensor([n, n]).fromArray(I);
@@ -125,24 +125,24 @@ Tensor.prototype.det = function() {
     }
   }
 
-  for(j = 0; j < n-1; j++) {
+  for (j = 0; j < n - 1; j++) {
     k = j;
-    for(i = j + 1; i < n; i++) {
-      if(Math.abs(A[i][j]) > Math.abs(A[k][j])) {
+    for (i = j + 1; i < n; i++) {
+      if (Math.abs(A[i][j]) > Math.abs(A[k][j])) {
         k = i;
       }
     }
-    if(k !== j) {
+    if (k !== j) {
       temp = A[k];
       A[k] = A[j];
       A[j] = temp;
       ret *= -1;
     }
     Aj = A[j];
-    for(i = j + 1; i < n; i++) {
+    for (i = j + 1; i < n; i++) {
       Ai = A[i];
       alpha = Ai[j] / Aj[j];
-      for(k = j + 1; k < n - 1; k += 2) {
+      for (k = j + 1; k < n - 1; k += 2) {
         k1 = k + 1;
         Ai[k] -= Aj[k] * alpha;
         Ai[k1] -= Aj[k1] * alpha;
@@ -151,7 +151,7 @@ Tensor.prototype.det = function() {
         Ai[k] -= Aj[k] * alpha;
       }
     }
-    if(Aj[j] === 0) {
+    if (Aj[j] === 0) {
       return 0;
     }
     ret *= Aj[j];

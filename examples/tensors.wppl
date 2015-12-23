@@ -1,7 +1,5 @@
-
-
 var mu = Vector([-0.5, 0]);
-var cov = Matrix([[2, 0],[0, 3]]);
+var cov = Matrix([[2, 0], [0, 3]]);
 
 //var x = Vector([0.1, 0.2]);
 

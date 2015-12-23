@@ -63,9 +63,7 @@ ad.tensor.dot = ad.newBinaryFunction({
 
     var Ah = Ap.dims[0];
     var Aw = Ap.dims[1];
-    var Bh = Bp.dims[0];
     var Bw = Bp.dims[1];
-    var hout = Ah;
     var wout = Bw;
 
     for (var l = 0; l < Ah; l++) {
@@ -86,7 +84,6 @@ ad.tensor.dot = ad.newBinaryFunction({
     var Aw = Ap.dims[1];
     var Bh = Bp.dims[0];
     var Bw = Bp.dims[1];
-    var hout = Ah;
     var wout = Bw;
 
     for (var l = 0; l < Bh; l++) {
