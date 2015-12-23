@@ -3,7 +3,16 @@
 var assert = require('assert');
 var Tensor = require('adnn/tensor');
 
-Tensor.prototype.inspect = Tensor.prototype.toString;
+
+
+// TODO: toString should return string so that it plays nicely with +.
+
+// Tensor.prototype.toString = function() {
+//   JSON.stringify(this.toArray());
+// };
+// Tensor.prototype.inspect = Tensor.prototype.toString;
+
+delete Tensor.prototype.toString;
 
 // Transpose.
 // Do the conservative thing, and return a copy for now.
