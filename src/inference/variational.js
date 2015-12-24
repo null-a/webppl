@@ -307,7 +307,9 @@ module.exports = function(env) {
     if (options.reparam) {
       // Reparameterization trick.
       // Requires ERP implement baseParams and transform.
-      assert.ok(erp.baseParams && erp.transform, erp.name + ' ERP does not support reparameterization.');
+      if (!erp.baseParams || !erp.transform) {
+        throw erp.name + ' ERP does not support reparameterization.';
+      }
       var z = erp.sample(erp.baseParams);
       this.logr = ad.scalar.add(this.logr, erp.score(erp.baseParams, z));
       val = erp.transform(z, params);
