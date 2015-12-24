@@ -2,6 +2,7 @@
 
 var _ = require('underscore');
 var numeric = require('numeric');
+var Tensor = require('../tensor');
 var assert = require('assert');
 var util = require('../util.js');
 var Histogram = require('../aggregation').Histogram;
@@ -109,12 +110,18 @@ module.exports = function(env) {
                   objective.backprop();
 
                   _.each(this.paramsSeen, function(val, a) {
+
+                    var _val = ad.value(val);
+                    var g = ad.derivative(val);
+                    trace('Gradient of objective w.r.t. ' + a + ': ' + g);
+
                     if (!_.has(this.grad, a)) {
                       // Initialize gradients to zero.
-                      this.grad[a] = 0;
+                      this.grad[a] = zerosLike(g);
                     }
-                    trace('Gradient of objective w.r.t. ' + a + ': ' + ad.derivative(val));
-                    this.grad[a] += ad.derivative(val) / this.samplesPerStep;
+                    this.grad[a] = add(this.grad[a], g);
+
+                    // TODO: Reintroduce division by num samples.
 
                   }, this);
 
@@ -124,6 +131,11 @@ module.exports = function(env) {
 
               }.bind(this),
               function() {
+
+                // * 1/N
+                _.each(this.grad, function(g, a) {
+                  this.grad[a] = scalarDiv(g, this.samplesPerStep);
+                }, this);
 
                 // Take gradient step.
                 trace('\n================================================================================');
@@ -146,12 +158,45 @@ module.exports = function(env) {
         this.finish.bind(this));
   };
 
+  // Polymorphic functions to simplify dealing with scalars and
+  // tensors. How much of an overhead would treating all params as
+  // Tensors introduce?
+
+  function zerosLike(x) {
+    return _.isNumber(x) ? 0 : new Tensor(x.dims);
+  }
+
+  function add(a, b) {
+    assert.ok(
+        _.isNumber(a) && _.isNumber(b) ||
+        a instanceof Tensor && b instanceof Tensor);
+    return _.isNumber(a) ? a + b : a.add(b);
+  }
+
+  function sub(a, b) {
+    assert.ok(
+        _.isNumber(a) && _.isNumber(b) ||
+        a instanceof Tensor && b instanceof Tensor);
+    return _.isNumber(a) ? a - b : a.sub(b);
+  }
+
+  function scalarMul(a, b) {
+    assert.ok(_.isNumber(b));
+    return _.isNumber(a) ? a * b : a.mul(b);
+  }
+
+  function scalarDiv(a, b) {
+    assert.ok(_.isNumber(b));
+    return _.isNumber(a) ? a / b : a.div(b);
+  }
+
+  // Optimizers.
 
   function gd(stepSize) {
     return function(params, grad) {
       _.each(grad, function(g, a) {
         assert(_.has(params, a));
-        params[a] -= stepSize * g;
+        params[a] = sub(params[a], scalarMul(g, stepSize));
       });
     };
   }
