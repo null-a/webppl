@@ -204,7 +204,9 @@ function gaussianScore(params, x) {
 var gaussianERP = new ERP({
   sample: gaussianSample,
   score: gaussianScore,
-  baseParams: [0, 1],
+  baseParams: function() {
+    return [0, 1];
+  },
   transform: function(x, params) {
     // Transform a sample x from the base distribution to the
     // distribution described by params.
@@ -245,6 +247,22 @@ function multivariateGaussianScoreSkipT(params, x) {
 var multivariateGaussianERP = new ERP({
   sample: multivariateGaussianSample,
   score: multivariateGaussianScoreSkipT,
+  baseParams: function(params) {
+    var n = params[0].dims[0];
+    var mu = new Tensor([n, 1]);
+    var d = new Tensor([n, 1]);
+    d.fill(1);
+    var cov = d.diag();
+    return [mu, cov];
+  },
+  transform: function(x, params) {
+    var mu = params[0];
+    var cov = params[1];
+    // TODO: Generalize this? Currently assumes that cov is diagonal.
+    // Needs Cholesky? Maybe we should assume diagonal cov when cov is
+    // given as a vector, and assume full cov otherwise?
+    return ad.tensor.add(ad.tensor.dot(ad.tensor.sqrt(cov), x), mu);
+  },
   // HACK: Avoid tapifying a matrix as it's not yet supported.
   isContinuous: false
 });

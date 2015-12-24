@@ -310,12 +310,16 @@ module.exports = function(env) {
       if (!erp.baseParams || !erp.transform) {
         throw erp.name + ' ERP does not support reparameterization.';
       }
-      var z = erp.sample(erp.baseParams);
-      this.logr = ad.scalar.add(this.logr, erp.score(erp.baseParams, z));
+      // Current params are passed to baseParams so that we can figure
+      // out the dimension of multivariate Gaussians. Perhaps this
+      // would be nice if we change the ERP interface.
+      var baseParams = erp.baseParams(_params);
+      var z = erp.sample(baseParams);
+      this.logr = ad.scalar.add(this.logr, erp.score(baseParams, z));
       val = erp.transform(z, params);
       trace('Sampled ' + ad.value(val) + ' for ' + a);
       trace('  ' + erp.name + '(' + _params + ') reparameterized as ' +
-            erp.name + '(' + erp.baseParams + ') + transform');
+            erp.name + '(' + baseParams + ') + transform');
     } else {
       val = erp.sample(_params);
       this.logr = ad.scalar.add(this.logr, erp.score(params, val));
