@@ -2,17 +2,19 @@
 
 var assert = require('assert');
 var Tensor = require('adnn/tensor');
+var util = require('util');
 
+// TODO: toString should return a string (and not an array) so that it
+// plays nicely with +.
 
+Tensor.prototype.toString = function() {
+  return 'Tensor([' + this.dims + '])';
+};
 
-// TODO: toString should return string so that it plays nicely with +.
-
-// Tensor.prototype.toString = function() {
-//   JSON.stringify(this.toArray());
-// };
-// Tensor.prototype.inspect = Tensor.prototype.toString;
-
-delete Tensor.prototype.toString;
+Tensor.prototype.inspect = function() {
+  // TODO: Check the browserify shim for util works as expected.
+  return util.inspect(this.toArray());
+};
 
 // Transpose.
 // Do the conservative thing, and return a copy for now.
