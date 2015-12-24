@@ -1,0 +1,13 @@
+var muTrue = Vector([1.5, 2.5]);
+var covTrue = Matrix([[1.9, 0], [0, 2.1]]);
+
+var model = function() {
+  var mu = paramChoice(deltaERP(Vector([0, 0])));
+  var sigma2 = paramChoice(deltaERP(Vector([1, 1])));
+  var cov = ad.tensor.diag(sigma2);
+  var guide = sampleGuide(multivariateGaussianERP, [mu, cov], { reparam: true });
+  var x = sample(multivariateGaussianERP, [muTrue, covTrue], { guideVal: guide });
+  return x;
+};
+
+Variational(model, { steps: 10000, stepSize: 0.05, samplesPerStep: 50, returnSamples: 1 });
