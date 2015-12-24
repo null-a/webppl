@@ -175,8 +175,8 @@ Tensor.prototype.det = function() {
 Tensor.prototype.dot = function(t) {
 
   var a = this, b = t;
-  assert.ok(a.rank === 2 && b.rank === 2);
-  assert.ok(a.dims[1] === b.dims[0]);
+  assert.ok(a.rank === 2 && b.rank === 2, 'Inputs to dot should have rank = 2.');
+  assert.ok(a.dims[1] === b.dims[0], 'Dimension mismatch for ' + a + ' and ' + b);
 
   var l = a.dims[1];
   var h = a.dims[0], w = b.dims[1];
