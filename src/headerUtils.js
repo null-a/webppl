@@ -2,6 +2,7 @@
 
 var serialize = require('./util').serialize
 var Tensor = require('./tensor');
+var fs = require('fs');
 
 module.exports = function(env) {
 
@@ -65,13 +66,28 @@ module.exports = function(env) {
     return k(s, new Tensor([arr.length, arr[0].length]).fromArray(arr));
   };
 
+  var zeros = function(s, k, a, dims) {
+    return k(s, new Tensor(dims));
+  };
+
+  var readJSON = function(s, k, a, fn) {
+    return k(s, JSON.parse(fs.readFileSync(fn, 'utf-8')));
+  };
+
+  var writeJSON = function(s, k, a, fn, obj) {
+    return k(s, fs.writeFileSync(fn, JSON.stringify(obj)));
+  };
+
   return {
     display: display,
     cache: cache,
     apply: apply,
     _Fn: _Fn,
     Vector: Vector,
-    Matrix: Matrix
+    Matrix: Matrix,
+    zeros: zeros,
+    readJSON: readJSON,
+    writeJSON: writeJSON
   };
 
 };

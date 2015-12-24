@@ -111,7 +111,6 @@ module.exports = function(env) {
 
                   _.each(this.paramsSeen, function(val, a) {
 
-                    var _val = ad.value(val);
                     var g = ad.derivative(val);
                     trace('Gradient of objective w.r.t. ' + a + ': ' + g);
 
