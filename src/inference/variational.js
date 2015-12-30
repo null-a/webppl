@@ -7,7 +7,7 @@ var assert = require('assert');
 var util = require('../util.js');
 var Histogram = require('../aggregation').Histogram;
 
-var logLevel = parseInt(process.env.LOG_LEVEL) || 2;
+var logLevel = process.env.LOG_LEVEL ? parseInt(process.env.LOG_LEVEL) : 0;
 
 function logger(level) {
   if (logLevel >= level) {
@@ -140,7 +140,7 @@ module.exports = function(env) {
                 trace('\n================================================================================');
                 trace('Taking gradient step');
                 trace('================================================================================\n');
-                debug('Estimated ELBO before gradient step: ' + this.estELBO);
+                info('Estimated ELBO before gradient step: ' + this.estELBO);
 
                 trace('Params before step:');
                 trace(this.params);
@@ -305,7 +305,7 @@ module.exports = function(env) {
       // New parameter.
       var _val = erp.sample(params);
       this.params[name] = _val;
-      trace('Initialized parameter ' + name + ' to ' + _val);
+      debug('Initialized parameter ' + name + ' to ' + _val);
     } else {
       _val = this.params[name];
       trace('Seen parameter ' + name + ' before. Value is: ' + _val);
