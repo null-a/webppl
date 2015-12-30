@@ -267,6 +267,72 @@ var multivariateGaussianERP = new ERP({
   isContinuous: false
 });
 
+function diagCovGaussianSample(params) {
+  var mu = params[0];
+  var sigma = params[1];
+  assert.strictEqual(mu.rank, 2);
+  assert.strictEqual(sigma.rank, 2);
+  assert.strictEqual(mu.dims[1], 1);
+  assert.strictEqual(sigma.dims[1], 1);
+  assert.strictEqual(mu.dims[0], sigma.dims[0]);
+  var d = mu.dims[0];
+  var xs = new Tensor([d, 1]).fromFlatArray(_.times(d, function() {
+    return gaussianSample([0, 1]);
+  }));
+  return xs.mul(sigma).add(mu);
+}
+
+function diagCovGaussianScoreSkipT(params, x) {
+  var mu = params[0];
+  var sigma = params[1];
+  var _mu = ad.value(mu);
+  var _sigma = ad.value(sigma);
+  assert.strictEqual(_mu.rank, 2);
+  assert.strictEqual(_sigma.rank, 2);
+  assert.strictEqual(_mu.dims[1], 1);
+  assert.strictEqual(_sigma.dims[1], 1);
+  assert.strictEqual(_mu.dims[0], _sigma.dims[0]);
+  var d = _mu.dims[0];
+
+  // TODO: tensor x scalar multiplication for ad.
+  var twiceLogSigma = ad.tensor.mul(new Tensor([d, 1]).fill(2), ad.tensor.log(sigma));
+  var xSubMuDivSigma = ad.tensor.div(ad.tensor.sub(x, mu), sigma);
+
+  return ad.scalar.mul(-0.5,
+                       ad.scalar.add(
+                         d * LOG_2PI,
+                         reduceSum(ad.tensor.add(twiceLogSigma,
+                                                 ad.tensor.mul(
+                                                   xSubMuDivSigma,
+                                                   xSubMuDivSigma)))));
+}
+
+function reduceSum(vector) {
+  var _vector = ad.value(vector);
+  assert.strictEqual(_vector.rank, 2);
+  assert.strictEqual(_vector.dims[1], 1);
+  var d = _vector.dims[0];
+  // TODO: adify Tensor's reduce sum.
+  return ad.tensorEntry(ad.tensor.dot(new Tensor([1, d]).fill(1), vector), 0);
+}
+
+var diagCovGaussianERP = new ERP({
+  sample: diagCovGaussianSample,
+  score: diagCovGaussianScoreSkipT,
+  baseParams: function(params) {
+    var d = params[0].dims[0];
+    var mu = new Tensor([d, 1]);
+    var sigma = new Tensor([d, 1]).fill(1);
+    return [mu, sigma];
+  },
+  transform: function(x, params) {
+    var mu = params[0];
+    var sigma = params[1];
+    return ad.tensor.add(ad.tensor.mul(sigma, x), mu);
+  },
+  isContinuous: false
+});
+
 // TODO: What should this be called?
 var tensorInitERP = new ERP({
   sample: function(params) {
@@ -775,6 +841,7 @@ module.exports = setErpNames({
   gaussianERP: gaussianERP,
   multinomialSample: multinomialSample,
   multivariateGaussianERP: multivariateGaussianERP,
+  diagCovGaussianERP: diagCovGaussianERP,
   tensorInitERP: tensorInitERP,
   poissonERP: poissonERP,
   randomIntegerERP: randomIntegerERP,
