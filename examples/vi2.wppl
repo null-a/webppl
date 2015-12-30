@@ -1,0 +1,33 @@
+var a0 = 1;
+var b0 = 1;
+var mu0 = 0;
+var lambda0 = 1;
+
+var model = function() {
+
+  // Variational parameters.
+  var a0Param = paramChoice(deltaERP(1));
+  var b0Param = paramChoice(deltaERP(1));
+  var muParam = paramChoice(deltaERP(0));
+  var precParam = paramChoice(deltaERP(1));
+
+  // Variational family/guide.
+  // Mean field assumption.
+  // Optimal parameters:
+  // a = 2.5, b = 2.5, mu = 1, prec = 3
+  // https://gist.github.com/null-a/300cd0256b005342b663
+  var guideTau = sampleGuide(gammaERP, [a0Param, 1 / b0Param]);
+  var guideMu = sampleGuide(gaussianERP, [muParam, 1 / Math.sqrt(precParam)]);
+
+  var tau = sample(gammaERP, [a0, 1 / b0], { guideVal: guideTau });
+  var mu = sample(gaussianERP, [mu0, 1 / Math.sqrt(lambda0 * tau)], { guideVal: guideMu });
+
+  factor(gaussianERP.score([mu, 1 / Math.sqrt(tau)], 1));
+  factor(gaussianERP.score([mu, 1 / Math.sqrt(tau)], 2));
+
+  return mu;
+};
+
+Variational(model, { stepSize: 0.1, steps: 1000, samplesPerStep: 100, returnSamples: 20 });
+
+'done!'

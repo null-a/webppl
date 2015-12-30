@@ -1,5 +1,5 @@
 var muTrue = Vector([1.5, 2.5]);
-var covTrue = Matrix([[1.9, 0], [0, 2.1]]);
+var covTrue = Matrix([[1, 0], [0, 2]]);
 
 var model = function() {
   var mu = paramChoice(deltaERP(Vector([0, 0])));
@@ -10,4 +10,4 @@ var model = function() {
   return x;
 };
 
-Variational(model, { steps: 10000, stepSize: 0.05, samplesPerStep: 50, returnSamples: 1 });
+Variational(model, { steps: 500, stepSize: 0.05, samplesPerStep: 50, returnSamples: 1 });

@@ -1,0 +1,22 @@
+var observe = function(erp, params, val) {
+  factor(erp.score(params, val));
+};
+
+var model = function() {
+  var x = 3;
+
+  // q.
+  var theta = paramChoice(deltaERP(1));
+  var guide = sampleGuide(gaussianERP, [x * theta, Math.sqrt(0.5)], { reparam: true });
+
+  // The true posterior is Normal(x/2, 0.5). So with q parameterized
+  // as above, the optimal theta is 0.5.
+
+  // p.
+  var z = sample(gaussianERP, [0, 1], { guideVal: guide });
+  observe(gaussianERP, [z, 1], x);
+
+  return z;
+};
+
+Variational(model, { steps: 100, stepSize: 0.01, samplesPerStep: 100, returnSamples: 1 });
