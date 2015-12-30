@@ -179,6 +179,20 @@ module.exports = function(env) {
     return _.isNumber(a) ? a - b : a.sub(b);
   }
 
+  function mul(a, b) {
+    assert.ok(
+        _.isNumber(a) && _.isNumber(b) ||
+        a instanceof Tensor && b instanceof Tensor);
+    return _.isNumber(a) ? a * b : a.mul(b);
+  }
+
+  function div(a, b) {
+    assert.ok(
+        _.isNumber(a) && _.isNumber(b) ||
+        a instanceof Tensor && b instanceof Tensor);
+    return _.isNumber(a) ? a / b : a.div(b);
+  }
+
   function scalarMul(a, b) {
     assert.ok(_.isNumber(b));
     return _.isNumber(a) ? a * b : a.mul(b);
@@ -187,6 +201,10 @@ module.exports = function(env) {
   function scalarDiv(a, b) {
     assert.ok(_.isNumber(b));
     return _.isNumber(a) ? a / b : a.div(b);
+  }
+
+  function sqrt(a) {
+    return _.isNumber(a) ? Math.sqrt(a) : a.sqrt();
   }
 
   // Optimizers.
@@ -208,10 +226,10 @@ module.exports = function(env) {
       _.each(grad, function(g, name) {
         assert(_.has(params, name));
         if (!_.has(g2, name)) {
-          g2[name] = 0;
+          g2[name] = zerosLike(g);
         }
-        g2[name] += Math.pow(g, 2);
-        params[name] -= (stepSize / Math.sqrt(g2[name])) * g;
+        g2[name] = add(g2[name], mul(g, g));
+        params[name] = sub(params[name], scalarMul(div(g, sqrt(g2[name])), stepSize));
       });
     };
   }
