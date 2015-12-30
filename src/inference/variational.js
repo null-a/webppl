@@ -109,16 +109,16 @@ module.exports = function(env) {
 
                   objective.backprop();
 
-                  _.each(this.paramsSeen, function(val, a) {
+                  _.each(this.paramsSeen, function(val, name) {
 
                     var g = ad.derivative(val);
-                    trace('Gradient of objective w.r.t. ' + a + ': ' + g);
+                    trace('Gradient of objective w.r.t. ' + name + ': ' + g);
 
-                    if (!_.has(this.grad, a)) {
+                    if (!_.has(this.grad, name)) {
                       // Initialize gradients to zero.
-                      this.grad[a] = zerosLike(g);
+                      this.grad[name] = zerosLike(g);
                     }
-                    this.grad[a] = add(this.grad[a], g);
+                    this.grad[name] = add(this.grad[name], g);
 
                     // TODO: Reintroduce division by num samples.
 
@@ -132,8 +132,8 @@ module.exports = function(env) {
               function() {
 
                 // * 1/N
-                _.each(this.grad, function(g, a) {
-                  this.grad[a] = scalarDiv(g, this.samplesPerStep);
+                _.each(this.grad, function(g, name) {
+                  this.grad[name] = scalarDiv(g, this.samplesPerStep);
                 }, this);
 
                 // Take gradient step.
@@ -193,9 +193,9 @@ module.exports = function(env) {
 
   function gd(stepSize) {
     return function(params, grad) {
-      _.each(grad, function(g, a) {
-        assert(_.has(params, a));
-        params[a] = sub(params[a], scalarMul(g, stepSize));
+      _.each(grad, function(g, name) {
+        assert(_.has(params, name));
+        params[name] = sub(params[name], scalarMul(g, stepSize));
       });
     };
   }
@@ -205,13 +205,13 @@ module.exports = function(env) {
     // Map from a to running sum of grad^2.
     var g2 = Object.create(null);
     return function(params, grad) {
-      _.each(grad, function(g, a) {
-        assert(_.has(params, a));
-        if (!_.has(g2, a)) {
-          g2[a] = 0;
+      _.each(grad, function(g, name) {
+        assert(_.has(params, name));
+        if (!_.has(g2, name)) {
+          g2[name] = 0;
         }
-        g2[a] += Math.pow(g, 2);
-        params[a] -= (stepSize / Math.sqrt(g2[a])) * g;
+        g2[name] += Math.pow(g, 2);
+        params[name] -= (stepSize / Math.sqrt(g2[name])) * g;
       });
     };
   }
@@ -280,18 +280,20 @@ module.exports = function(env) {
     return k(s);
   };
 
-  Variational.prototype.paramChoice = function(s, k, a, erp, params) {
-    if (!_.has(this.params, a)) {
+  Variational.prototype.paramChoice = function(s, k, a, erp, params, opts) {
+    var options = opts || {};
+    var name = options.name || a;
+    if (!_.has(this.params, name)) {
       // New parameter.
       var _val = erp.sample(params);
-      this.params[a] = _val;
-      trace('Initialized parameter ' + a + ' to ' + _val);
+      this.params[name] = _val;
+      trace('Initialized parameter ' + name + ' to ' + _val);
     } else {
-      _val = this.params[a];
-      trace('Seen parameter ' + a + ' before. Value is: ' + _val);
+      _val = this.params[name];
+      trace('Seen parameter ' + name + ' before. Value is: ' + _val);
     }
     var val = ad.lift(_val);
-    this.paramsSeen[a] = val;
+    this.paramsSeen[name] = val;
     return k(s, val);
   };
 
@@ -330,9 +332,9 @@ module.exports = function(env) {
     return k(s, val);
   };
 
-  function paramChoice(s, k, a, erp, params) {
+  function paramChoice(s, k, a, erp, params, opts) {
     assert.ok(env.coroutine instanceof Variational);
-    return env.coroutine.paramChoice(s, k, a, erp, params);
+    return env.coroutine.paramChoice(s, k, a, erp, params, opts);
   }
 
   function sampleGuide(s, k, a, erp, params, transform) {
