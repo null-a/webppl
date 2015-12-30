@@ -267,6 +267,22 @@ var multivariateGaussianERP = new ERP({
   isContinuous: false
 });
 
+// TODO: What should this be called?
+var tensorInitERP = new ERP({
+  sample: function(params) {
+    var shape = params[0];
+    var sigma = params[1] || 1;
+    assert.strictEqual(shape.length, 2);
+    var vals = _.times(shape[0] * shape[1], function() {
+      return gaussianSample([0, sigma]);
+    });
+    return new Tensor(shape).fromFlatArray(vals);
+  },
+  score: function(params, val) {
+    throw 'Not implemented';
+  }
+});
+
 function sum(xs) {
   return xs.reduce(function(a, b) { return a + b; }, 0);
 };
@@ -759,6 +775,7 @@ module.exports = setErpNames({
   gaussianERP: gaussianERP,
   multinomialSample: multinomialSample,
   multivariateGaussianERP: multivariateGaussianERP,
+  tensorInitERP: tensorInitERP,
   poissonERP: poissonERP,
   randomIntegerERP: randomIntegerERP,
   uniformERP: uniformERP,
