@@ -46,8 +46,8 @@ module.exports = function(env) {
 
   Variational.prototype.run = function() {
 
-    var optimize = gd(this.stepSize);
-    //var optimize = adagrad(this.stepSize);
+    //var optimize = gd(this.stepSize);
+    var optimize = adagrad(this.stepSize);
 
     // TODO: Tensor values params?
     // All variational parameters. Maps addresses to numbers/reals.
@@ -165,6 +165,10 @@ module.exports = function(env) {
     return _.isNumber(x) ? 0 : new Tensor(x.dims);
   }
 
+  function onesLike(x) {
+    return _.isNumber(x) ? 1 : new Tensor(x.dims).fill(1);
+  }
+
   function add(a, b) {
     assert.ok(
         _.isNumber(a) && _.isNumber(b) ||
@@ -226,7 +230,8 @@ module.exports = function(env) {
       _.each(grad, function(g, name) {
         assert(_.has(params, name));
         if (!_.has(g2, name)) {
-          g2[name] = zerosLike(g);
+          // Start with small non-zero g2 to avoid divide by zero.
+          g2[name] = scalarMul(onesLike(g), 0.001);
         }
         g2[name] = add(g2[name], mul(g, g));
         params[name] = sub(params[name], scalarMul(div(g, sqrt(g2[name])), stepSize));
