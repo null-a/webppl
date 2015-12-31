@@ -35,6 +35,8 @@ module.exports = function(env) {
     this.samplesPerStep = options.samplesPerStep;
     this.returnSamples = options.returnSamples;
 
+    this.curStep = 0;
+
     this.s = s;
     this.k = k;
     this.a = a;
@@ -84,6 +86,9 @@ module.exports = function(env) {
                 this.paramsSeen = Object.create(null);
 
                 return this.wpplFn(_.clone(this.s), function(s, val) {
+
+                  this.curStep += 1;
+
                   trace('Program returned: ' + ad.value(val));
                   trace('logp: ' + ad.value(this.logp));
                   trace('logq: ' + ad.value(this.logq));
@@ -112,7 +117,9 @@ module.exports = function(env) {
                   _.each(this.paramsSeen, function(val, name) {
 
                     var g = ad.derivative(val);
-                    trace('Gradient of objective w.r.t. ' + name + ': ' + g);
+
+                    trace('Gradient of objective w.r.t. ' + name + ':');
+                    trace(g);
 
                     if (!_.has(this.grad, name)) {
                       // Initialize gradients to zero.
@@ -259,8 +266,8 @@ module.exports = function(env) {
         function() {
           info('\n================================================================================');
           info('Estimated ELBO: ' + estELBO);
-          info('\nOptimized variational parameters:');
-          info(this.params);
+          trace('\nOptimized variational parameters:');
+          trace(this.params);
           env.coroutine = this.coroutine;
           var erp = hist.toERP();
           erp.estELBO = estELBO;
@@ -365,6 +372,11 @@ module.exports = function(env) {
     return env.coroutine.sampleGuide(s, k, a, erp, params, transform);
   }
 
+  function getCurStep(s, k, a) {
+    assert.ok(env.coroutine instanceof Variational);
+    return k(s, env.coroutine.curStep);
+  }
+
   Variational.prototype.incrementalize = env.defaultCoroutine.incrementalize;
 
   return {
@@ -372,7 +384,8 @@ module.exports = function(env) {
       return new Variational(s, k, a, wpplFn, options).run();
     },
     paramChoice: paramChoice,
-    sampleGuide: sampleGuide
+    sampleGuide: sampleGuide,
+    getCurStep: getCurStep
   };
 
 };

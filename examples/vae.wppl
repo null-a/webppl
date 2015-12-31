@@ -1,0 +1,92 @@
+var X = map(Vector, readJSON('mnist_05_images.json'));
+
+var zDim = 2;
+var hDecodeDim = 50;
+var hEncodeDim = 50;
+var xDim = 784;
+
+var observe = function(erp, params, val) {
+  factor(erp.score(params, val));
+};
+
+var forEach = function(arr, fn) {
+  if (arr.length > 0) {
+    fn(first(arr));
+    forEach(rest(arr), fn);
+  }
+};
+
+var curBatch = function(arr, batchSize) {
+  assert.ok(arr.length % batchSize === 0);
+  var numBatches = arr.length / batchSize;
+  var i = getCurStep() % numBatches;
+  return arr.slice(i * batchSize, (i + 1) * batchSize);
+};
+
+var model = function() {
+
+  // Variational parameters.
+  var W0 = paramChoice(tensorInitERP, [[hEncodeDim, xDim], 0.01], { name: 'W0' });
+  var W1 = paramChoice(tensorInitERP, [[zDim, hEncodeDim], 0.01], { name: 'W1' });
+  var W2 = paramChoice(tensorInitERP, [[zDim, hEncodeDim], 0.01], { name: 'W2' });
+
+  var b0 = paramChoice(tensorInitERP, [[hEncodeDim, 1], 0.01], { name: 'b0' });
+  var b1 = paramChoice(tensorInitERP, [[zDim, 1], 0.01], { name: 'b1' });
+  var b2 = paramChoice(tensorInitERP, [[zDim, 1], 0.01], { name: 'b2' });
+
+  // Model parameters.
+
+  var W3 = paramChoice(tensorInitERP, [[hDecodeDim, zDim], 0.01], { name: 'W3' });
+  var W4 = paramChoice(tensorInitERP, [[xDim, hDecodeDim], 0.01], { name: 'W4' });
+
+  var b3 = paramChoice(tensorInitERP, [[hDecodeDim, 1], 0.01], { name: 'b3' });
+  var b4 = paramChoice(tensorInitERP, [[xDim, 1], 0.01], { name: 'b4' });
+
+  forEach(curBatch(X, 10), function(x) {
+
+    // Encoder.
+    var hEncode = ad.tensor.tanh(ad.tensor.add(ad.tensor.dot(W0, x), b0));
+    var zMu = ad.tensor.add(ad.tensor.dot(W1, hEncode), b1);
+    var zSigma2 = ad.tensor.exp(ad.tensor.add(ad.tensor.dot(W2, hEncode), b2));
+    var guide = sampleGuide(diagCovGaussianERP, [zMu, zSigma2], { reparam: true });
+
+    // Prior.
+    var z = sample(diagCovGaussianERP, [Vector([0, 0]), Vector([1, 1])], { guideVal: guide });
+
+    // Decoder.
+    var hDecode = ad.tensor.tanh(ad.tensor.add(ad.tensor.dot(W3, z), b3));
+    var p = ad.tensor.sigmoid(ad.tensor.add(ad.tensor.dot(W4, hDecode), b4));
+
+    observe(mvBernoulliERP, [p], x);
+  });
+
+  return 0;
+
+};
+
+// TODO:
+
+// 1. Can we make it possible to sample form the prior without
+// significant re-writing of the model?
+
+// 2. Can we make it possible to run this model with other inference
+// algorithms without having to change too much. (It would be nice to
+// be able to do this in principle, even though it may not be
+// practical.)
+
+var erp = Variational(model, { steps: 10000, stepSize: 0.1, samplesPerStep: 1, returnSamples: 1 });
+
+writeJSON('samples.json', repeat(100, function() {
+  var z = sample(diagCovGaussianERP, [Vector([0, 0]), Vector([1, 1])]);
+  var hDecode = ad.tensor.tanh(ad.tensor.add(ad.tensor.dot(erp.parameters.W3, z), erp.parameters.b3));
+  var p = ad.tensor.sigmoid(ad.tensor.add(ad.tensor.dot(erp.parameters.W4, hDecode), erp.parameters.b4));
+  return p.toFlatArray();
+}));
+
+writeJSON('z.json', map(function(x) {
+  var hEncode = ad.tensor.tanh(ad.tensor.add(ad.tensor.dot(erp.parameters.W0, x), erp.parameters.b0));
+  var zMu = ad.tensor.add(ad.tensor.dot(erp.parameters.W1, hEncode), erp.parameters.b1);
+  return zMu.toFlatArray();
+}, X));
+
+'done';

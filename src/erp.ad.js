@@ -165,7 +165,48 @@ var bernoulliERP = new ERP({
   }
 });
 
+function ones(d) {
+  return new Tensor([d, 1]).fill(1);
+};
 
+// TODO: Fix that the following return NaN rather than -Infinity.
+// mvBernoulliERP.score([Vector([1, 0])], Vector([0, 0]));
+
+// TODO: The support here is {0, 1}^n rather than {true, false} as in
+// the univariate case.
+
+function mvBernoulliScoreSkipT(params,  val) {
+  var p = params[0];
+  assert.ok(ad.value(p).rank === 2);
+  assert.ok(ad.value(p).dims[1] === 1);
+  assert.ok(ad.value(val).rank === 2);
+  assert.ok(ad.value(val).dims[1] === 1);
+  assert.ok(ad.value(val).dims[0] === ad.value(p).dims[0]);
+  var d = ad.value(p).dims[0];
+  var scores = ad.tensor.add(
+    ad.tensor.mul(val, ad.tensor.log(p)),
+    ad.tensor.mul(
+      ad.tensor.sub(ones(d), val),
+      ad.tensor.log(ad.tensor.sub(ones(d), p))));
+  return ad.tensorEntry(ad.tensor.dot(
+    ad.tensor.transpose(scores),
+    ones(d)), 0);
+}
+
+var mvBernoulliERP = new ERP({
+  sample: function(params) {
+    var p = params[0];
+    assert.ok(p.rank === 2);
+    assert.ok(p.dims[1] === 1);
+    var d = p.dims[0];
+    var val = _.map(p.toFlatArray(), function(p) {
+      return util.random() < p;
+    });
+    return new Tensor([d, 1]).fromFlatArray(val);
+  },
+  score: mvBernoulliScoreSkipT,
+  isContinuous: false
+});
 
 var randomIntegerERP = new ERP({
   sample: function(params) {
@@ -832,6 +873,7 @@ module.exports = setErpNames({
   serializeERP: serializeERP,
   deserializeERP: deserializeERP,
   bernoulliERP: bernoulliERP,
+  mvBernoulliERP: mvBernoulliERP,
   betaERP: betaERP,
   binomialERP: binomialERP,
   dirichletERP: dirichletERP,
