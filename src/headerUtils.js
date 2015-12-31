@@ -78,6 +78,15 @@ module.exports = function(env) {
     return k(s, fs.writeFileSync(fn, JSON.stringify(obj)));
   };
 
+  var readJSONDataSet = function(s, k, a, fn) {
+    var arr = JSON.parse(fs.readFileSync(fn, 'utf-8'));
+    // Helper to avoid performing map over large data sets in WebPPL.
+    // See #174.
+    return k(s, arr.map(function(x) {
+      return new Tensor([x.length, 1]).fromFlatArray(x);
+    }));
+  };
+
   return {
     display: display,
     cache: cache,
@@ -87,7 +96,8 @@ module.exports = function(env) {
     Matrix: Matrix,
     zeros: zeros,
     readJSON: readJSON,
-    writeJSON: writeJSON
+    writeJSON: writeJSON,
+    readJSONDataSet: readJSONDataSet
   };
 
 };
