@@ -1,8 +1,10 @@
 'use strict';
 
 var assert = require('assert');
+var _ = require('underscore');
 var Tensor = require('adnn/tensor');
-var util = require('util');
+var inspect = require('util').inspect;
+var util = require('./util');
 
 // TODO: toString should return a string (and not an array) so that it
 // plays nicely with +.
@@ -12,8 +14,20 @@ Tensor.prototype.toString = function() {
 };
 
 Tensor.prototype.inspect = function() {
-  // TODO: Check the browserify shim for util works as expected.
-  return util.inspect(this.toArray());
+  if (this.length <= 25) {
+    // TODO: Check the browserify shim for util works as expected.
+    return inspect(this.toArray());
+  } else {
+    var arr = this.toFlatArray();
+    return 'Tensor(' + inspect({
+      dims: this.dims,
+      mean: util.expectation(arr),
+      std: util.std(arr),
+      min: Math.min.apply(null, arr),
+      max: Math.max.apply(null, arr),
+      allFinite: _.all(arr, _.isFinite)
+    }) + ')';
+  }
 };
 
 // Transpose.
