@@ -23,8 +23,8 @@ Tensor.prototype.inspect = function() {
       dims: this.dims,
       mean: util.expectation(arr),
       std: util.std(arr),
-      min: Math.min.apply(null, arr),
-      max: Math.max.apply(null, arr),
+      min: this.minreduce(),
+      max: this.maxreduce(),
       allFinite: _.all(arr, _.isFinite)
     }) + ')';
   }
