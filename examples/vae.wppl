@@ -70,7 +70,7 @@ var model = function() {
   return 0;
 };
 
-var erp = Variational(model, { steps: 200, stepSize: 0.05, samplesPerStep: 1, returnSamples: 1 });
+var erp = Variational(model, { optimizer: 'adagrad', steps: 200, stepSize: 0.05, samplesPerStep: 1, returnSamples: 1 });
 
 writeJSON('samples.json', repeat(100, function() {
   var z = sample(diagCovGaussianERP, [Vector([0, 0]), Vector([1, 1])]);

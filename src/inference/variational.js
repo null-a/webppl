@@ -27,13 +27,15 @@ module.exports = function(env) {
       steps: 100,
       stepSize: 0.001,
       samplesPerStep: 100,
-      returnSamples: 1000
+      returnSamples: 1000,
+      optimizer: 'gd'
     });
 
     this.steps = options.steps;
     this.stepSize = options.stepSize;
     this.samplesPerStep = options.samplesPerStep;
     this.returnSamples = options.returnSamples;
+    this.optimizerName = options.optimizer;
 
     this.curStep = 0;
 
@@ -46,10 +48,36 @@ module.exports = function(env) {
     env.coroutine = this;
   }
 
+  var optimizers = {
+    gd: function(stepSize) {
+      return function(params, grad) {
+        _.each(grad, function(g, name) {
+          assert(_.has(params, name));
+          params[name] = sub(params[name], scalarMul(g, stepSize));
+        });
+      };
+    },
+    adagrad: function(stepSize) {
+      // State.
+      // Map from a to running sum of grad^2.
+      var g2 = Object.create(null);
+      return function(params, grad) {
+        _.each(grad, function(g, name) {
+          assert(_.has(params, name));
+          if (!_.has(g2, name)) {
+            // Start with small non-zero g2 to avoid divide by zero.
+            g2[name] = scalarMul(onesLike(g), 0.001);
+          }
+          g2[name] = add(g2[name], mul(g, g));
+          params[name] = sub(params[name], scalarMul(div(g, sqrt(g2[name])), stepSize));
+        });
+      };
+    }
+  };
+
   Variational.prototype.run = function() {
 
-    //var optimize = gd(this.stepSize);
-    var optimize = adagrad(this.stepSize);
+    var optimize = optimizers[this.optimizerName](this.stepSize);
 
     // TODO: Tensor values params?
     // All variational parameters. Maps addresses to numbers/reals.
@@ -216,34 +244,6 @@ module.exports = function(env) {
 
   function sqrt(a) {
     return _.isNumber(a) ? Math.sqrt(a) : a.sqrt();
-  }
-
-  // Optimizers.
-
-  function gd(stepSize) {
-    return function(params, grad) {
-      _.each(grad, function(g, name) {
-        assert(_.has(params, name));
-        params[name] = sub(params[name], scalarMul(g, stepSize));
-      });
-    };
-  }
-
-  function adagrad(stepSize) {
-    // State.
-    // Map from a to running sum of grad^2.
-    var g2 = Object.create(null);
-    return function(params, grad) {
-      _.each(grad, function(g, name) {
-        assert(_.has(params, name));
-        if (!_.has(g2, name)) {
-          // Start with small non-zero g2 to avoid divide by zero.
-          g2[name] = scalarMul(onesLike(g), 0.001);
-        }
-        g2[name] = add(g2[name], mul(g, g));
-        params[name] = sub(params[name], scalarMul(div(g, sqrt(g2[name])), stepSize));
-      });
-    };
   }
 
   Variational.prototype.finish = function() {
