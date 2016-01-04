@@ -1,8 +1,8 @@
-var X = map(Vector, readJSON('mnist_05_images.json'));
+var X = readJSONDataSet('mnist_inputs.json');
 
 var zDim = 2;
-var hDecodeDim = 50;
-var hEncodeDim = 50;
+var hDecodeDim = 200;
+var hEncodeDim = 200;
 var xDim = 784;
 
 var observe = function(erp, params, val) {
@@ -23,8 +23,27 @@ var curBatch = function(arr, batchSize) {
   return arr.slice(i * batchSize, (i + 1) * batchSize);
 };
 
-var model = function() {
+var encode = function(x, W, b, returnMean) {
+  var W0 = W[0], W1 = W[1], W2 = W[2];
+  var b0 = b[0], b1 = b[1], b2 = b[2];
+  var h = ad.tensor.tanh(ad.tensor.add(ad.tensor.dot(W0, x), b0));
+  var mu = ad.tensor.add(ad.tensor.dot(W1, h), b1);
+  var sigma2 = ad.tensor.exp(ad.tensor.add(ad.tensor.dot(W2, h), b2));
+  if (returnMean) {
+    return mu;
+  } else {
+    return sampleGuide(diagCovGaussianERP, [mu, sigma2], { reparam: true });
+  }
+};
 
+var decode = function(z, W, b) {
+  var W3 = W[0], W4 = W[1];
+  var b3 = b[0], b4 = b[1];
+  var h = ad.tensor.tanh(ad.tensor.add(ad.tensor.dot(W3, z), b3));
+  return ad.tensor.sigmoid(ad.tensor.add(ad.tensor.dot(W4, h), b4));
+};
+
+var model = function() {
   // Variational parameters.
   var W0 = paramChoice(tensorInitERP, [[hEncodeDim, xDim], 0.01], { name: 'W0' });
   var W1 = paramChoice(tensorInitERP, [[zDim, hEncodeDim], 0.01], { name: 'W1' });
@@ -35,7 +54,6 @@ var model = function() {
   var b2 = paramChoice(tensorInitERP, [[zDim, 1], 0.01], { name: 'b2' });
 
   // Model parameters.
-
   var W3 = paramChoice(tensorInitERP, [[hDecodeDim, zDim], 0.01], { name: 'W3' });
   var W4 = paramChoice(tensorInitERP, [[xDim, hDecodeDim], 0.01], { name: 'W4' });
 
@@ -43,26 +61,28 @@ var model = function() {
   var b4 = paramChoice(tensorInitERP, [[xDim, 1], 0.01], { name: 'b4' });
 
   forEach(curBatch(X, 10), function(x) {
-
-    // Encoder.
-    var hEncode = ad.tensor.tanh(ad.tensor.add(ad.tensor.dot(W0, x), b0));
-    var zMu = ad.tensor.add(ad.tensor.dot(W1, hEncode), b1);
-    var zSigma2 = ad.tensor.exp(ad.tensor.add(ad.tensor.dot(W2, hEncode), b2));
-    var guide = sampleGuide(diagCovGaussianERP, [zMu, zSigma2], { reparam: true });
-
-    // Prior.
+    var guide = encode(x, [W0, W1, W2], [b0, b1, b2]);
     var z = sample(diagCovGaussianERP, [Vector([0, 0]), Vector([1, 1])], { guideVal: guide });
-
-    // Decoder.
-    var hDecode = ad.tensor.tanh(ad.tensor.add(ad.tensor.dot(W3, z), b3));
-    var p = ad.tensor.sigmoid(ad.tensor.add(ad.tensor.dot(W4, hDecode), b4));
-
+    var p = decode(z, [W3, W4], [b3, b4]);
     observe(mvBernoulliERP, [p], x);
   });
 
   return 0;
-
 };
+
+var erp = Variational(model, { steps: 200, stepSize: 0.05, samplesPerStep: 1, returnSamples: 1 });
+
+writeJSON('samples.json', repeat(100, function() {
+  var z = sample(diagCovGaussianERP, [Vector([0, 0]), Vector([1, 1])]);
+  var p = decode(z, [erp.parameters.W3, erp.parameters.W4], [erp.parameters.b3, erp.parameters.b4]);
+  return p.toFlatArray();
+}));
+
+writeJSON('z.json', map(function(x) {
+  var W = [erp.parameters.W0, erp.parameters.W1, erp.parameters.W2];
+  var b = [erp.parameters.b0, erp.parameters.b1, erp.parameters.b2];
+  return encode(x, W, b, true).toFlatArray();
+}, X.slice(0, 1000)));
 
 // TODO:
 
@@ -73,20 +93,5 @@ var model = function() {
 // algorithms without having to change too much. (It would be nice to
 // be able to do this in principle, even though it may not be
 // practical.)
-
-var erp = Variational(model, { steps: 10000, stepSize: 0.1, samplesPerStep: 1, returnSamples: 1 });
-
-writeJSON('samples.json', repeat(100, function() {
-  var z = sample(diagCovGaussianERP, [Vector([0, 0]), Vector([1, 1])]);
-  var hDecode = ad.tensor.tanh(ad.tensor.add(ad.tensor.dot(erp.parameters.W3, z), erp.parameters.b3));
-  var p = ad.tensor.sigmoid(ad.tensor.add(ad.tensor.dot(erp.parameters.W4, hDecode), erp.parameters.b4));
-  return p.toFlatArray();
-}));
-
-writeJSON('z.json', map(function(x) {
-  var hEncode = ad.tensor.tanh(ad.tensor.add(ad.tensor.dot(erp.parameters.W0, x), erp.parameters.b0));
-  var zMu = ad.tensor.add(ad.tensor.dot(erp.parameters.W1, hEncode), erp.parameters.b1);
-  return zMu.toFlatArray();
-}, X));
 
 'done';
