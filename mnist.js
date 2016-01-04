@@ -69,26 +69,26 @@ var filterImages = function(images, labels, digit) {
 
 
 var images = loadImages(baseDir + '/train-images-idx3-ubyte');
-//fs.writeFileSync('mnist_inputs.json', JSON.stringify(images));
+fs.writeFileSync('mnist_inputs.json', JSON.stringify(images));
 
 var labels = loadLabels(baseDir + '/train-labels-idx1-ubyte');
-//fs.writeFileSync('mnist_labels.json', JSON.stringify(labels));
+fs.writeFileSync('mnist_labels.json', JSON.stringify(labels));
 
 // Extract data set of zeros and fives.
 
-var zeros = filterImages(images, labels, 0).slice(0, 2000);
-var fives = filterImages(images, labels, 5).slice(0, 2000);
+// var zeros = filterImages(images, labels, 0).slice(0, 2000);
+// var fives = filterImages(images, labels, 5).slice(0, 2000);
 
-var zerolabels = _.times(2000, _.constant(0));
-var fivelabels = _.times(2000, _.constant(5));
+// var zerolabels = _.times(2000, _.constant(0));
+// var fivelabels = _.times(2000, _.constant(5));
 
-var data = _.chain(_.zip(zeros.concat(fives), zerolabels.concat(fivelabels)))
-      .shuffle()
-      .unzip()
-      .value();
+// var data = _.chain(_.zip(zeros.concat(fives), zerolabels.concat(fivelabels)))
+//       .shuffle()
+//       .unzip()
+//       .value();
 
-var images2 = data[0];
-var labels2 = data[1];
+// var images2 = data[0];
+// var labels2 = data[1];
 
-fs.writeFileSync('mnist_05_images.json', JSON.stringify(images2));
-fs.writeFileSync('mnist_05_labels.json', JSON.stringify(labels2));
+// fs.writeFileSync('mnist_05_images.json', JSON.stringify(images2));
+// fs.writeFileSync('mnist_05_labels.json', JSON.stringify(labels2));
