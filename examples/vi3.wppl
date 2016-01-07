@@ -16,7 +16,7 @@ var model = function() {
   // Optimal parameters:
   // a = 2, b = 2, mu = 1, prec = 3
   var guideTau = sampleGuide(gammaERP, [aParam, 1 / bParam]);
-  var guideMu = sampleGuide(gaussianERP, [muParam, 1 / Math.sqrt(precParam * guideTau)]);
+  var guideMu = sampleGuide(gaussianERP, [muParam, 1 / Math.sqrt(precParam * guideTau)], { reparam: true });
 
   var tau = sample(gammaERP, [a0, 1 / b0], { guideVal: guideTau });
   var mu = sample(gaussianERP, [mu0, 1 / Math.sqrt(lambda0 * tau)], { guideVal: guideMu });
