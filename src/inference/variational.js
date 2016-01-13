@@ -28,7 +28,8 @@ module.exports = function(env) {
       stepSize: 0.001,
       samplesPerStep: 100,
       returnSamples: 1000,
-      optimizer: 'gd'
+      optimizer: 'gd',
+      callback: function(s, k, a) { return k(s); }
     });
 
     this.steps = options.steps;
@@ -36,6 +37,7 @@ module.exports = function(env) {
     this.samplesPerStep = options.samplesPerStep;
     this.returnSamples = options.returnSamples;
     this.optimizerName = options.optimizer;
+    this.callback = options.callback;
 
     this.curStep = 0;
 
@@ -185,7 +187,12 @@ module.exports = function(env) {
                 trace('Params after step:');
                 debug(this.params);
 
-                return nextStep();
+                env.coroutine = env.defaultCoroutine;
+                return this.callback({}, function() {
+                  env.coroutine = this;
+                  return nextStep();
+                }.bind(this), '', this.curStep, this.params);
+
               }.bind(this));
 
         }.bind(this),
