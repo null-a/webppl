@@ -1,9 +1,9 @@
 var X = readJSONDataSet('mnist_inputs.json');
 
-var batchSize = 10;
+var batchSize = 100;
 var zDim = 2;
-var hDecodeDim = 200;
-var hEncodeDim = 200;
+var hDecodeDim = 500;
+var hEncodeDim = 500;
 var xDim = 784;
 
 var curBatch = function(arr, batchSize) {
@@ -44,11 +44,11 @@ var model = function() {
   var b2 = paramChoice(tensorInitERP, [[zDim, 1], 0.01], { name: 'b2' });
 
   // Model parameters.
-  var W3 = paramChoice(tensorInitERP, [[hDecodeDim, zDim], 0.01], { name: 'W3' });
-  var W4 = paramChoice(tensorInitERP, [[xDim, hDecodeDim], 0.01], { name: 'W4' });
+  var W3 = paramChoice(tensorInitERP, [[hDecodeDim, zDim], 0.01], { name: 'W3', reg: .1 });
+  var W4 = paramChoice(tensorInitERP, [[xDim, hDecodeDim], 0.01], { name: 'W4', reg: .1 });
 
-  var b3 = paramChoice(tensorInitERP, [[hDecodeDim, 1], 0.01], { name: 'b3' });
-  var b4 = paramChoice(tensorInitERP, [[xDim, 1], 0.01], { name: 'b4' });
+  var b3 = paramChoice(tensorInitERP, [[hDecodeDim, 1], 0.01], { name: 'b3', reg: .1 });
+  var b4 = paramChoice(tensorInitERP, [[xDim, 1], 0.01], { name: 'b4', reg: .1 });
 
   factor(sum(map(function(x) {
     var guide = encode(x, [W0, W1, W2], [b0, b1, b2]);
@@ -83,7 +83,7 @@ var dumpLatents = function(i, params) {
 var erp = Variational(model, {
   optimizer: 'adagrad',
   steps: 1000,
-  stepSize: 0.05,
+  stepSize: 0.01,
   samplesPerStep: 1,
   returnSamples: 1,
   callback: function(i, params) {
