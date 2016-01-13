@@ -3,6 +3,7 @@
 var serialize = require('./util').serialize
 var Tensor = require('./tensor');
 var fs = require('fs');
+var child_process = require('child_process');
 
 module.exports = function(env) {
 
@@ -87,6 +88,10 @@ module.exports = function(env) {
     }));
   };
 
+  var exec = function(s, k, a, cmd) {
+    return k(s, child_process.execSync(cmd).toString());
+  };
+
   return {
     display: display,
     cache: cache,
@@ -97,7 +102,8 @@ module.exports = function(env) {
     zeros: zeros,
     readJSON: readJSON,
     writeJSON: writeJSON,
-    readJSONDataSet: readJSONDataSet
+    readJSONDataSet: readJSONDataSet,
+    exec: exec
   };
 
 };
