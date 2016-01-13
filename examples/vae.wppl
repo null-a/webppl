@@ -1,20 +1,10 @@
 var X = readJSONDataSet('mnist_inputs.json');
 
+var batchSize = 10;
 var zDim = 2;
 var hDecodeDim = 200;
 var hEncodeDim = 200;
 var xDim = 784;
-
-var observe = function(erp, params, val) {
-  factor(erp.score(params, val));
-};
-
-var forEach = function(arr, fn) {
-  if (arr.length > 0) {
-    fn(first(arr));
-    forEach(rest(arr), fn);
-  }
-};
 
 var curBatch = function(arr, batchSize) {
   assert.ok(arr.length % batchSize === 0);
@@ -60,12 +50,12 @@ var model = function() {
   var b3 = paramChoice(tensorInitERP, [[hDecodeDim, 1], 0.01], { name: 'b3' });
   var b4 = paramChoice(tensorInitERP, [[xDim, 1], 0.01], { name: 'b4' });
 
-  forEach(curBatch(X, 10), function(x) {
+  factor(sum(map(function(x) {
     var guide = encode(x, [W0, W1, W2], [b0, b1, b2]);
     var z = sample(diagCovGaussianERP, [Vector([0, 0]), Vector([1, 1])], { guideVal: guide });
     var p = decode(z, [W3, W4], [b3, b4]);
-    observe(mvBernoulliERP, [p], x);
-  });
+    return mvBernoulliERP.score([p], x);
+  }, curBatch(X, batchSize))));
 
   return 0;
 };
