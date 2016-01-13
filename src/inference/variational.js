@@ -85,6 +85,10 @@ module.exports = function(env) {
     // All variational parameters. Maps addresses to numbers/reals.
     this.params = Object.create(null);
 
+    // Maps param names to regularization scaling constant for those
+    // parameters for which regularization is requested.
+    this.regScale = Object.create(null);
+
     return util.cpsLoop(
         this.steps,
         function(i, nextStep) {
@@ -147,6 +151,12 @@ module.exports = function(env) {
                   _.each(this.paramsSeen, function(val, name) {
 
                     var g = ad.derivative(val);
+
+                    // L2 regularization.
+                    if (_.has(this.regScale, name)) {
+                      trace('Computing regularization term for ' + name);
+                      g = add(g, scalarMul(ad.value(val), this.regScale[name]));
+                    }
 
                     trace('Gradient of objective w.r.t. ' + name + ':');
                     trace(g);
@@ -325,6 +335,12 @@ module.exports = function(env) {
       var _val = erp.sample(params);
       this.params[name] = _val;
       debug('Initialized parameter ' + name + ' to ' + _val);
+
+      if (_.has(opts, 'reg')) {
+        assert.ok(opts.reg > 0);
+        this.regScale[name] = opts.reg;
+        debug('Will regularize parameter ' + name + ' (Scale = ' + opts.reg + ')');
+      }
     } else {
       _val = this.params[name];
       trace('Seen parameter ' + name + ' before. Value is: ' + _val);
