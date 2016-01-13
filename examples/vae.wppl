@@ -70,19 +70,38 @@ var model = function() {
   return 0;
 };
 
-var erp = Variational(model, { optimizer: 'adagrad', steps: 200, stepSize: 0.05, samplesPerStep: 1, returnSamples: 1 });
+var dumpSamples = function(i, params) {
+  var fn = 'vae/samples/' + i + '.json';
+  writeJSON(fn, repeat(20, function() {
+    var z = sample(diagCovGaussianERP, [Vector([0, 0]), Vector([1, 1])]);
+    var p = decode(z, [params.W3, params.W4], [params.b3, params.b4]);
+    return p.toFlatArray();
+  }));
+  exec('python vae/viz_samples.py ' + fn + ' vae/samples/' + i + '.png');
+};
 
-writeJSON('samples.json', repeat(100, function() {
-  var z = sample(diagCovGaussianERP, [Vector([0, 0]), Vector([1, 1])]);
-  var p = decode(z, [erp.parameters.W3, erp.parameters.W4], [erp.parameters.b3, erp.parameters.b4]);
-  return p.toFlatArray();
-}));
+var dumpLatents = function(i, params) {
+  var fn = 'vae/latents/' + i + '.json';
+  writeJSON(fn, map(function(x) {
+    var W = [params.W0, params.W1, params.W2];
+    var b = [params.b0, params.b1, params.b2];
+    return encode(x, W, b, true).toFlatArray();
+  }, X.slice(0, 1000)));
+  exec('python vae/viz_latents.py ' + fn + ' vae/latents/' + i + '.png');
+};
 
-writeJSON('z.json', map(function(x) {
-  var W = [erp.parameters.W0, erp.parameters.W1, erp.parameters.W2];
-  var b = [erp.parameters.b0, erp.parameters.b1, erp.parameters.b2];
-  return encode(x, W, b, true).toFlatArray();
-}, X.slice(0, 1000)));
+var erp = Variational(model, {
+  optimizer: 'adagrad',
+  steps: 1000,
+  stepSize: 0.05,
+  samplesPerStep: 1,
+  returnSamples: 1,
+  callback: function(i, params) {
+    dumpSamples(i, params);
+    dumpLatents(i, params);
+  }
+});
+
 
 // TODO:
 
