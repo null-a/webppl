@@ -2,6 +2,7 @@ var X = readJSONDataSet('mnist_inputs.json');
 
 var initSigma = 0.01;
 var batchSize = 100;
+var reg = 0.1; // Model params regularization. No idea of sensible magnitude.
 var zDim = 2;
 var hDecodeDim = 500;
 var hEncodeDim = 500;
@@ -45,11 +46,11 @@ var model = function() {
   var b2 = paramChoice(tensorInitERP, [[zDim, 1], initSigma], { name: 'b2' });
 
   // Model parameters.
-  var W3 = paramChoice(tensorInitERP, [[hDecodeDim, zDim], initSigma], { name: 'W3', reg: .1 });
-  var W4 = paramChoice(tensorInitERP, [[xDim, hDecodeDim], initSigma], { name: 'W4', reg: .1 });
+  var W3 = paramChoice(tensorInitERP, [[hDecodeDim, zDim], initSigma], { name: 'W3', reg: reg });
+  var W4 = paramChoice(tensorInitERP, [[xDim, hDecodeDim], initSigma], { name: 'W4', reg: reg });
 
-  var b3 = paramChoice(tensorInitERP, [[hDecodeDim, 1], initSigma], { name: 'b3', reg: .1 });
-  var b4 = paramChoice(tensorInitERP, [[xDim, 1], initSigma], { name: 'b4', reg: .1 });
+  var b3 = paramChoice(tensorInitERP, [[hDecodeDim, 1], initSigma], { name: 'b3', reg: reg });
+  var b4 = paramChoice(tensorInitERP, [[xDim, 1], initSigma], { name: 'b4', reg: reg });
 
   factor(sum(map(function(x) {
     var guide = encode(x, [W0, W1, W2], [b0, b1, b2]);
