@@ -110,10 +110,11 @@ module.exports = function(env) {
           }
           m[name] = add(scalarMul(m[name], decayRate1), scalarMul(g, 1 - decayRate1));
           v[name] = add(scalarMul(v[name], decayRate2), scalarMul(mul(g, g), 1 - decayRate2));
-          var mHat = scalarDiv(m[name], 1 - Math.pow(decayRate1, t));
-          var vHat = scalarDiv(v[name], 1 - Math.pow(decayRate2, t));
-          // TODO: The paper describes a more efficient way to compute this.
-          params[name] = sub(params[name], scalarMul(div(mHat, scalarAdd(sqrt(vHat), eps)), stepSize));
+          //var mHat = scalarDiv(m[name], 1 - Math.pow(decayRate1, t));
+          //var vHat = scalarDiv(v[name], 1 - Math.pow(decayRate2, t));
+          //params[name] = sub(params[name], scalarMul(div(mHat, scalarAdd(sqrt(vHat), eps)), stepSize));
+          var alpha_t = stepSize * Math.sqrt(1 - Math.pow(decayRate2, t)) / (1 - Math.pow(decayRate1, t));
+          params[name] = sub(params[name], scalarMul(div(m[name], scalarAdd(sqrt(v[name]), eps)), alpha_t));
         });
       };
     }
