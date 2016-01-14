@@ -167,8 +167,6 @@ module.exports = function(env) {
                     }
                     this.grad[name] = add(this.grad[name], g);
 
-                    // TODO: Reintroduce division by num samples.
-
                   }, this);
 
                   return nextSample();
