@@ -80,6 +80,14 @@ var dumpLatents = function(i, params) {
   }, X.slice(0, 1000)));
 };
 
+var dumpParams = function(i, params) {
+  var fn = 'vae/params/' + i + '.json';
+  var out = mapObject(function(name, param) {
+    return param.toFlatArray();
+  }, params);
+  writeJSON(fn, out);
+};
+
 var erp = Variational(model, {
   optimizer: 'adam',
   steps: 10000,
@@ -87,8 +95,11 @@ var erp = Variational(model, {
   samplesPerStep: 1,
   returnSamples: 1,
   callback: function(i, params) {
-    dumpSamples(i, params);
     dumpLatents(i, params);
+    if (i % 100 === 0) {
+      dumpSamples(i, params);
+      dumpParams(i, params);
+    }
   }
 });
 

@@ -3,6 +3,8 @@ import sys
 import numpy as np
 from pylab import *
 import json
+import glob
+import os.path
 
 def load(fn):
     with open(fn) as f:
@@ -14,10 +16,12 @@ def load_labels():
 
 def plot_latents(data, labels):
     colors = "r b y g m c brown pink grey gold".split(" ")
+    fig = gcf()
+    fig.set_size_inches(6, 6)
+    fig.clear()
     axis('equal')
     xlim((-4, 4))
     ylim((-4, 4))
-    gcf().set_size_inches(6, 6)
     for i in range(10):
         ix = np.where(labels == i)
         xy = data[ix]
@@ -26,7 +30,16 @@ def plot_latents(data, labels):
     grid()
 
 #print(sys.argv)
-data = load(sys.argv[1])
+
 labels = load_labels()[0:1000]
-plot_latents(data, labels)
-savefig(sys.argv[2], dpi=120)
+
+dirName = 'vae/latents'
+
+for fn in glob.glob(os.path.join(dirName, '*.json')):
+    pngfn = os.path.basename(fn).split('.')[0] + ".png";
+    pngpath = os.path.join(dirName, pngfn)
+    if not os.path.exists(pngpath):
+        # Need to convert.
+        data = load(fn)
+        plot_latents(data, labels)
+        savefig(pngpath, dpi=120)
