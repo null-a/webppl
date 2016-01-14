@@ -1,8 +1,8 @@
 var X = readJSONDataSet('mnist_inputs.json');
 
-var initSigma = 0.01;
+var initSigma = 0.1;
 var batchSize = 100;
-var reg = 0.1; // Model params regularization. No idea of sensible magnitude.
+var reg = 0.001; // Model params regularization. No idea of sensible magnitude.
 var zDim = 2;
 var hDecodeDim = 500;
 var hEncodeDim = 500;
@@ -69,7 +69,6 @@ var dumpSamples = function(i, params) {
     var p = decode(z, [params.W3, params.W4], [params.b3, params.b4]);
     return p.toFlatArray();
   }));
-  exec('python vae/viz_samples.py ' + fn + ' vae/samples/' + i + '.png');
 };
 
 var dumpLatents = function(i, params) {
@@ -79,13 +78,12 @@ var dumpLatents = function(i, params) {
     var b = [params.b0, params.b1, params.b2];
     return encode(x, W, b, true).toFlatArray();
   }, X.slice(0, 1000)));
-  exec('python vae/viz_latents.py ' + fn + ' vae/latents/' + i + '.png');
 };
 
 var erp = Variational(model, {
-  optimizer: 'adagrad',
-  steps: 1000,
-  stepSize: 0.01,
+  optimizer: 'adam',
+  steps: 10000,
+  stepSize: 0.001,
   samplesPerStep: 1,
   returnSamples: 1,
   callback: function(i, params) {
