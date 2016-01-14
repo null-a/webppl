@@ -59,6 +59,7 @@ module.exports = function(env) {
         });
       };
     },
+    // TODO: The next 3 methods each avoid division by zero in different ways. Unify?
     adagrad: function(stepSize) {
       // State.
       // Map from a to running sum of grad^2.
@@ -72,6 +73,47 @@ module.exports = function(env) {
           }
           g2[name] = add(g2[name], mul(g, g));
           params[name] = sub(params[name], scalarMul(div(g, sqrt(g2[name])), stepSize));
+        });
+      };
+    },
+    // TODO: Make it possible to specify params such as decayRate from within programs.
+    rmsprop: function(stepSize) {
+      var decayRate = 0.9;
+      var g2 = Object.create(null);
+      return function(params, grad) {
+        _.each(grad, function(g, name) {
+          assert(_.has(params, name));
+          if (!_.has(g2, name)) {
+            g2[name] = zerosLike(g);
+          }
+          g2[name] = add(scalarMul(g2[name], decayRate), scalarMul(mul(g, g), 1 - decayRate));
+          params[name] = sub(params[name], scalarMul(div(g, sqrt(scalarAdd(g2[name], 1e-8))), stepSize));
+        });
+      };
+    },
+    adam: function(stepSize) {
+      // stepSize = alpha. suggested default = 0.001
+      var decayRate1 = 0.9; // beta1
+      var decayRate2 = 0.999; // beta2
+      var eps = 1e-8;
+      var m = Object.create(null);
+      var v = Object.create(null);
+      var t = 0;
+      return function(params, grad) {
+        t += 1;
+
+        _.each(grad, function(g, name) {
+          assert(_.has(params, name));
+          if (!_.has(m, name)) {
+            m[name] = zerosLike(g);
+            v[name] = zerosLike(g);
+          }
+          m[name] = add(scalarMul(m[name], decayRate1), scalarMul(g, 1 - decayRate1));
+          v[name] = add(scalarMul(v[name], decayRate2), scalarMul(mul(g, g), 1 - decayRate2));
+          var mHat = scalarDiv(m[name], 1 - Math.pow(decayRate1, t));
+          var vHat = scalarDiv(v[name], 1 - Math.pow(decayRate2, t));
+          // TODO: The paper describes a more efficient way to compute this.
+          params[name] = sub(params[name], scalarMul(div(mHat, scalarAdd(sqrt(vHat), eps)), stepSize));
         });
       };
     }
@@ -245,6 +287,11 @@ module.exports = function(env) {
         _.isNumber(a) && _.isNumber(b) ||
         a instanceof Tensor && b instanceof Tensor);
     return _.isNumber(a) ? a / b : a.div(b);
+  }
+
+  function scalarAdd(a, b) {
+    assert.ok(_.isNumber(b));
+    return _.isNumber(a) ? a + b : a.add(b);
   }
 
   function scalarMul(a, b) {
