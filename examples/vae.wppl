@@ -1,5 +1,6 @@
 var X = readJSONDataSet('mnist_inputs.json');
 
+var initSigma = 0.01;
 var batchSize = 100;
 var zDim = 2;
 var hDecodeDim = 500;
@@ -35,20 +36,20 @@ var decode = function(z, W, b) {
 
 var model = function() {
   // Variational parameters.
-  var W0 = paramChoice(tensorInitERP, [[hEncodeDim, xDim], 0.01], { name: 'W0' });
-  var W1 = paramChoice(tensorInitERP, [[zDim, hEncodeDim], 0.01], { name: 'W1' });
-  var W2 = paramChoice(tensorInitERP, [[zDim, hEncodeDim], 0.01], { name: 'W2' });
+  var W0 = paramChoice(tensorInitERP, [[hEncodeDim, xDim], initSigma], { name: 'W0' });
+  var W1 = paramChoice(tensorInitERP, [[zDim, hEncodeDim], initSigma], { name: 'W1' });
+  var W2 = paramChoice(tensorInitERP, [[zDim, hEncodeDim], initSigma], { name: 'W2' });
 
-  var b0 = paramChoice(tensorInitERP, [[hEncodeDim, 1], 0.01], { name: 'b0' });
-  var b1 = paramChoice(tensorInitERP, [[zDim, 1], 0.01], { name: 'b1' });
-  var b2 = paramChoice(tensorInitERP, [[zDim, 1], 0.01], { name: 'b2' });
+  var b0 = paramChoice(tensorInitERP, [[hEncodeDim, 1], initSigma], { name: 'b0' });
+  var b1 = paramChoice(tensorInitERP, [[zDim, 1], initSigma], { name: 'b1' });
+  var b2 = paramChoice(tensorInitERP, [[zDim, 1], initSigma], { name: 'b2' });
 
   // Model parameters.
-  var W3 = paramChoice(tensorInitERP, [[hDecodeDim, zDim], 0.01], { name: 'W3', reg: .1 });
-  var W4 = paramChoice(tensorInitERP, [[xDim, hDecodeDim], 0.01], { name: 'W4', reg: .1 });
+  var W3 = paramChoice(tensorInitERP, [[hDecodeDim, zDim], initSigma], { name: 'W3', reg: .1 });
+  var W4 = paramChoice(tensorInitERP, [[xDim, hDecodeDim], initSigma], { name: 'W4', reg: .1 });
 
-  var b3 = paramChoice(tensorInitERP, [[hDecodeDim, 1], 0.01], { name: 'b3', reg: .1 });
-  var b4 = paramChoice(tensorInitERP, [[xDim, 1], 0.01], { name: 'b4', reg: .1 });
+  var b3 = paramChoice(tensorInitERP, [[hDecodeDim, 1], initSigma], { name: 'b3', reg: .1 });
+  var b4 = paramChoice(tensorInitERP, [[xDim, 1], initSigma], { name: 'b4', reg: .1 });
 
   factor(sum(map(function(x) {
     var guide = encode(x, [W0, W1, W2], [b0, b1, b2]);
