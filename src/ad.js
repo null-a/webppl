@@ -113,4 +113,58 @@ ad.tensor.dot = ad.newBinaryFunction({
   }
 });
 
+ad.tensor.sumreduce = ad.newUnaryFunction({
+  OutputType: Number,
+  name: 'sumreduce',
+  forward: function(a) {
+    return a.sumreduce();
+  },
+  backward(a) {
+    var n = a.x.length;
+    for (var i = 0; i < n; i++) {
+      a.dx.data[i] += this.dx;
+    }
+  }
+});
+
+ad.tensor.addScalar = ad.newBinaryFunction({
+  OutputType: Tensor,
+  name: 'addScalar',
+  forward: function(a, b) {
+    return a.add(b);
+  },
+  backward1: function(a, b) {
+    var n = a.x.length;
+    for (var i = 0; i < n; i++) {
+      a.dx.data[i] += this.dx.data[i];
+    }
+  },
+  backward2: function(a, b) {
+    var n = ad.value(a).length;
+    for (var i = 0; i < n; i++) {
+      b.dx += this.dx.data[i];
+    }
+  }
+});
+
+ad.tensor.subScalar = ad.newBinaryFunction({
+  OutputType: Tensor,
+  name: 'subScalar',
+  forward: function(a, b) {
+    return a.sub(b);
+  },
+  backward1: function(a, b) {
+    var n = a.x.length;
+    for (var i = 0; i < n; i++) {
+      a.dx.data[i] += this.dx.data[i];
+    }
+  },
+  backward2: function(a, b) {
+    var n = ad.value(a).length;
+    for (var i = 0; i < n; i++) {
+      b.dx -= this.dx.data[i];
+    }
+  }
+});
+
 module.exports = ad;

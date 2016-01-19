@@ -374,20 +374,54 @@ var diagCovGaussianERP = new ERP({
   isContinuous: false
 });
 
-// TODO: What should this be called?
-var tensorInitERP = new ERP({
+function matrixGaussianScoreSkipT(params, x) {
+  var _x = ad.value(x);
+  var mu = params[0];
+  var sigma = params[1];
+  var dims = params[2];
+
+  assert.ok(_.isNumber(mu));
+  assert.ok(_.isNumber(sigma));
+  assert.ok(_.isArray(dims));
+  assert.strictEqual(dims.length, 2);
+  assert.ok(_.isEqual(dims, _x.dims));
+
+  var d = _x.length;
+  var dLog2Pi = d * LOG_2PI;
+  var _2dLogSigma = ad.scalar.mul(2 * d, ad.scalar.log(sigma));
+  var sigma2 = ad.scalar.pow(sigma, 2);
+  var xSubMu = ad.tensor.subScalar(x, mu);
+  var z = ad.scalar.div(ad.tensor.sumreduce(ad.tensor.mul(xSubMu, xSubMu)), sigma2);
+
+  return ad.scalar.mul(-0.5, ad.scalar.sum(dLog2Pi, _2dLogSigma, z));
+}
+
+// params: [mean, cov, [rows, cols]]
+
+// Currently only supports the case where each dim is an independent
+// Gaussian and mu and sigma are shared by all dims.
+
+// It might be useful to extend this to allow mean to be a matrix etc.
+
+var matrixGaussianERP = new ERP({
   sample: function(params) {
-    var shape = params[0];
-    var sigma = params[1] || 1;
-    assert.strictEqual(shape.length, 2);
-    var vals = _.times(shape[0] * shape[1], function() {
-      return gaussianSample([0, sigma]);
-    });
-    return new Tensor(shape).fromFlatArray(vals);
+    var mu = params[0];
+    var sigma = params[1];
+    var dims = params[2];
+
+    assert.ok(_.isNumber(mu));
+    assert.ok(_.isNumber(sigma));
+    assert.strictEqual(dims.length, 2);
+
+    var x = new Tensor(dims);
+    var n = x.length;
+    while (n--) {
+      x.data[n] = gaussianSample([mu, sigma]);
+    }
+    return x;
   },
-  score: function(params, val) {
-    throw 'Not implemented';
-  }
+  score: matrixGaussianScoreSkipT,
+  isContinuous: true
 });
 
 function sum(xs) {
@@ -884,7 +918,7 @@ module.exports = setErpNames({
   multinomialSample: multinomialSample,
   multivariateGaussianERP: multivariateGaussianERP,
   diagCovGaussianERP: diagCovGaussianERP,
-  tensorInitERP: tensorInitERP,
+  matrixGaussianERP: matrixGaussianERP,
   poissonERP: poissonERP,
   randomIntegerERP: randomIntegerERP,
   uniformERP: uniformERP,

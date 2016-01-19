@@ -37,20 +37,20 @@ var decode = function(z, W, b) {
 
 var model = function() {
   // Variational parameters.
-  var W0 = paramChoice(tensorInitERP, [[hEncodeDim, xDim], initSigma], { name: 'W0' });
-  var W1 = paramChoice(tensorInitERP, [[zDim, hEncodeDim], initSigma], { name: 'W1' });
-  var W2 = paramChoice(tensorInitERP, [[zDim, hEncodeDim], initSigma], { name: 'W2' });
+  var W0 = paramChoice(matrixGaussianERP, [0, initSigma, [hEncodeDim, xDim]], { name: 'W0' });
+  var W1 = paramChoice(matrixGaussianERP, [0, initSigma, [zDim, hEncodeDim]], { name: 'W1' });
+  var W2 = paramChoice(matrixGaussianERP, [0, initSigma, [zDim, hEncodeDim]], { name: 'W2' });
 
-  var b0 = paramChoice(tensorInitERP, [[hEncodeDim, 1], initSigma], { name: 'b0' });
-  var b1 = paramChoice(tensorInitERP, [[zDim, 1], initSigma], { name: 'b1' });
-  var b2 = paramChoice(tensorInitERP, [[zDim, 1], initSigma], { name: 'b2' });
+  var b0 = paramChoice(matrixGaussianERP, [0, initSigma, [hEncodeDim, 1]], { name: 'b0' });
+  var b1 = paramChoice(matrixGaussianERP, [0, initSigma, [zDim, 1]], { name: 'b1' });
+  var b2 = paramChoice(matrixGaussianERP, [0, initSigma, [zDim, 1]], { name: 'b2' });
 
   // Model parameters.
-  var W3 = paramChoice(tensorInitERP, [[hDecodeDim, zDim], initSigma], { name: 'W3', reg: reg });
-  var W4 = paramChoice(tensorInitERP, [[xDim, hDecodeDim], initSigma], { name: 'W4', reg: reg });
+  var W3 = paramChoice(matrixGaussianERP, [0, initSigma, [hDecodeDim, zDim]], { name: 'W3', reg: reg });
+  var W4 = paramChoice(matrixGaussianERP, [0, initSigma, [xDim, hDecodeDim]], { name: 'W4', reg: reg });
 
-  var b3 = paramChoice(tensorInitERP, [[hDecodeDim, 1], initSigma], { name: 'b3', reg: reg });
-  var b4 = paramChoice(tensorInitERP, [[xDim, 1], initSigma], { name: 'b4', reg: reg });
+  var b3 = paramChoice(matrixGaussianERP, [0, initSigma, [hDecodeDim, 1]], { name: 'b3', reg: reg });
+  var b4 = paramChoice(matrixGaussianERP, [0, initSigma, [xDim, 1]], { name: 'b4', reg: reg });
 
   factor(sum(map(function(x) {
     var guide = encode(x, [W0, W1, W2], [b0, b1, b2]);

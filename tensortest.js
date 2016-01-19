@@ -21,4 +21,34 @@ var test1 = function() {
   console.log(ad.derivative(X));
 };
 
-test1();
+
+var test2 = function() {
+
+  var a = ad.lift(new Tensor([2, 1]).fromFlatArray([1, 2]));
+  var b = ad.lift(new Tensor([2, 1]).fromFlatArray([3, 4]));
+  var y = ad.tensor.sumreduce(ad.tensor.mul(ad.tensor.mul(a, a), b));
+
+  y.backprop();
+
+  console.log(ad.value(y));
+  console.log(ad.derivative(a));
+  console.log(ad.derivative(b));
+
+};
+
+var test3 = function() {
+
+  var a = ad.lift(new Tensor([2, 1]).fromFlatArray([12, 22]));
+  var b = ad.lift(42);
+
+  var y = ad.tensor.sumreduce(ad.tensor.subScalar(a, b));
+
+  y.backprop();
+
+  console.log(ad.value(y))
+  console.log(ad.derivative(a));
+  console.log(ad.derivative(b));
+
+};
+
+test3();
