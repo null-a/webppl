@@ -46,11 +46,21 @@ var model = function() {
   var b2 = paramChoice(matrixGaussianERP, [0, initSigma, [zDim, 1]], { name: 'b2' });
 
   // Model parameters.
-  var W3 = paramChoice(matrixGaussianERP, [0, initSigma, [hDecodeDim, zDim]], { name: 'W3', reg: reg });
-  var W4 = paramChoice(matrixGaussianERP, [0, initSigma, [xDim, hDecodeDim]], { name: 'W4', reg: reg });
+  var _W3 = paramChoice(matrixGaussianERP, [0, initSigma, [hDecodeDim, zDim]], { name: 'W3' });
+  var _W4 = paramChoice(matrixGaussianERP, [0, initSigma, [xDim, hDecodeDim]], { name: 'W4' });
 
-  var b3 = paramChoice(matrixGaussianERP, [0, initSigma, [hDecodeDim, 1]], { name: 'b3', reg: reg });
-  var b4 = paramChoice(matrixGaussianERP, [0, initSigma, [xDim, 1]], { name: 'b4', reg: reg });
+  var _b3 = paramChoice(matrixGaussianERP, [0, initSigma, [hDecodeDim, 1]], { name: 'b3' });
+  var _b4 = paramChoice(matrixGaussianERP, [0, initSigma, [xDim, 1]], { name: 'b4' });
+
+  var W3g = sampleGuide(deltaERP, [_W3], { reparam: true });
+  var W4g = sampleGuide(deltaERP, [_W4], { reparam: true });
+  var b3g = sampleGuide(deltaERP, [_b3], { reparam: true });
+  var b4g = sampleGuide(deltaERP, [_b4], { reparam: true });
+
+  var W3 = sample(matrixGaussianERP, [0, 1, [hDecodeDim, zDim]], { guideVal: W3g });
+  var W4 = sample(matrixGaussianERP, [0, 1, [xDim, hDecodeDim]], { guideVal: W4g });
+  var b3 = sample(matrixGaussianERP, [0, 1, [hDecodeDim, 1]], { guideVal: b3g });
+  var b4 = sample(matrixGaussianERP, [0, 1, [xDim, 1]], { guideVal: b4g });
 
   factor(sum(map(function(x) {
     var guide = encode(x, [W0, W1, W2], [b0, b1, b2]);

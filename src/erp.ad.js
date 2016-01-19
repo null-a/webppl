@@ -424,6 +424,25 @@ var matrixGaussianERP = new ERP({
   isContinuous: true
 });
 
+var deltaERP = new ERP({
+  sample: function(params) {
+    return params[0];
+  },
+  score: function(params, x) {
+    // We really need a generic equality check here, but I might get
+    // away with this for VI for now. Don't want to serialize as with
+    // categorical as that's too slow for large matrices. matrices.
+    assert.ok(params[0] === x);
+    return 0;
+  },
+  baseParams: function() {
+    return [];
+  },
+  transform: function(x, params) {
+    return params[0];
+  }
+});
+
 function sum(xs) {
   return xs.reduce(function(a, b) { return a + b; }, 0);
 };
@@ -910,6 +929,7 @@ module.exports = setErpNames({
   mvBernoulliERP: mvBernoulliERP,
   betaERP: betaERP,
   binomialERP: binomialERP,
+  deltaERP: deltaERP,
   dirichletERP: dirichletERP,
   discreteERP: discreteERP,
   exponentialERP: exponentialERP,
