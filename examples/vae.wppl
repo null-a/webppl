@@ -103,15 +103,4 @@ var erp = Variational(model, {
   }
 });
 
-
-// TODO:
-
-// 1. Can we make it possible to sample form the prior without
-// significant re-writing of the model?
-
-// 2. Can we make it possible to run this model with other inference
-// algorithms without having to change too much. (It would be nice to
-// be able to do this in principle, even though it may not be
-// practical.)
-
 'done';
