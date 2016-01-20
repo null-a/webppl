@@ -29,6 +29,7 @@ module.exports = function(env) {
       samplesPerStep: 100,
       returnSamples: 1000,
       optimizer: 'gd',
+      miniBatchSize: Infinity,
       callback: function(s, k, a) { return k(s); }
     });
 
@@ -37,6 +38,7 @@ module.exports = function(env) {
     this.samplesPerStep = options.samplesPerStep;
     this.returnSamples = options.returnSamples;
     this.optimizerName = options.optimizer;
+    this.miniBatchSize = options.miniBatchSize;
     this.callback = options.callback;
 
     this.curStep = 0;
@@ -164,8 +166,6 @@ module.exports = function(env) {
 
                 return this.wpplFn(_.clone(this.s), function(s, val) {
 
-                  this.curStep += 1;
-
                   trace('Program returned: ' + ad.value(val));
                   trace('logp: ' + ad.value(this.logp));
                   trace('logq: ' + ad.value(this.logq));
@@ -241,6 +241,7 @@ module.exports = function(env) {
                 env.coroutine = env.defaultCoroutine;
                 return this.callback({}, function() {
                   env.coroutine = this;
+                  this.curStep += 1;
                   return nextStep();
                 }.bind(this), '', this.curStep, this.params);
 
@@ -310,6 +311,11 @@ module.exports = function(env) {
   }
 
   Variational.prototype.finish = function() {
+
+    // Reset current step counter for predictable forEach behavior.
+    // i.e. The first mini batch is used.
+    this.curStep = 0;
+
     // Build distribution and compute final estimate of ELBO.
     var hist = new Histogram();
     var estELBO = 0;
@@ -431,6 +437,50 @@ module.exports = function(env) {
     return k(s, val);
   };
 
+  Variational.prototype.forEach = function(s, k, a, arr, f) {
+    var m = Math.min(this.miniBatchSize, arr.length);
+
+    if (arr.length % m !== 0) {
+      throw 'Mini batch size should be a divisor of total array length (' + arr.length + ').';
+    }
+
+    var numBatches = arr.length / m;
+    var miniBatch = arr.slice(this.curStep * m, (this.curStep + 1) * m);
+
+    var logp0 = this.logp;
+    var logq0 = this.logq;
+    var logr0 = this.logr;
+
+    return webpplCpsForEach(s, function(s) {
+      // Compute score corrections to account for the fact we only
+      // looked at a subset of the data.
+      var logpdiff = ad.scalar.sub(this.logp, logp0);
+      var logqdiff = ad.scalar.sub(this.logq, logq0);
+      var logrdiff = ad.scalar.sub(this.logr, logr0);
+      this.logp = ad.scalar.add(this.logp, ad.scalar.mul(logpdiff, numBatches - 1));
+      this.logq = ad.scalar.add(this.logq, ad.scalar.mul(logqdiff, numBatches - 1));
+      this.logr = ad.scalar.add(this.logr, ad.scalar.mul(logrdiff, numBatches - 1));
+
+      return k(s);
+    }.bind(this), a, miniBatch, f);
+  };
+
+  // Similar to util.cpsForEach but with store/address passing. This
+  // is required when f is a webppl function rather than backend CPS
+  // code.
+  function webpplCpsForEach(s, k, a, arr, f, i) {
+    var i = (i === undefined) ? 0 : i;
+    if (i === arr.length) {
+      return k(s);
+    } else {
+      return f(s, function(s) {
+        return function() {
+          return webpplCpsForEach(s, k, a, arr, f, i + 1);
+        };
+      }, a, arr[i]);
+    }
+  }
+
   function paramChoice(s, k, a, erp, params, opts) {
     assert.ok(env.coroutine instanceof Variational);
     return env.coroutine.paramChoice(s, k, a, erp, params, opts);
@@ -441,9 +491,9 @@ module.exports = function(env) {
     return env.coroutine.sampleGuide(s, k, a, erp, params, transform);
   }
 
-  function getCurStep(s, k, a) {
+  function forEach(s, k, a, arr, f) {
     assert.ok(env.coroutine instanceof Variational);
-    return k(s, env.coroutine.curStep);
+    return env.coroutine.forEach(s, k, a, arr, f);
   }
 
   Variational.prototype.incrementalize = env.defaultCoroutine.incrementalize;
@@ -454,7 +504,7 @@ module.exports = function(env) {
     },
     paramChoice: paramChoice,
     sampleGuide: sampleGuide,
-    getCurStep: getCurStep
+    forEach: forEach
   };
 
 };

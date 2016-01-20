@@ -1,19 +1,11 @@
 var X = readJSONDataSet('mnist_inputs.json');
 
 var initSigma = 0.1;
-var batchSize = 100;
 var reg = 0.001; // Model params regularization. No idea of sensible magnitude.
 var zDim = 2;
 var hDecodeDim = 500;
 var hEncodeDim = 500;
 var xDim = 784;
-
-var curBatch = function(arr, batchSize) {
-  assert.ok(arr.length % batchSize === 0);
-  var numBatches = arr.length / batchSize;
-  var i = getCurStep() % numBatches;
-  return arr.slice(i * batchSize, (i + 1) * batchSize);
-};
 
 var encode = function(x, W, b, returnMean) {
   var W0 = W[0], W1 = W[1], W2 = W[2];
@@ -62,12 +54,12 @@ var model = function() {
   var b3 = sample(matrixGaussianERP, [0, 1, [hDecodeDim, 1]], { guideVal: b3g });
   var b4 = sample(matrixGaussianERP, [0, 1, [xDim, 1]], { guideVal: b4g });
 
-  factor(sum(map(function(x) {
+  forEach(X, function(x) {
     var guide = encode(x, [W0, W1, W2], [b0, b1, b2]);
     var z = sample(diagCovGaussianERP, [Vector([0, 0]), Vector([1, 1])], { guideVal: guide });
     var p = decode(z, [W3, W4], [b3, b4]);
-    return mvBernoulliERP.score([p], x);
-  }, curBatch(X, batchSize))));
+    factor(mvBernoulliERP.score([p], x));
+  });
 
   return 0;
 };
@@ -104,6 +96,7 @@ var erp = Variational(model, {
   stepSize: 0.001,
   samplesPerStep: 1,
   returnSamples: 1,
+  miniBatchSize: 100,
   callback: function(i, params) {
     dumpLatents(i, params);
     if (i % 100 === 0) {
