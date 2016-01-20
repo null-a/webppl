@@ -259,8 +259,6 @@ var gaussianERP = new ERP({
 });
 
 function multivariateGaussianSample(params) {
-  // TODO: Drop dependency on numeric, instead write in terms of
-  // Tensor. Need SVD function adding.
   var mu = params[0];
   var cov = params[1].toArray();
   var n = cov.length;
@@ -280,7 +278,6 @@ function multivariateGaussianScoreSkipT(params, x) {
   var n = ad.value(mu).dims[0];
   var coeffs = ad.scalar.add(n * LOG_2PI, ad.scalar.log(ad.tensor.det(cov)));
   var xSubMu = ad.tensor.sub(x, mu);
-  // Would using solve here be more accurate. Compare results (numerically) with e.g. scipy.
   var exponents = ad.tensor.dot(ad.tensor.dot(ad.tensor.transpose(xSubMu), ad.tensor.inv(cov)), xSubMu);
   return ad.scalar.mul(-0.5, ad.scalar.add(coeffs, ad.tensorEntry(exponents, 0)));
 }
@@ -299,9 +296,7 @@ var multivariateGaussianERP = new ERP({
   transform: function(x, params) {
     var mu = params[0];
     var cov = params[1];
-    // TODO: Generalize this? Currently assumes that cov is diagonal.
-    // Needs Cholesky? Maybe we should assume diagonal cov when cov is
-    // given as a vector, and assume full cov otherwise?
+    // Currently assumes that cov is diagonal.
     return ad.tensor.add(ad.tensor.dot(ad.tensor.sqrt(cov), x), mu);
   },
   // HACK: Avoid tapifying a matrix as it's not yet supported.
@@ -335,7 +330,6 @@ function diagCovGaussianScoreSkipT(params, x) {
   assert.strictEqual(_mu.dims[0], _sigma.dims[0]);
   var d = _mu.dims[0];
 
-  // TODO: tensor x scalar multiplication for ad.
   var twiceLogSigma = ad.tensor.mul(new Tensor([d, 1]).fill(2), ad.tensor.log(sigma));
   var xSubMuDivSigma = ad.tensor.div(ad.tensor.sub(x, mu), sigma);
 
@@ -353,7 +347,6 @@ function reduceSum(vector) {
   assert.strictEqual(_vector.rank, 2);
   assert.strictEqual(_vector.dims[1], 1);
   var d = _vector.dims[0];
-  // TODO: adify Tensor's reduce sum.
   return ad.tensorEntry(ad.tensor.dot(new Tensor([1, d]).fill(1), vector), 0);
 }
 
