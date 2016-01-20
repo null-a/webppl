@@ -325,6 +325,7 @@ module.exports = function(env) {
         function(i, next) {
           this.logp = 0;
           this.logq = 0;
+          this.logr = 0;
           return this.wpplFn(_.clone(this.s), function(s, val) {
             var scoreDiff = ad.value(this.logq) - ad.value(this.logp);
             estELBO -= scoreDiff / this.returnSamples;
