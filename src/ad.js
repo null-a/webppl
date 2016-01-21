@@ -127,6 +127,91 @@ ad.tensor.sumreduce = ad.newUnaryFunction({
   }
 });
 
+ad.tensor._add = ad.tensor.add;
+
+// This version supports the case where b is a scalar. a is always a
+// tensor.
+ad.tensor.add = ad.newBinaryFunction({
+  OutputType: Tensor,
+  name: 'add',
+  forward: function(a, b) {
+    return a.add(b);
+  },
+  backward1: function(a, b) {
+    var n = a.x.length;
+    for (var i = 0; i < n; i++) {
+      a.dx.data[i] += this.dx.data[i];
+    }
+  },
+  backward2: function(a, b) {
+    var i;
+    var _a = ad.value(a);
+    var n = _a.length;
+    if (b.x instanceof Tensor) {
+      for (i = 0; i < n; i++) {
+        b.dx.data[i] += this.dx.data[i];
+      }
+    } else if (typeof b.x === 'number') {
+      for (i = 0; i < n; i++) {
+        b.dx += this.dx.data[i];
+      }
+    } else {
+      throw 'Unknown type.';
+    }
+  }
+});
+
+
+ad.tensor._sub = ad.tensor.sub;
+
+// This version supports the case where b is a scalar. a is always a
+// tensor.
+ad.tensor.sub = ad.newBinaryFunction({
+  OutputType: Tensor,
+  name: 'sub',
+  forward: function(a, b) {
+    return a.sub(b);
+  },
+  backward1: function(a, b) {
+    var n = a.x.length;
+    for (var i = 0; i < n; i++) {
+      a.dx.data[i] += this.dx.data[i];
+    }
+  },
+  backward2: function(a, b) {
+    var i;
+    var _a = ad.value(a);
+    var n = _a.length;
+    if (b.x instanceof Tensor) {
+      for (i = 0; i < n; i++) {
+        b.dx.data[i] -= this.dx.data[i];
+      }
+    } else if (typeof b.x === 'number') {
+      for (i = 0; i < n; i++) {
+        b.dx -= this.dx.data[i];
+      }
+    } else {
+      throw 'Unknown type.';
+    }
+  }
+});
+
+
+ad.tensor.neg = ad.newUnaryFunction({
+  OutputType: Tensor,
+  name: 'neg',
+  forward: function(a) {
+    return a.neg();
+  },
+  backward: function(a) {
+    var n = a.dx.length;
+    for (var i = 0; i < n; i++) {
+      a.dx.data[i] -= this.dx.data[i];
+    }
+  }
+});
+
+
 ad.tensor.addScalar = ad.newBinaryFunction({
   OutputType: Tensor,
   name: 'addScalar',
