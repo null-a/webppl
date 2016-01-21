@@ -345,17 +345,6 @@ module.exports = function(env) {
         }.bind(this));
   };
 
-  function isTape(obj) {
-    return _.has(obj, 'sensitivity');
-  }
-
-  function resetSensitivities(tape) {
-    if (isTape(tape)) {
-      tape.sensitivity = 0;
-      _.each(tape.tapes, resetSensitivities);
-    }
-  }
-
   // TODO: This options arg clashes with the forceSample arg used in MH.
   Variational.prototype.sample = function(s, k, a, erp, params, opts) {
     var options = opts || {};
