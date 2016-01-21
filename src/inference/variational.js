@@ -126,7 +126,6 @@ module.exports = function(env) {
 
     var optimize = optimizers[this.optimizerName](this.stepSize);
 
-    // TODO: Tensor values params?
     // All variational parameters. Maps addresses to numbers/reals.
     this.params = Object.create(null);
 
