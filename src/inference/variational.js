@@ -55,9 +55,9 @@ module.exports = function(env) {
   var optimizers = {
     gd: function(stepSize) {
       return function(params, grad) {
-        _.each(grad, function(g, name) {
-          assert(_.has(params, name));
-          params[name] = sub(params[name], scalarMul(g, stepSize));
+        _.each(grad, function(g, a) {
+          assert(_.has(params, a));
+          params[a] = sub(params[a], scalarMul(g, stepSize));
         });
       };
     },
@@ -67,14 +67,14 @@ module.exports = function(env) {
       // Map from a to running sum of grad^2.
       var g2 = Object.create(null);
       return function(params, grad) {
-        _.each(grad, function(g, name) {
-          assert(_.has(params, name));
-          if (!_.has(g2, name)) {
+        _.each(grad, function(g, a) {
+          assert(_.has(params, a));
+          if (!_.has(g2, a)) {
             // Start with small non-zero g2 to avoid divide by zero.
-            g2[name] = scalarMul(onesLike(g), 0.001);
+            g2[a] = scalarMul(onesLike(g), 0.001);
           }
-          g2[name] = add(g2[name], mul(g, g));
-          params[name] = sub(params[name], scalarMul(div(g, sqrt(g2[name])), stepSize));
+          g2[a] = add(g2[a], mul(g, g));
+          params[a] = sub(params[a], scalarMul(div(g, sqrt(g2[a])), stepSize));
         });
       };
     },
@@ -83,13 +83,13 @@ module.exports = function(env) {
       var decayRate = 0.9;
       var g2 = Object.create(null);
       return function(params, grad) {
-        _.each(grad, function(g, name) {
-          assert(_.has(params, name));
-          if (!_.has(g2, name)) {
-            g2[name] = zerosLike(g);
+        _.each(grad, function(g, a) {
+          assert(_.has(params, a));
+          if (!_.has(g2, a)) {
+            g2[a] = zerosLike(g);
           }
-          g2[name] = add(scalarMul(g2[name], decayRate), scalarMul(mul(g, g), 1 - decayRate));
-          params[name] = sub(params[name], scalarMul(div(g, sqrt(scalarAdd(g2[name], 1e-8))), stepSize));
+          g2[a] = add(scalarMul(g2[a], decayRate), scalarMul(mul(g, g), 1 - decayRate));
+          params[a] = sub(params[a], scalarMul(div(g, sqrt(scalarAdd(g2[a], 1e-8))), stepSize));
         });
       };
     },
@@ -104,19 +104,19 @@ module.exports = function(env) {
       return function(params, grad) {
         t += 1;
 
-        _.each(grad, function(g, name) {
-          assert(_.has(params, name));
-          if (!_.has(m, name)) {
-            m[name] = zerosLike(g);
-            v[name] = zerosLike(g);
+        _.each(grad, function(g, a) {
+          assert(_.has(params, a));
+          if (!_.has(m, a)) {
+            m[a] = zerosLike(g);
+            v[a] = zerosLike(g);
           }
-          m[name] = add(scalarMul(m[name], decayRate1), scalarMul(g, 1 - decayRate1));
-          v[name] = add(scalarMul(v[name], decayRate2), scalarMul(mul(g, g), 1 - decayRate2));
-          //var mHat = scalarDiv(m[name], 1 - Math.pow(decayRate1, t));
-          //var vHat = scalarDiv(v[name], 1 - Math.pow(decayRate2, t));
-          //params[name] = sub(params[name], scalarMul(div(mHat, scalarAdd(sqrt(vHat), eps)), stepSize));
+          m[a] = add(scalarMul(m[a], decayRate1), scalarMul(g, 1 - decayRate1));
+          v[a] = add(scalarMul(v[a], decayRate2), scalarMul(mul(g, g), 1 - decayRate2));
+          //var mHat = scalarDiv(m[a], 1 - Math.pow(decayRate1, t));
+          //var vHat = scalarDiv(v[a], 1 - Math.pow(decayRate2, t));
+          //params[a] = sub(params[a], scalarMul(div(mHat, scalarAdd(sqrt(vHat), eps)), stepSize));
           var alpha_t = stepSize * Math.sqrt(1 - Math.pow(decayRate2, t)) / (1 - Math.pow(decayRate1, t));
-          params[name] = sub(params[name], scalarMul(div(m[name], scalarAdd(sqrt(v[name]), eps)), alpha_t));
+          params[a] = sub(params[a], scalarMul(div(m[a], scalarAdd(sqrt(v[a]), eps)), alpha_t));
         });
       };
     }
@@ -128,6 +128,11 @@ module.exports = function(env) {
 
     // All variational parameters. Maps addresses to numbers/reals.
     this.params = Object.create(null);
+
+    // Book-keeping for parameter names.
+    this.paramPrefixCount = Object.create(null);
+    this.paramNames = Object.create(null); // Set of all param names used.
+    this.paramAddressNameMap = Object.create(null); // Maps addresses to names.
 
     // Maps param names to regularization scaling constant for those
     // parameters for which regularization is requested.
@@ -190,24 +195,24 @@ module.exports = function(env) {
 
                   objective.backprop();
 
-                  _.each(this.paramsSeen, function(val, name) {
+                  _.each(this.paramsSeen, function(val, a) {
 
                     var g = ad.derivative(val);
 
                     // L2 regularization.
-                    if (_.has(this.regScale, name)) {
-                      trace('Computing regularization term for ' + name);
-                      g = add(g, scalarMul(ad.value(val), this.regScale[name]));
+                    if (_.has(this.regScale, a)) {
+                      trace('Computing regularization term for ' + this.paramName(a));
+                      g = add(g, scalarMul(ad.value(val), this.regScale[a]));
                     }
 
-                    trace('Gradient of objective w.r.t. ' + name + ':');
+                    trace('Gradient of objective w.r.t. ' + this.paramName(a) + ':');
                     trace(g);
 
-                    if (!_.has(this.grad, name)) {
+                    if (!_.has(this.grad, a)) {
                       // Initialize gradients to zero.
-                      this.grad[name] = zerosLike(g);
+                      this.grad[a] = zerosLike(g);
                     }
-                    this.grad[name] = add(this.grad[name], g);
+                    this.grad[a] = add(this.grad[a], g);
 
                   }, this);
 
@@ -219,8 +224,8 @@ module.exports = function(env) {
               function() {
 
                 // * 1/N
-                _.each(this.grad, function(g, name) {
-                  this.grad[name] = scalarDiv(g, this.samplesPerStep);
+                _.each(this.grad, function(g, a) {
+                  this.grad[a] = scalarDiv(g, this.samplesPerStep);
                 }, this);
 
                 // Take gradient step.
@@ -230,19 +235,19 @@ module.exports = function(env) {
                 info('Estimated ELBO before gradient step: ' + this.estELBO);
 
                 trace('Params before step:');
-                trace(this.params);
+                trace(this.namedParams());
 
                 optimize(this.params, this.grad);
 
                 trace('Params after step:');
-                debug(this.params);
+                debug(this.namedParams());
 
                 env.coroutine = env.defaultCoroutine;
                 return this.callback({}, function() {
                   env.coroutine = this;
                   this.curStep += 1;
                   return nextStep();
-                }.bind(this), '', this.curStep, this.params);
+                }.bind(this), '', this.curStep, this.namedParams());
 
               }.bind(this));
 
@@ -336,11 +341,11 @@ module.exports = function(env) {
           info('\n================================================================================');
           info('Estimated ELBO: ' + estELBO);
           trace('\nOptimized variational parameters:');
-          trace(this.params);
+          trace(this.namedParams());
           env.coroutine = this.coroutine;
           var erp = hist.toERP();
           erp.estELBO = estELBO;
-          erp.parameters = this.params;
+          erp.parameters = this.namedParams();
           return this.k(this.s, erp);
         }.bind(this));
   };
@@ -357,7 +362,7 @@ module.exports = function(env) {
     // Update log p.
     var val = options.guideVal;
     var _val = ad.value(val);
-    trace('Using guide value ' + _val + ' for ' + a + ' (' + erp.name + ')');
+    trace('Using guide value ' + _val + ' for ' + this.paramName(a) + ' (' + erp.name + ')');
     this.logp = ad.scalar.add(this.logp, erp.score(params, val));
     return k(s, val);
   };
@@ -368,26 +373,63 @@ module.exports = function(env) {
     return k(s);
   };
 
+  Variational.prototype.registerParamName = function(address, name, prefix) {
+    if (!name && !prefix) {
+      // No name or prefix given. The stack address will be used
+      // (implicitly) as the parameter name.
+      return;
+    }
+
+    if (!name) {
+      // Generate a name from the prefix when name is not given
+      // explicitly.
+      if (!_.has(this.paramPrefixCount, prefix)) {
+        this.paramPrefixCount[prefix] = 0;
+      }
+      name = prefix + this.paramPrefixCount[prefix];
+      this.paramPrefixCount[prefix] += 1;
+    }
+
+    if (_.has(this.paramNames, name)) {
+      throw 'Parameter ' + name + ' already exists.';
+    }
+    this.paramNames[name] = true;
+    this.paramAddressNameMap[address] = name;
+  };
+
+  Variational.prototype.paramName = function(address) {
+    return this.paramAddressNameMap[address] || address;
+  };
+
+  Variational.prototype.namedParams = function() {
+    return _.chain(this.params).map(function(param, a) {
+      return [this.paramName(a), param];
+    }, this).object().value();
+  };
+
   Variational.prototype.paramChoice = function(s, k, a, erp, params, opts) {
     var options = opts || {};
-    var name = options.name || a;
-    if (!_.has(this.params, name)) {
+
+    if (!_.has(this.params, a)) {
       // New parameter.
+      this.registerParamName(a, options.name, options.prefix);
+
+      // Initialize.
       var _val = erp.sample(params);
-      this.params[name] = _val;
-      debug('Initialized parameter ' + name + ' to ' + _val);
+      this.params[a] = _val;
+      debug('Initialized parameter ' + this.paramName(a) + ' to ' + _val);
 
       if (_.has(opts, 'reg')) {
         assert.ok(opts.reg > 0);
-        this.regScale[name] = opts.reg;
-        debug('Will regularize parameter ' + name + ' (Scale = ' + opts.reg + ')');
+        this.regScale[a] = opts.reg;
+        debug('Will regularize parameter ' + this.paramName(a) + ' (Scale = ' + opts.reg + ')');
       }
     } else {
-      _val = this.params[name];
-      trace('Seen parameter ' + name + ' before. Value is: ' + _val);
+      _val = this.params[a];
+      trace('Seen parameter ' + this.paramName(a) + ' before. Value is: ' + _val);
     }
     var val = ad.lift(_val);
-    this.paramsSeen[name] = val;
+    this.paramsSeen[a] = val;
     return k(s, val);
   };
 
@@ -412,13 +454,13 @@ module.exports = function(env) {
       var z = erp.sample(baseParams);
       this.logr = ad.scalar.add(this.logr, erp.score(baseParams, z));
       val = erp.transform(z, params);
-      trace('Sampled ' + ad.value(val) + ' for ' + a);
+      trace('Sampled ' + ad.value(val) + ' for ' + this.paramName(a));
       trace('  ' + erp.name + '(' + _params + ') reparameterized as ' +
             erp.name + '(' + baseParams + ') + transform');
     } else {
       val = erp.sample(_params);
       this.logr = ad.scalar.add(this.logr, erp.score(params, val));
-      trace('Sampled ' + val + ' for ' + a);
+      trace('Sampled ' + val + ' for ' + this.paramName(a));
       trace('  ' + erp.name + '(' + _params + ')');
     }
 
