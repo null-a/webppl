@@ -311,10 +311,13 @@ function diagCovGaussianSample(params) {
   assert.strictEqual(sigma.dims[1], 1);
   assert.strictEqual(mu.dims[0], sigma.dims[0]);
   var d = mu.dims[0];
-  var xs = new Tensor([d, 1]).fromFlatArray(_.times(d, function() {
-    return gaussianSample([0, 1]);
-  }));
-  return xs.mul(sigma).add(mu);
+
+  var x = new Tensor([d, 1]);
+  var n = x.length;
+  while (n--) {
+    x.data[n] = gaussianSample([mu.data[n], sigma.data[n]]);
+  }
+  return x;
 }
 
 function diagCovGaussianScoreSkipT(params, x) {
@@ -322,31 +325,23 @@ function diagCovGaussianScoreSkipT(params, x) {
   var sigma = params[1];
   var _mu = ad.value(mu);
   var _sigma = ad.value(sigma);
+
   assert.strictEqual(_mu.rank, 2);
   assert.strictEqual(_sigma.rank, 2);
   assert.strictEqual(_mu.dims[1], 1);
   assert.strictEqual(_sigma.dims[1], 1);
   assert.strictEqual(_mu.dims[0], _sigma.dims[0]);
+
   var d = _mu.dims[0];
 
-  var twiceLogSigma = ad.tensor.mul(new Tensor([d, 1]).fill(2), ad.tensor.log(sigma));
-  var xSubMuDivSigma = ad.tensor.div(ad.tensor.sub(x, mu), sigma);
+  var dLog2Pi = d * LOG_2PI;
+  var logDetCov = ad.scalar.mul(2, ad.tensor.sumreduce(ad.tensor.log(sigma)));
+  var z = ad.tensor.div(ad.tensor.sub(x, mu), sigma);
 
-  return ad.scalar.mul(-0.5,
-                       ad.scalar.add(
-                         d * LOG_2PI,
-                         reduceSum(ad.tensor.add(twiceLogSigma,
-                                                 ad.tensor.mul(
-                                                   xSubMuDivSigma,
-                                                   xSubMuDivSigma)))));
-}
-
-function reduceSum(vector) {
-  var _vector = ad.value(vector);
-  assert.strictEqual(_vector.rank, 2);
-  assert.strictEqual(_vector.dims[1], 1);
-  var d = _vector.dims[0];
-  return ad.tensorEntry(ad.tensor.dot(new Tensor([1, d]).fill(1), vector), 0);
+  return ad.scalar.mul(-0.5, ad.scalar.add(
+    dLog2Pi, ad.scalar.add(
+      logDetCov,
+      ad.tensor.sumreduce(ad.tensor.mul(z, z)))));
 }
 
 var diagCovGaussianERP = new ERP({
