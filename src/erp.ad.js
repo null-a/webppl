@@ -196,10 +196,12 @@ var mvBernoulliERP = new ERP({
     assert.ok(p.rank === 2);
     assert.ok(p.dims[1] === 1);
     var d = p.dims[0];
-    var val = _.map(p.toFlatArray(), function(p) {
-      return util.random() < p;
-    });
-    return new Tensor([d, 1]).fromFlatArray(val);
+    var x = new Tensor([d, 1]);
+    var n = x.length;
+    while (n--) {
+      x.data[n] = util.random() < p.data[n];
+    }
+    return x;
   },
   score: mvBernoulliScoreSkipT,
   isContinuous: false
