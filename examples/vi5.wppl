@@ -6,7 +6,7 @@ var model = function() {
   var x = 3;
 
   // q.
-  var theta = paramChoice(deltaERP(1));
+  var theta = paramChoice(deltaERP, [1]);
   var guide = sampleGuide(gaussianERP, [x * theta, Math.sqrt(0.5)], { reparam: true });
 
   // The true posterior is Normal(x/2, 0.5). So with q parameterized

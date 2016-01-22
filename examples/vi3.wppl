@@ -6,10 +6,10 @@ var lambda0 = 1;
 var model = function() {
 
   // Variational parameters.
-  var aParam = paramChoice(deltaERP(1));
-  var bParam = paramChoice(deltaERP(1));
-  var muParam = paramChoice(deltaERP(0));
-  var precParam = paramChoice(deltaERP(1));
+  var aParam = paramChoice(deltaERP, [1]);
+  var bParam = paramChoice(deltaERP, [1]);
+  var muParam = paramChoice(deltaERP, [0]);
+  var precParam = paramChoice(deltaERP, [1]);
 
   // Variational family/guide.
   // This is a Normal-Gamma which includes the true posterior.

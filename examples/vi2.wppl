@@ -6,10 +6,10 @@ var lambda0 = 1;
 var model = function() {
 
   // Variational parameters.
-  var a0Param = paramChoice(deltaERP(1));
-  var b0Param = paramChoice(deltaERP(1));
-  var muParam = paramChoice(deltaERP(0));
-  var precParam = paramChoice(deltaERP(1));
+  var a0Param = paramChoice(deltaERP, [1]);
+  var b0Param = paramChoice(deltaERP, [1]);
+  var muParam = paramChoice(deltaERP, [0]);
+  var precParam = paramChoice(deltaERP, [1]);
 
   // Variational family/guide.
   // Mean field assumption.

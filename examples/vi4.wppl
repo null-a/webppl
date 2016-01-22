@@ -1,6 +1,6 @@
 var model = function() {
-  var mu = paramChoice(deltaERP(0));
-  var std = paramChoice(deltaERP(1));
+  var mu = paramChoice(deltaERP, [0]);
+  var std = paramChoice(deltaERP, [1]);
   // Re-parameterization trick:
   var guide = sampleGuide(gaussianERP, [mu, std], { reparam: true });
   var x = sample(gaussianERP, [1, 2], { guideVal: guide });

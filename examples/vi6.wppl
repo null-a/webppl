@@ -2,8 +2,8 @@ var muTrue = Vector([1.5, 2.5]);
 var covTrue = Matrix([[1, 0.1], [0.2, 4]]);
 
 var model = function() {
-  var mu = paramChoice(deltaERP(Vector([0, 0])), [], { name: 'mu' });
-  var sigma = paramChoice(deltaERP(Vector([1, 1])), [], { name: 'sigma' });
+  var mu = paramChoice(deltaERP, [Vector([0, 0])], { name: 'mu' });
+  var sigma = paramChoice(deltaERP, [Vector([1, 1])], { name: 'sigma' });
   var guide = sampleGuide(diagCovGaussianERP, [mu, sigma], { reparam: true });
   var x = sample(multivariateGaussianERP, [muTrue, covTrue], { guideVal: guide });
   return x;
