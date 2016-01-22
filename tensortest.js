@@ -36,21 +36,6 @@ var test2 = function() {
 
 };
 
-var test3 = function() {
-
-  var a = ad.lift(new Tensor([2, 1]).fromFlatArray([12, 22]));
-  var b = ad.lift(42);
-
-  var y = ad.tensor.sumreduce(ad.tensor.subScalar(a, b));
-
-  y.backprop();
-
-  console.log(ad.value(y))
-  console.log(ad.derivative(a));
-  console.log(ad.derivative(b));
-
-};
-
 var test4 = function() {
 
   var a = (new Tensor([3, 1]).fromFlatArray([10, 20, 30]));

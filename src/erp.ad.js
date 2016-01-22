@@ -382,7 +382,7 @@ function matrixGaussianScoreSkipT(params, x) {
   var dLog2Pi = d * LOG_2PI;
   var _2dLogSigma = ad.scalar.mul(2 * d, ad.scalar.log(sigma));
   var sigma2 = ad.scalar.pow(sigma, 2);
-  var xSubMu = ad.tensor.subScalar(x, mu);
+  var xSubMu = ad.tensor.sub(x, mu);
   var z = ad.scalar.div(ad.tensor.sumreduce(ad.tensor.mul(xSubMu, xSubMu)), sigma2);
 
   return ad.scalar.mul(-0.5, ad.scalar.sum(dLog2Pi, _2dLogSigma, z));
