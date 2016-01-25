@@ -208,4 +208,31 @@ Tensor.prototype.dot = function(t) {
   return y;
 };
 
+Tensor.prototype.cholesky = function() {
+  var a = this;
+  assert.ok((a.rank === 2) && (a.dims[0] === a.dims[1]),
+            'cholesky is only defined for square matrices.');
+
+  // If a isn't positive-definite then the result will silently
+  // include NaNs, no warning is given.
+
+  var s;
+  var n = a.dims[0];
+  var L = new Tensor([n, n]);
+
+  for (var i = 0; i < n; i++) {
+    for (var j = 0; j <= i; j++) {
+      s = 0;
+      for (var k = 0; k < j; k++) {
+        s += L.data[i * n + k] * L.data[j * n + k];
+      }
+      L.data[i * n + j] = (i === j) ?
+          Math.sqrt(a.data[i * n + i] - s) :
+          1 / L.data[j * n + j] * (a.data[i * n + j] - s);
+    }
+  }
+
+  return L;
+};
+
 module.exports = Tensor;

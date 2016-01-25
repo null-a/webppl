@@ -67,4 +67,33 @@ var test5 = function() {
 
 };
 
-test5();
+var test6 = function() {
+
+  var a = new Tensor([3, 3]).fromArray([
+    [25, 15, -5],
+    [15, 18, 0],
+    [-5, 0, 11]
+  ]);
+
+  var b = new Tensor([4, 4]).fromArray([
+    [18,  22,   54,   42],
+    [22,  70,   86,   62],
+    [54,  86,  174,  134],
+    [42,  62,  134,  106]
+  ]);
+
+  var ac = a.cholesky();
+  var bc = b.cholesky();
+
+  console.log(ac);
+  console.log(bc);
+
+  console.log();
+  console.log(ac.dot(ac.T()));
+  console.log();
+  console.log(bc.dot(bc.T()));
+
+
+};
+
+test6();
