@@ -476,7 +476,8 @@ module.exports = function(env) {
     }
 
     var numBatches = arr.length / m;
-    var miniBatch = arr.slice(this.curStep * m, (this.curStep + 1) * m);
+    var curBatch = this.curStep % numBatches;
+    var miniBatch = arr.slice(curBatch * m, (curBatch + 1) * m);
 
     var logp0 = this.logp;
     var logq0 = this.logq;
