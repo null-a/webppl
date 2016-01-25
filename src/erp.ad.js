@@ -21,7 +21,6 @@
 
 'use strict';
 
-var numeric = require('numeric');
 var Tensor = require('./tensor');
 var _ = require('underscore');
 var util = require('./util');
@@ -257,49 +256,50 @@ var gaussianERP = new ERP({
   isContinuous: true
 });
 
-function multivariateGaussianSample(params) {
-  var mu = params[0];
-  var cov = params[1].toArray();
-  var n = cov.length;
-  var xs = _.times(n, function() { return gaussianSample([0, 1]); });
-  var svd = numeric.svd(cov);
-  var scaledV = numeric.transpose(svd.V).map(function(x) {
-    return numeric.mul(numeric.sqrt(svd.S), x);
-  });
-  xs = numeric.dot(xs, numeric.transpose(scaledV));
-  return (new Tensor([n, 1]).fromFlatArray(xs)).add(mu);
-}
 
-// adified by hand for now.
-function multivariateGaussianScoreSkipT(params, x) {
+function mvGaussianSample(params) {
   var mu = params[0];
   var cov = params[1];
-  var n = ad.value(mu).dims[0];
-  var coeffs = ad.scalar.add(n * LOG_2PI, ad.scalar.log(ad.tensor.det(cov)));
-  var xSubMu = ad.tensor.sub(x, mu);
-  var exponents = ad.tensor.dot(ad.tensor.dot(ad.tensor.transpose(xSubMu), ad.tensor.inv(cov)), xSubMu);
-  return ad.scalar.mul(-0.5, ad.scalar.add(coeffs, ad.tensorEntry(exponents, 0)));
+  assert.ok(mu.rank === 2);
+  assert.ok(mu.dims[1] === 1);
+  assert.ok(cov.rank === 2);
+  assert.ok(cov.dims[0] === cov.dims[1]);
+  assert.ok(mu.dims[0] === cov.dims[0]);
+  var d = mu.dims[0];
+  var z = new Tensor([d, 1]);
+  for (var i = 0; i < d; i++) {
+    z.data[i] = gaussianSample([0, 1]);
+  }
+  var L = cov.cholesky();
+  return L.dot(z).add(mu);
+}
+
+function mvGaussianScoreSkipT(params, x) {
+  var mu = params[0];
+  var cov = params[1];
+  var _mu = ad.value(mu);
+  var _cov = ad.value(cov);
+  assert.ok(_mu.rank === 2);
+  assert.ok(_mu.dims[1] === 1);
+  assert.ok(_cov.rank === 2);
+  assert.ok(_cov.dims[0] === _cov.dims[1]);
+  assert.ok(_mu.dims[0] === _cov.dims[0]);
+  var d = _mu.dims[0];
+  var dLog2Pi = d * LOG_2PI;
+  var logDetCov = ad.scalar.log(ad.tensor.det(cov));
+  var z = ad.tensor.sub(x, mu);
+  var zT = ad.tensor.transpose(z);
+  var prec = ad.tensor.inv(cov);
+  return ad.scalar.mul(-0.5, ad.scalar.add(
+    dLog2Pi, ad.scalar.add(
+      logDetCov,
+      ad.tensorEntry(ad.tensor.dot(ad.tensor.dot(zT, prec), z), 0))));
 }
 
 var multivariateGaussianERP = new ERP({
-  sample: multivariateGaussianSample,
-  score: multivariateGaussianScoreSkipT,
-  baseParams: function(params) {
-    var n = params[0].dims[0];
-    var mu = new Tensor([n, 1]);
-    var d = new Tensor([n, 1]);
-    d.fill(1);
-    var cov = d.diag();
-    return [mu, cov];
-  },
-  transform: function(x, params) {
-    var mu = params[0];
-    var cov = params[1];
-    // Currently assumes that cov is diagonal.
-    return ad.tensor.add(ad.tensor.dot(ad.tensor.sqrt(cov), x), mu);
-  },
-  // HACK: Avoid tapifying a matrix as it's not yet supported.
-  isContinuous: false
+  sample: mvGaussianSample,
+  score: mvGaussianScoreSkipT,
+  continuous: true
 });
 
 function diagCovGaussianSample(params) {
