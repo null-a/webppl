@@ -1,7 +1,6 @@
 var X = readJSONDataSet('mnist_inputs.json');
 
 var initSigma = 0.1;
-var reg = 0.001; // Model params regularization. No idea of sensible magnitude.
 var zDim = 2;
 var hDecodeDim = 500;
 var hEncodeDim = 500;
@@ -12,11 +11,11 @@ var encode = function(x, W, b, returnMean) {
   var b0 = b[0], b1 = b[1], b2 = b[2];
   var h = ad.tensor.tanh(ad.tensor.add(ad.tensor.dot(W0, x), b0));
   var mu = ad.tensor.add(ad.tensor.dot(W1, h), b1);
-  var sigma2 = ad.tensor.exp(ad.tensor.add(ad.tensor.dot(W2, h), b2));
+  var sigma = ad.tensor.exp(ad.tensor.add(ad.tensor.dot(W2, h), b2));
   if (returnMean) {
     return mu;
   } else {
-    return sampleGuide(diagCovGaussianERP, [mu, sigma2]);
+    return sampleGuide(diagCovGaussianERP, [mu, sigma]);
   }
 };
 
@@ -29,26 +28,27 @@ var decode = function(z, W, b) {
 
 var model = function() {
   // Variational parameters.
+  // Recognition.
   var W0 = paramChoice(matrixGaussianERP, [0, initSigma, [hEncodeDim, xDim]], { name: 'W0' });
   var W1 = paramChoice(matrixGaussianERP, [0, initSigma, [zDim, hEncodeDim]], { name: 'W1' });
   var W2 = paramChoice(matrixGaussianERP, [0, initSigma, [zDim, hEncodeDim]], { name: 'W2' });
-
   var b0 = paramChoice(matrixGaussianERP, [0, initSigma, [hEncodeDim, 1]], { name: 'b0' });
   var b1 = paramChoice(matrixGaussianERP, [0, initSigma, [zDim, 1]], { name: 'b1' });
   var b2 = paramChoice(matrixGaussianERP, [0, initSigma, [zDim, 1]], { name: 'b2' });
-
-  // Model parameters.
+  // Generative.
   var _W3 = paramChoice(matrixGaussianERP, [0, initSigma, [hDecodeDim, zDim]], { name: 'W3' });
   var _W4 = paramChoice(matrixGaussianERP, [0, initSigma, [xDim, hDecodeDim]], { name: 'W4' });
-
   var _b3 = paramChoice(matrixGaussianERP, [0, initSigma, [hDecodeDim, 1]], { name: 'b3' });
   var _b4 = paramChoice(matrixGaussianERP, [0, initSigma, [xDim, 1]], { name: 'b4' });
 
+  // Use point estimates of model parameters.
   var W3g = sampleGuide(deltaERP, [_W3]);
   var W4g = sampleGuide(deltaERP, [_W4]);
   var b3g = sampleGuide(deltaERP, [_b3]);
   var b4g = sampleGuide(deltaERP, [_b4]);
 
+  // Priors over model parameters.
+  // Yields regularization with variational inference.
   var W3 = sample(matrixGaussianERP, [0, 1, [hDecodeDim, zDim]], { guideVal: W3g });
   var W4 = sample(matrixGaussianERP, [0, 1, [xDim, hDecodeDim]], { guideVal: W4g });
   var b3 = sample(matrixGaussianERP, [0, 1, [hDecodeDim, 1]], { guideVal: b3g });
