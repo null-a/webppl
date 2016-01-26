@@ -16,7 +16,7 @@ var encode = function(x, W, b, returnMean) {
   if (returnMean) {
     return mu;
   } else {
-    return sampleGuide(diagCovGaussianERP, [mu, sigma2], { reparam: true });
+    return sampleGuide(diagCovGaussianERP, [mu, sigma2]);
   }
 };
 
@@ -44,10 +44,10 @@ var model = function() {
   var _b3 = paramChoice(matrixGaussianERP, [0, initSigma, [hDecodeDim, 1]], { name: 'b3' });
   var _b4 = paramChoice(matrixGaussianERP, [0, initSigma, [xDim, 1]], { name: 'b4' });
 
-  var W3g = sampleGuide(deltaERP, [_W3], { reparam: true });
-  var W4g = sampleGuide(deltaERP, [_W4], { reparam: true });
-  var b3g = sampleGuide(deltaERP, [_b3], { reparam: true });
-  var b4g = sampleGuide(deltaERP, [_b4], { reparam: true });
+  var W3g = sampleGuide(deltaERP, [_W3]);
+  var W4g = sampleGuide(deltaERP, [_W4]);
+  var b3g = sampleGuide(deltaERP, [_b3]);
+  var b4g = sampleGuide(deltaERP, [_b4]);
 
   var W3 = sample(matrixGaussianERP, [0, 1, [hDecodeDim, zDim]], { guideVal: W3g });
   var W4 = sample(matrixGaussianERP, [0, 1, [xDim, hDecodeDim]], { guideVal: W4g });

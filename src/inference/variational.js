@@ -441,15 +441,14 @@ module.exports = function(env) {
     var _params = params.map(ad.value);
 
     var val;
-    if (options.reparam) {
+    if ((options.reparam === undefined || options.reparam) &&
+        erp.baseParams && erp.transform) {
       // Reparameterization trick.
-      // Requires ERP implement baseParams and transform.
-      if (!erp.baseParams || !erp.transform) {
-        throw erp.name + ' ERP does not support reparameterization.';
-      }
+
       // Current params are passed to baseParams so that we can figure
       // out the dimension of multivariate Gaussians. Perhaps this
       // would be nice if we change the ERP interface.
+
       var baseParams = erp.baseParams(_params);
       var z = erp.sample(baseParams);
       this.logr = ad.scalar.add(this.logr, erp.score(baseParams, z));
@@ -457,6 +456,10 @@ module.exports = function(env) {
       trace('Sampled ' + ad.value(val) + ' for ' + this.paramName(a));
       trace('  ' + erp.name + '(' + _params + ') reparameterized as ' +
             erp.name + '(' + baseParams + ') + transform');
+    } else if (options.reparam && !(erp.baseParams && erp.transform)) {
+      // Warn when reparameterization is explicitly requested but
+      // isn't supported by the ERP.
+      throw erp.name + ' ERP does not support reparameterization.';
     } else {
       val = erp.sample(_params);
       this.logr = ad.scalar.add(this.logr, erp.score(params, val));

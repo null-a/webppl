@@ -7,7 +7,7 @@ var model = function() {
 
   // q.
   var theta = paramChoice(deltaERP, [1]);
-  var guide = sampleGuide(gaussianERP, [x * theta, Math.sqrt(0.5)], { reparam: true });
+  var guide = sampleGuide(gaussianERP, [x * theta, Math.sqrt(0.5)]);
 
   // The true posterior is Normal(x/2, 0.5). So with q parameterized
   // as above, the optimal theta is 0.5.
