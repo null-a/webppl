@@ -1,18 +1,8 @@
 var binomial = function() {
-  var aParam = paramChoice(uniformERP, [0, 1], { name: 'a' });
-  var aGuide = sampleGuide(bernoulliERP, [aParam]);
-  var a = sample(bernoulliERP, [0.5], { guideVal: aGuide });
-
-  var bParam = paramChoice(uniformERP, [0, 1], { name: 'b' });
-  var bGuide = sampleGuide(bernoulliERP, [bParam]);
-  var b = sample(bernoulliERP, [0.5], { guideVal: bGuide });
-
-  var cParam = paramChoice(uniformERP, [0, 1], { name: 'c' });
-  var cGuide = sampleGuide(bernoulliERP, [cParam]);
-  var c = sample(bernoulliERP, [0.5], { guideVal: cGuide });
-
+  var a = sampleMeanField(bernoulliERP, [0.5]);
+  var b = sampleMeanField(bernoulliERP, [0.5]);
+  var c = sampleMeanField(bernoulliERP, [0.5]);
   factor(a || b ? 0 : -1);
-
   return a + b + c;
 };
 

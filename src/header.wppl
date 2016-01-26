@@ -516,3 +516,16 @@ var ParticleFilter = function(wpplFn, particles) {
 var ParticleFilterRejuv = function(wpplFn, particles, rejuvSteps) {
   return SMC(wpplFn, { particles: particles, rejuvSteps: rejuvSteps });
 };
+
+var sampleMeanField = function(erp, params, opts) {
+  var options = opts || {};
+  if (options.guideVal) {
+    return sample(erp, params, options);
+  } else {
+    var vParams = map(function(param) {
+      return paramChoice(deltaERP, [param]);
+    }, params);
+    var guide = sampleGuide(erp, vParams);
+    return sample(erp, params, { guideVal: guide });
+  }
+};
