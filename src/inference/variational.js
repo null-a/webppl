@@ -362,7 +362,7 @@ module.exports = function(env) {
     // Update log p.
     var val = options.guideVal;
     var _val = ad.value(val);
-    trace('Using guide value ' + _val + ' for ' + this.paramName(a) + ' (' + erp.name + ')');
+    trace('Using guide value ' + _val + ' for ' + a + ' (' + erp.name + ')');
     this.logp = ad.scalar.add(this.logp, erp.score(params, val));
     return k(s, val);
   };
@@ -453,7 +453,7 @@ module.exports = function(env) {
       var z = erp.sample(baseParams);
       this.logr = ad.scalar.add(this.logr, erp.score(baseParams, z));
       val = erp.transform(z, params);
-      trace('Sampled ' + ad.value(val) + ' for ' + this.paramName(a));
+      trace('Sampled ' + ad.value(val) + ' for ' + a);
       trace('  ' + erp.name + '(' + _params + ') reparameterized as ' +
             erp.name + '(' + baseParams + ') + transform');
     } else if (options.reparam && !(erp.baseParams && erp.transform)) {
@@ -463,7 +463,7 @@ module.exports = function(env) {
     } else {
       val = erp.sample(_params);
       this.logr = ad.scalar.add(this.logr, erp.score(params, val));
-      trace('Sampled ' + val + ' for ' + this.paramName(a));
+      trace('Sampled ' + val + ' for ' + a);
       trace('  ' + erp.name + '(' + _params + ')');
     }
 
