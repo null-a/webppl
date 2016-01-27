@@ -434,16 +434,26 @@ function sum(xs) {
   return xs.reduce(function(a, b) { return a + b; }, 0);
 };
 
+function discreteScoreSkipT(params, val) {
+  var probs = params[0];
+  var _probs = ad.value(probs);
+  assert.ok(_probs.rank === 2);
+  assert.ok(_probs.dims[1] === 1); // i.e. vector
+  var d = _probs.dims[0];
+  var inSupport = (val === Math.floor(val)) && (0 <= val) && (val < d);
+  return inSupport ?
+      ad.scalar.log(ad.scalar.div(ad.tensorEntry(probs, val), ad.tensor.sumreduce(probs))) :
+      -Infinity;
+}
+
 var discreteERP = new ERP({
   sample: function(params) {
-    return multinomialSample(params[0]);
-  },
-  score: function(params, val) {
     var probs = params[0];
-    var stop = probs.length;
-    var inSupport = (val === Math.floor(val)) && (0 <= val) && (val < stop);
-    return inSupport ? Math.log(probs[val] / sum(probs)) : -Infinity;
+    assert.ok(probs.rank === 2);
+    assert.ok(probs.dims[1] === 1); // i.e. vector
+    return multinomialSample(probs.data);
   },
+  score: discreteScoreSkipT,
   support: function(params) {
     return _.range(params[0].length);
   }
