@@ -2,6 +2,7 @@
 
 var ad = require('adnn/ad');
 var Tensor = require('./tensor');
+var special = require('./special');
 
 ad.tensor.transpose = ad.newUnaryFunction({
   OutputType: Tensor,
@@ -208,6 +209,33 @@ ad.tensor.neg = ad.newUnaryFunction({
     for (var i = 0; i < n; i++) {
       a.dx.data[i] -= this.dx.data[i];
     }
+  }
+});
+
+
+ad.tensor.logGamma = ad.newUnaryFunction({
+  OutputType: Tensor,
+  name: 'logGamma',
+  forward: function(a) {
+    return a.logGamma();
+  },
+  backward: function(a) {
+    var n = a.x.length;
+    while (n--) {
+      a.dx.data[n] += special.digamma(a.x.data[n]) * this.dx.data[n];
+    }
+  }
+});
+
+
+ad.scalar.logGamma = ad.newUnaryFunction({
+  OutputType: Number,
+  name: 'logGamma',
+  forward: function(a) {
+    return special.logGamma(a);
+  },
+  backward: function(a) {
+    return a.dx += special.digamma(a.x) * this.dx;
   }
 });
 

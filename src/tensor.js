@@ -5,6 +5,7 @@ var _ = require('underscore');
 var Tensor = require('adnn/tensor');
 var inspect = require('util').inspect;
 var util = require('./util');
+var special = require('./special');
 
 // TODO: toString should return a string (and not an array) so that it
 // plays nicely with +.
@@ -233,6 +234,16 @@ Tensor.prototype.cholesky = function() {
   }
 
   return L;
+};
+
+
+Tensor.prototype.logGamma = function() {
+  var out = new Tensor(this.dims);
+  var n = this.data.length;
+  while (n--) {
+    out.data[n] = special.logGamma(this.data[n]);
+  }
+  return out;
 };
 
 module.exports = Tensor;

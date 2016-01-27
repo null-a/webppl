@@ -684,41 +684,49 @@ var poissonERP = new ERP({
 });
 
 function dirichletSample(params) {
-  var alpha = params;
+  var alpha = params[0];
+  assert.ok(alpha.rank === 2);
+  assert.ok(alpha.dims[1] === 1); // i.e. vector
+  var d = alpha.dims[0];
   var ssum = 0;
-  var theta = [];
+  var theta = new Tensor([d, 1]);
   var t;
-  for (var i = 0; i < alpha.length; i++) {
-    t = gammaSample([alpha[i], 1]);
-    theta[i] = t;
-    ssum = ssum + t;
+  for (var i = 0; i < d; i++) {
+    t = gammaSample([alpha.data[i], 1]);
+    theta.data[i] = t;
+    ssum += t;
   }
-  for (var j = 0; j < theta.length; j++) {
-    theta[j] /= ssum;
+  for (var j = 0; j < d; j++) {
+    theta.data[j] /= ssum;
   }
   return theta;
 }
 
-function dirichletScore(params, val) {
-  var alpha = params;
-  var theta = val;
-  var asum = 0;
-  for (var i = 0; i < alpha.length; i++) {
-    asum += alpha[i];
-  }
-  var logp = logGamma(asum);
-  for (var j = 0; j < alpha.length; j++) {
-    logp += (alpha[j] - 1) * Math.log(theta[j]);
-    logp -= logGamma(alpha[j]);
-  }
-  return logp;
+function dirichletScoreSkipT(params, val) {
+  var alpha = params[0];
+  var _alpha = ad.value(alpha);
+  var _val = ad.value(val);
+
+  assert.ok(_alpha.rank === 2);
+  assert.ok(_alpha.dims[1] === 1); // i.e. vector
+  assert.ok(_val.rank === 2);
+  assert.ok(_val.dims[1] === 1); // i.e. vector
+  assert.ok(_alpha.dims[0] === _val.dims[0]);
+
+  return ad.scalar.add(
+    ad.tensor.sumreduce(
+      ad.tensor.sub(
+        ad.tensor.mul(
+          ad.tensor.sub(alpha, 1),
+          ad.tensor.log(val)),
+        ad.tensor.logGamma(alpha))),
+    ad.scalar.logGamma(ad.tensor.sumreduce(alpha)));
 }
 
 var dirichletERP = new ERP({
   sample: dirichletSample,
-  score: dirichletScore,
-  // HACK: Avoid tapifying a vector as it's not yet supported.
-  isContinuous: false
+  score: dirichletScoreSkipT,
+  isContinuous: true
 });
 
 function multinomialSample(theta) {
