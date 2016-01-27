@@ -27,6 +27,6 @@ var model = function() {
   return mu;
 };
 
-Variational(model, { stepSize: 0.1, steps: 1000, samplesPerStep: 100, returnSamples: 20 });
+Variational(model, { steps: 1000, samplesPerStep: 100, returnSamples: 20 });
 
 'done!'

@@ -22,10 +22,11 @@ var trace = _.partial(logger, 3);
 
 module.exports = function(env) {
 
+  var getOptimizer, optimizers;
+
   function Variational(s, k, a, wpplFn, options) {
     var options = util.mergeDefaults(options, {
       steps: 100,
-      stepSize: 0.001,
       samplesPerStep: 100,
       returnSamples: 1000,
       optimizer: 'gd',
@@ -37,9 +38,9 @@ module.exports = function(env) {
     this.stepSize = options.stepSize;
     this.samplesPerStep = options.samplesPerStep;
     this.returnSamples = options.returnSamples;
-    this.optimizerName = options.optimizer;
     this.miniBatchSize = options.miniBatchSize;
     this.callback = options.callback;
+    this.optimize = getOptimizer(options.optimizer);
 
     this.curStep = 0;
 
@@ -52,21 +53,46 @@ module.exports = function(env) {
     env.coroutine = this;
   }
 
-  var optimizers = {
-    gd: function(stepSize) {
-      return function(params, grad) {
+  getOptimizer = function(nameOrObj) {
+    var name, options;
+    if (_.isObject(nameOrObj)) {
+      // e.g. { gd: { stepSize: lambda } }
+      if (_.size(nameOrObj) !== 1) {
+        throw 'Invalid optimizer options.';
+      }
+      name = _.keys(nameOrObj)[0];
+      options = nameOrObj[name];
+    } else {
+      name = nameOrObj;
+      options = {};
+    }
+    if (!optimizers[name]) {
+      throw 'Unknown optimizer: ' + name;
+    }
+    var optimizer = optimizers[name](options);
+    trace('Will optimize using ' + name + '. ' + JSON.stringify(optimizer.options));
+    return optimizer;
+  };
+
+  optimizers = {
+    gd: function(options) {
+      var options = util.mergeDefaults(options, { stepSize: 0.1 });
+      var stepSize = options.stepSize;
+      return _.extendOwn(function(params, grad) {
         _.each(grad, function(g, a) {
           assert(_.has(params, a));
           params[a] = sub(params[a], scalarMul(g, stepSize));
         });
-      };
+      }, { options: options });
     },
     // TODO: The next 3 methods each avoid division by zero in different ways. Unify?
-    adagrad: function(stepSize) {
+    adagrad: function(options) {
+      var options = util.mergeDefaults(options, { stepSize: 0.001 });
+      var stepSize = options.stepSize;
       // State.
       // Map from a to running sum of grad^2.
       var g2 = Object.create(null);
-      return function(params, grad) {
+      return _.extendOwn(function(params, grad) {
         _.each(grad, function(g, a) {
           assert(_.has(params, a));
           if (!_.has(g2, a)) {
@@ -76,13 +102,15 @@ module.exports = function(env) {
           g2[a] = add(g2[a], mul(g, g));
           params[a] = sub(params[a], scalarMul(div(g, sqrt(g2[a])), stepSize));
         });
-      };
+      }, { options: options });
     },
     // TODO: Make it possible to specify params such as decayRate from within programs.
-    rmsprop: function(stepSize) {
-      var decayRate = 0.9;
+    rmsprop: function(options) {
+      var options = util.mergeDefaults(options, { stepSize: 0.001, decayRate: 0.9 });
+      var stepSize = options.stepSize;
+      var decayRate = options.decayRate;
       var g2 = Object.create(null);
-      return function(params, grad) {
+      return _.extendOwn(function(params, grad) {
         _.each(grad, function(g, a) {
           assert(_.has(params, a));
           if (!_.has(g2, a)) {
@@ -91,17 +119,26 @@ module.exports = function(env) {
           g2[a] = add(scalarMul(g2[a], decayRate), scalarMul(mul(g, g), 1 - decayRate));
           params[a] = sub(params[a], scalarMul(div(g, sqrt(scalarAdd(g2[a], 1e-8))), stepSize));
         });
-      };
+      }, { options: options });
     },
-    adam: function(stepSize) {
-      // stepSize = alpha. suggested default = 0.001
-      var decayRate1 = 0.9; // beta1
-      var decayRate2 = 0.999; // beta2
-      var eps = 1e-8;
+    adam: function(options) {
+      var options = util.mergeDefaults(options, {
+        stepSize: 0.001, // alpha
+        decayRate1: 0.9, // beta1
+        decayRate2: 0.999, // beta2
+        eps: 1e-8
+      });
+
+      var stepSize = options.stepSize;
+      var decayRate1 = options.decayRate1;
+      var decayRate2 = options.decayRate2;
+      var eps = options.eps;
+
       var m = Object.create(null);
       var v = Object.create(null);
       var t = 0;
-      return function(params, grad) {
+
+      return _.extendOwn(function(params, grad) {
         t += 1;
 
         _.each(grad, function(g, a) {
@@ -118,13 +155,11 @@ module.exports = function(env) {
           var alpha_t = stepSize * Math.sqrt(1 - Math.pow(decayRate2, t)) / (1 - Math.pow(decayRate1, t));
           params[a] = sub(params[a], scalarMul(div(m[a], scalarAdd(sqrt(v[a]), eps)), alpha_t));
         });
-      };
+      }, { options: options });
     }
   };
 
   Variational.prototype.run = function() {
-
-    var optimize = optimizers[this.optimizerName](this.stepSize);
 
     // All variational parameters. Maps addresses to numbers/reals.
     this.params = Object.create(null);
@@ -237,7 +272,7 @@ module.exports = function(env) {
                 trace('Params before step:');
                 trace(this.namedParams());
 
-                optimize(this.params, this.grad);
+                this.optimize(this.params, this.grad);
 
                 trace('Params after step:');
                 debug(this.namedParams());

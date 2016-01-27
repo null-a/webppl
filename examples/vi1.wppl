@@ -12,4 +12,9 @@ var binomial = function() {
 // 3 | 0.14846137123782735
 // 0 | 0.05461588628651796
 
-Variational(binomial, { stepSize: 0.01, samplesPerStep: 100, steps: 500, returnSamples: 1000 });
+Variational(binomial, {
+  optimizer: { 'gd': { stepSize: 0.01 } },
+  samplesPerStep: 100,
+  steps: 500,
+  returnSamples: 1000
+});

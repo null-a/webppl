@@ -19,4 +19,4 @@ var model = function() {
   return z;
 };
 
-Variational(model, { steps: 100, stepSize: 0.01, samplesPerStep: 100, returnSamples: 1 });
+Variational(model, { steps: 100, optimizer: { gd: { stepSize: 0.01 } }, samplesPerStep: 100, returnSamples: 1 });

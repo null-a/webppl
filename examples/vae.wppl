@@ -93,7 +93,6 @@ var dumpParams = function(i, params) {
 var erp = Variational(model, {
   optimizer: 'adam',
   steps: 10000,
-  stepSize: 0.001,
   samplesPerStep: 1,
   returnSamples: 1,
   miniBatchSize: 100,
