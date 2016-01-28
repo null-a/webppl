@@ -198,6 +198,52 @@ ad.tensor.sub = ad.newBinaryFunction({
 });
 
 
+ad.tensor._div = ad.tensor.div;
+
+// This version supports the case where b is a scalar. a is always a
+// tensor.
+ad.tensor.div = ad.newBinaryFunction({
+  OutputType: Tensor,
+  name: 'div',
+  forward: function(a, b) {
+    return a.div(b);
+  },
+  backward1: function(a, b) {
+    var n = a.x.length;
+    var _b = ad.value(b);
+    var i;
+    if (_b instanceof Tensor) {
+      for (i = 0; i < n; i++) {
+        a.dx.data[i] += this.dx.data[i] / _b.data[i];
+      }
+    } else if (typeof _b === 'number') {
+      for (i = 0; i < n; i++) {
+        a.dx.data[i] += this.dx.data[i] / _b;
+      }
+    } else {
+      throw 'Unknown type.';
+    }
+  },
+  backward2: function(a, b) {
+    var i;
+    var _a = ad.value(a);
+    var n = _a.length;
+    if (b.x instanceof Tensor) {
+      for (i = 0; i < n; i++) {
+        var b_i = b.x.data[i];
+        b.dx.data[i] -= this.dx.data[i] * _a.data[i] / (b_i * b_i);
+      }
+    } else if (typeof b.x === 'number') {
+      for (i = 0; i < n; i++) {
+        b.dx -= this.dx.data[i] * _a.data[i] / (b.x * b.x);
+      }
+    } else {
+      throw 'Unknown type.';
+    }
+  }
+});
+
+
 ad.tensor.neg = ad.newUnaryFunction({
   OutputType: Tensor,
   name: 'neg',
