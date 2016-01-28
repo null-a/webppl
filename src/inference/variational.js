@@ -532,7 +532,7 @@ module.exports = function(env) {
       this.logr = ad.scalar.add(this.logr, ad.scalar.mul(logrdiff, numBatches - 1));
 
       return k(s);
-    }.bind(this), a, miniBatch, f);
+    }.bind(this), a.concat('_$' + curBatch), miniBatch, f);
   };
 
   // Similar to util.cpsForEach but with store/address passing. This
@@ -545,7 +545,7 @@ module.exports = function(env) {
     } else {
       return f(s, function(s) {
         return function() {
-          return webpplCpsForEach(s, k, a, arr, f, i + 1);
+          return webpplCpsForEach(s, k, a.concat('_$$0'), arr, f, i + 1);
         };
       }, a, arr[i]);
     }
