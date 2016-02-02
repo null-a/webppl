@@ -31,6 +31,7 @@ module.exports = function(env) {
       returnSamples: 1000,
       optimizer: 'gd',
       miniBatchSize: Infinity,
+      throwOnZeroGrad: false,
       callback: function(s, k, a) { return k(s); }
     });
 
@@ -39,6 +40,7 @@ module.exports = function(env) {
     this.samplesPerStep = options.samplesPerStep;
     this.returnSamples = options.returnSamples;
     this.miniBatchSize = options.miniBatchSize;
+    this.throwOnZeroGrad = options.throwOnZeroGrad;
     this.callback = options.callback;
     this.optimize = getOptimizer(options.optimizer);
 
@@ -240,6 +242,15 @@ module.exports = function(env) {
                       g = add(g, scalarMul(ad.value(val), this.regScale[a]));
                     }
 
+                    if (allZero(g)) {
+                      var msg = 'Gradient w.r.t parameter ' + this.paramName(a) + ' is zero';
+                      if (this.throwOnZeroGrad) {
+                        throw msg;
+                      } else {
+                        info(msg);
+                      }
+                    }
+
                     trace('Gradient of objective w.r.t. ' + this.paramName(a) + ':');
                     trace(g);
 
@@ -293,6 +304,10 @@ module.exports = function(env) {
   // Polymorphic functions to simplify dealing with scalars and
   // tensors. How much of an overhead would treating all params as
   // Tensors introduce?
+
+  function allZero(x) {
+    return _.isNumber(x) ? x === 0 : !x.allreduce();
+  }
 
   function zerosLike(x) {
     return _.isNumber(x) ? 0 : new Tensor(x.dims);
