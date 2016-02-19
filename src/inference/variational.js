@@ -306,7 +306,7 @@ module.exports = function(env) {
   // Tensors introduce?
 
   function allZero(x) {
-    return _.isNumber(x) ? x === 0 : !x.allreduce();
+    return _.isNumber(x) ? x === 0 : !x.anyreduce();
   }
 
   function zerosLike(x) {
