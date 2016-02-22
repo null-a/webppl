@@ -3,12 +3,12 @@
 *.swp
 node_modules
 npm-debug.log
-compiled/webppl.js
-compiled/webppl.min.js
+compiled/
 docs/_build
 docs/_static
 docs/_templates
 src/erp.js
+src/inference/enumerate.js
+src/aggregation/distribution.js
 vae/**/*.json
 vae/**/*.png
-

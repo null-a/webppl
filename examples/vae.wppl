@@ -1,4 +1,4 @@
-var X = readJSONDataSet('mnist_inputs.json');
+var X = readJSONDataSet('vae/mnist_inputs.json');
 
 var initSigma = 0.1;
 var zDim = 2;

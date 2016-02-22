@@ -11,7 +11,7 @@ def load(fn):
         return np.array(json.load(f))
 
 def load_labels():
-    with open('mnist_labels.json') as f:
+    with open('vae/mnist_labels.json') as f:
         return np.array(json.load(f))
 
 def plot_latents(data, labels):

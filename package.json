@@ -1,7 +1,7 @@
 {
   "name": "webppl",
   "description": "Probabilistic programming for the web",
-  "version": "0.3.1",
+  "version": "0.6.1",
   "author": "webppl contributors",
   "main": "src/main.js",
   "repository": {
@@ -22,8 +22,9 @@
     "estemplate": "^0.4.0",
     "estraverse": "^4.1.0",
     "esutils": "^2.0.2",
-    "git-rev-2": "^0.1.0",
+    "git-rev-2": "yanatan16/git-rev#bfc97b3d",
     "immutable": "^3.7.5",
+    "lru-cache": "^4.0.0",
     "minimist": "^1.2.0",
     "numeric": "^1.2.6",
     "priorityqueuejs": "~1.0.0",
@@ -35,16 +36,18 @@
     "brfs": "0.0.8",
     "closure-linter-wrapper": "^1.0.1",
     "grunt": "^0.4.5",
+    "grunt-contrib-clean": "^0.7.0",
     "grunt-contrib-jshint": "^0.11.3",
     "grunt-contrib-nodeunit": "^0.4.1",
     "grunt-gjslint": "^0.2.0",
     "nodeunit": "^0.9.1",
     "open": "0.0.5",
+    "qunit-phantomjs-runner": "^2.1.0",
     "through2": "^2.0.0"
   },
   "scripts": {
     "test": "nodeunit tests/test-*.js",
-    "postinstall": "./scripts/transformERP"
+    "postinstall": "./scripts/adify"
   },
   "bugs": {
     "url": "https://github.com/probmods/webppl/issues"

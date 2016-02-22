@@ -50,13 +50,13 @@ function concatPrograms(programs) {
   return programs.reduce(concat, emptyProgram);
 }
 
-function parse(code, macros) {
+function parse(code, macros, filename) {
   return sweet.compile(code, { readableNames: true, ast: true, modules: macros });
 }
 
-function parseAllPairs(pairs) {
-  return pairs.map(function(pair) {
-    return parse(pair.code, pair.macros);
+function parseAll(bundles) {
+  return bundles.map(function(bundle) {
+    return parse(bundle.code, bundle.macros, bundle.filename);
   });
 }
 
@@ -74,30 +74,33 @@ function headerPackage() {
   // HACK: This could be problematic if the macros move within the
   // ad.js package across versions.
   var adMacroModule = fs.readFileSync(__dirname + '/../node_modules/adnn/ad/macros.sjs', 'utf8');
-  return { wppl: [code], macros: [headerMacroModule, adMacroModule] };
+  return { wppl: [{ code: code, filename: 'header.wppl' }], macros: [headerMacroModule, adMacroModule] };
 }
 
-function packagesToPairs(packages) {
-  // Transform an array of packages into an array of pairs. A pair
-  // contains a string of WebPPL code and an array of macros required
-  // to parse that code.
-
+function unpack(packages) {
+  // Flatten an array of packages into an array of code bundles. A
+  // bundle contains wppl source code, filename and associated macros.
+  //
   // Package :: { wppl: [String], macros: [LoadedMacroModule] }
-  // Pair :: { code: String, macros: [LoadedMacroModule] }
-
+  // Bundle :: { code: String, filename: String, macros: [LoadedMacroModule] }
+  //
   return _.chain(packages).map(function(pkg) {
     return pkg.wppl.map(function(wppl) {
-      return { code: wppl, macros: pkg.macros };
+      return { code: wppl.code, filename: wppl.filename, macros: pkg.macros };
     });
   }).flatten().value();
 }
 
-function addHeaderMacrosToEachPair(pairs) {
+function addHeaderMacrosToEachBundle(bundles) {
   // This assumes that pair[0] is the content of the header.
-  assert.ok(pairs.length >= 1 && pairs[0].macros.length === 2);
-  var headerMacros = pairs[0].macros[0];
-  return pairs.map(function(pair) {
-    return { code: pair.code, macros: pair.macros.concat(headerMacros) };
+  assert.ok(bundles.length >= 1 && bundles[0].macros.length === 2);
+  var headerMacros = bundles[0].macros;
+  return bundles.map(function(bundle, i) {
+    return {
+      code: bundle.code,
+      filename: bundle.filename,
+      macros: bundle.macros.concat(i > 0 ? headerMacros : [])
+    };
   });
 }
 
@@ -114,9 +117,9 @@ function parsePackageCode(packages, verbose) {
     var macros = _.chain(allPackages).pluck('macros').flatten().value();
 
     var asts = util.pipeline([
-      packagesToPairs,
-      addHeaderMacrosToEachPair,
-      parseAllPairs
+      unpack,
+      addHeaderMacrosToEachBundle,
+      parseAll
     ])(allPackages);
 
     return { asts: asts, macros: macros };
@@ -126,16 +129,28 @@ function parsePackageCode(packages, verbose) {
 }
 
 function applyCaching(asts) {
-  // This assume that asts[0] is the header.
-  return asts.map(function(ast, i) {
-    return i > 0 ? caching.transform(ast) : ast;
+  return asts.map(function(ast) {
+    return caching.hasNoCachingDirective(ast) ? ast : caching.transform(ast);
   });
 }
 
+function copyAst(ast) {
+  var ret = _.isArray(ast) ? [] : {};
+  _.each(ast, function(val, key) {
+    ret[key] = _.isObject(val) ? copyAst(val) : val;
+  });
+  return ret;
+}
+
 function compile(code, options) {
-  var options = util.mergeDefaults(options, { verbose: false, generateCode: true });
+  options = util.mergeDefaults(options, {
+    verbose: false,
+    generateCode: true,
+    filename: 'webppl:program'
+  });
 
   var extra = options.extra || parsePackageCode([], options.verbose);
+
   var transforms = options.transforms || [
     thunkify,
     naming,
@@ -147,8 +162,8 @@ function compile(code, options) {
   ];
 
   function _compile() {
-    var programAst = parse(code, extra.macros);
-    var asts = extra.asts.concat(programAst);
+    var programAst = parse(code, extra.macros, options.filename);
+    var asts = extra.asts.map(copyAst).concat(programAst);
     var doCaching = _.any(asts, caching.transformRequired);
 
     if (options.verbose && doCaching) {
@@ -167,18 +182,27 @@ function compile(code, options) {
   return util.timeif(options.verbose, 'compile', _compile);
 }
 
+
 function run(code, k, options) {
-  var options = options || {};
+  options = _.defaults(options || {},
+                       {runner: util.runningInBrowser() ? 'web' : 'cli'});
+
+  var runner = util.trampolineRunners[options.runner];
   var compiledCode = compile(code, options);
+
   util.timeif(options.verbose, 'run', function() {
-    eval.call(global, compiledCode)({}, k, '');
+    eval.call(global, compiledCode)(runner)({}, k, '');
   });
 }
 
 // Make webppl eval available within webppl
-global.webpplEval = function(s, k, a, code) {
+// runner is one of 'cli','web'
+global.webpplEval = function(s, k, a, code, runner) {
+  if (runner === undefined) {
+    runner = util.runningInBrowser() ? 'web' : 'cli'
+  }
   var compiledCode = compile(code);
-  return eval.call(global, compiledCode)(s, k, a);
+  return eval.call(global, compiledCode)(util.trampolineRunners[runner])(s, k, a);
 };
 
 module.exports = {

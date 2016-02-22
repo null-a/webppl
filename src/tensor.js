@@ -4,7 +4,7 @@ var assert = require('assert');
 var _ = require('underscore');
 var Tensor = require('adnn/tensor');
 var inspect = require('util').inspect;
-var util = require('./util');
+var statistics = require('./statistics');
 var special = require('./special');
 
 // TODO: toString should return a string (and not an array) so that it
@@ -22,8 +22,8 @@ Tensor.prototype.inspect = function() {
     var arr = this.toFlatArray();
     return 'Tensor(' + inspect({
       dims: this.dims,
-      mean: util.expectation(arr),
-      std: util.std(arr),
+      mean: statistics.mean(arr),
+      std: statistics.sd(arr),
       min: this.minreduce(),
       max: this.maxreduce(),
       allFinite: _.all(arr, _.isFinite)

@@ -1,3 +1,7 @@
+// Neal, Radford M. "MCMC using Hamiltonian dynamics." Handbook of
+// Markov Chain Monte Carlo 2 (2011).
+// http://arxiv.org/abs/1206.1901
+
 'use strict';
 
 var _ = require('underscore');
@@ -5,12 +9,14 @@ var assert = require('assert');
 var util = require('../util');
 var erp = require('../erp');
 var Trace = require('../trace');
+var ad = require('../ad');
 
 module.exports = function(env) {
 
-  function HMCKernel(k, runWppl, oldTrace, options) {
+  var mvErpNames = ['multivariateGaussian', 'dirichlet', 'dirichletDrift'];
+
+  function HMCKernel(cont, oldTrace, options) {
     var options = util.mergeDefaults(options, {
-      // TODO: Are these sensible defaults?
       steps: 5,
       stepSize: 0.1,
       exitFactor: 0
@@ -22,8 +28,7 @@ module.exports = function(env) {
 
     assert.ok(this.steps > 0);
 
-    this.k = k;
-    this.runWppl = runWppl;
+    this.cont = cont;
     this.oldTrace = oldTrace;
 
     this.coroutine = env.coroutine;
@@ -32,7 +37,9 @@ module.exports = function(env) {
 
   HMCKernel.prototype.sample = function(s, k, a, erp, params) {
     var prevChoice = this.prevTrace.findChoice(a);
-    assert(prevChoice, 'HMC does not support structual continuous variables.');
+    if (!prevChoice) {
+      throw 'HMC does not support structural continuous variables.';
+    }
 
     var val;
     if (erp.isContinuous) {
@@ -45,7 +52,6 @@ module.exports = function(env) {
         var lower = support.lower;
         var upper = support.upper;
 
-        // TODO: Handle open vs. closed intervals.
         while (_val < lower || _val > upper) {
           if (_val < lower) {
             _val = lower + (lower - _val);
@@ -59,6 +65,9 @@ module.exports = function(env) {
       }
       val = ad.tapify(_val);
     } else {
+      if (_.contains(mvErpNames, erp.name)) {
+        throw 'Multivariate distributions are not yet supported by HMC.';
+      }
       val = prevChoice.val;
     }
 
@@ -67,7 +76,6 @@ module.exports = function(env) {
   };
 
   HMCKernel.prototype.factor = function(s, k, a, score) {
-    // TODO: Correct handling of hard constraints?
     this.trace.numFactors += 1;
     this.trace.score = ad.add(this.trace.score, score);
 
@@ -89,6 +97,8 @@ module.exports = function(env) {
     this.momentumStep(this.oldTrace, 0.5); // Half-step. (Modifies momentum in-place.)
 
     // Main HMC loop.
+    // The leapfrog method. (See page 8 of "MCMC using Hamiltonian
+    // dynamics.)
     return util.cpsIterate(
         this.steps - 1,
         this.oldTrace,
@@ -104,7 +114,7 @@ module.exports = function(env) {
             // Accept/reject.
             var p = Math.min(1, Math.exp(newH - oldH));
             var accept = util.random() < p;
-            return this.cont(accept ? finalTrace : this.oldTrace, accept);
+            return this.finish(accept ? finalTrace : this.oldTrace, accept);
 
           }.bind(this), trace);
         }.bind(this));
@@ -120,20 +130,27 @@ module.exports = function(env) {
     return momentum;
   };
 
-  HMCKernel.prototype.leapFrogStep = function(k, trace) {
+  HMCKernel.prototype.leapFrogStep = function(cont, trace) {
     return this.positionStep(function(newTrace) {
       this.momentumStep(newTrace, 1);
-      return k(newTrace);
+      return cont(newTrace);
     }.bind(this), trace);
   };
 
-  HMCKernel.prototype.positionStep = function(k, trace) {
+  HMCKernel.prototype.positionStep = function(cont, trace) {
     // Run the program creating a new trace with updated (continuous)
     // variables.
     this.prevTrace = trace;
-    this.trace = new Trace();
-    this.positionStepCont = k;
-    return this.runWppl();
+    this.trace = this.prevTrace.fresh();
+    // Once the WebPPL program has finished we need to call k to
+    // continue inference. Since the program will call env.exit once
+    // finished, we save k here in order to resume inference as
+    // desired. Note that we can't pass a continuation other than
+    // env.exit to the program. This is because the continuation is
+    // store as part of the trace, and when invoked by a different
+    // MCMC kernel execution would jump back here.
+    this.positionStepCont = cont;
+    return this.trace.continue();
   };
 
   HMCKernel.prototype.exit = function(k, val, earlyExit) {
@@ -150,6 +167,7 @@ module.exports = function(env) {
   };
 
   HMCKernel.prototype.momentumStep = function(trace, scaleFactor) {
+    // Compute gradient of score w.r.t. the continuous variables.
     ad.yGradientR(trace.score);
     var stepSize = this.stepSize * scaleFactor;
     _.each(trace.choices, function(choice) {
@@ -165,17 +183,26 @@ module.exports = function(env) {
     return score - kinetic;
   }
 
-  HMCKernel.prototype.cont = function(trace, accepted) {
+  HMCKernel.prototype.finish = function(trace, accepted) {
     assert(_.isBoolean(accepted));
+    if (accepted && trace.value === env.query) {
+      trace.value = env.query.getTable();
+    }
+    if (this.oldTrace.info) {
+      var oldInfo = this.oldTrace.info;
+      trace.info = {
+        accepted: oldInfo.accepted + accepted,
+        total: oldInfo.total + 1
+      };
+    }
     env.coroutine = this.coroutine;
-    trace.info = { accepted: accepted };
-    return this.k(trace);
+    return this.cont(trace);
   };
 
   HMCKernel.prototype.incrementalize = env.defaultCoroutine.incrementalize;
 
-  return function(k, runWppl, oldTrace, options) {
-    return new HMCKernel(k, runWppl, oldTrace, options).run();
-  };
+  return _.extendOwn(function(cont, oldTrace, options) {
+    return new HMCKernel(cont, oldTrace, options).run();
+  }, { adRequired: true });
 
 };

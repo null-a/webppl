@@ -36,6 +36,18 @@ You can automatically prepend WebPPL files to your code by added a
       }
     }
 
+The use of some inference algorithms causes a caching transform to be
+applied to each ``wppl`` file. It is possible to skip the application
+of this transform on a per-file basis by placing the ``no caching``
+directive at the beginning of the file. For example::
+
+    'no caching';
+
+    // Rest of WebPPL program
+
+This is expected to be useful in only a limited number of cases and
+shouldn't be applied routinely.
+
 Macros
 ------
 
@@ -146,5 +158,11 @@ available in WebPPL:
 
         foo();
 
+Package template
+----------------
+
+The `WebPPL package template`_ provides a scaffold that you can extend to create your own packages.
+
 .. _sweet.js: http://sweetjs.org
 .. _sweet.js module documentation: http://sweetjs.org/doc/main/sweet.html#using-modules
+.. _WebPPL package template: https://github.com/probmods/webppl-package-template

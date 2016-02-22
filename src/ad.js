@@ -1,8 +1,23 @@
 'use strict';
 
+var _ = require('underscore');
 var ad = require('adnn/ad');
 var Tensor = require('./tensor');
 var special = require('./special');
+
+ad.isTape = function(obj) {
+  return ad.isLifted(obj);
+};
+
+// Recursively untapify objects.
+// TODO: Update for adnn.
+ad.deepUntapify = function(x) {
+  if (_.isObject(x) && !_.isArray(x) && !ad.isTape(x)) {
+    return _.mapObject(x, ad.deepUntapify);
+  } else {
+    return ad.value(x);
+  }
+};
 
 ad.tensor.transpose = ad.newUnaryFunction({
   OutputType: Tensor,

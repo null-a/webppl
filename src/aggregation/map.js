@@ -1,25 +1,9 @@
 'use strict';
 
 var _ = require('underscore');
-var erp = require('./erp');
-var util = require('./util');
-
-var Histogram = function() {
-  this.hist = {};
-};
-
-Histogram.prototype.add = function(value) {
-  var value = ad.value(value);
-  var k = util.serialize(value);
-  if (this.hist[k] === undefined) {
-    this.hist[k] = { prob: 0, val: value };
-  }
-  this.hist[k].prob += 1;
-};
-
-Histogram.prototype.toERP = function() {
-  return erp.makeMarginalERP(util.logHist(this.hist));
-};
+var util = require('../util');
+var ad = require('../ad');
+var Histogram = require('./histogram');
 
 var MAP = function(retainSamples) {
   this.max = { value: undefined, score: -Infinity };
@@ -28,9 +12,10 @@ var MAP = function(retainSamples) {
 };
 
 MAP.prototype.add = function(value, score) {
-  var value = untapify(value);
+  var value = ad.deepUntapify(value);
+  var score = ad.untapify(score);
   if (this.retainSamples) {
-    this.samples.push(value);
+    this.samples.push({ value: value, score: score });
   }
   if (score > this.max.score) {
     this.max.value = value;
@@ -48,7 +33,4 @@ MAP.prototype.toERP = function() {
   return erp;
 };
 
-module.exports = {
-  Histogram: Histogram,
-  MAP: MAP
-};
+module.exports = MAP;

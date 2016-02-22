@@ -5,7 +5,7 @@ var numeric = require('numeric');
 var Tensor = require('../tensor');
 var assert = require('assert');
 var util = require('../util.js');
-var Histogram = require('../aggregation').Histogram;
+var Histogram = require('../aggregation/histogram');
 
 var logLevel = process.env.LOG_LEVEL ? parseInt(process.env.LOG_LEVEL) : 0;
 

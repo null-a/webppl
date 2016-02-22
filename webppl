@@ -3,14 +3,11 @@
 
 var fs = require('fs');
 var path = require('path');
-
-checkErpJsIsPresent();
-
 var webppl = require('./src/main');
 var pkg = require('./src/pkg');
 var util = require('./src/util');
 var parseArgs = require('minimist');
-var git = require('git-rev-2');
+var version = require('./src/version');
 var _ = require('underscore');
 
 function printWebPPLValue(x) {
@@ -19,9 +16,16 @@ function printWebPPLValue(x) {
   } else {
     console.log(x);
   }
-}
+};
 
-function run(code, packages, verbose) {
+function topK(s,x) {
+  console.log('\n* Program return value:\n');
+  printWebPPLValue(x);
+};
+
+var cliRunner = util.trampolineRunners.cli;
+
+function run(code, packages, verbose, programFile) {
   packages.forEach(function(pkg) {
     if (pkg.js) { global[pkg.js.identifier] = require(pkg.js.path); }
     pkg.headers.forEach(webppl.requireHeader);
@@ -35,11 +39,16 @@ function run(code, packages, verbose) {
       },
       {
         extra: webppl.parsePackageCode(packages, verbose),
+        filename: programFile,
         verbose: verbose
       });
 }
 
-function compile(code, packages, verbose, outputFile) {
+var lines = function(ar) {
+  return ar.join('\n')
+}
+
+function compile(code, packages, verbose, programFile, outputFile) {
   var compiledCode = 'var webppl = require("' + require.resolve('./src/main') + '");\n';
   packages.forEach(function(pkg) {
     if (pkg.js) { compiledCode += 'var ' + pkg.js.identifier + ' = require("' + pkg.js.path + '");\n'; }
@@ -48,15 +57,22 @@ function compile(code, packages, verbose, outputFile) {
     });
   });
 
-  var compileOptions = { extra: webppl.parsePackageCode(packages, verbose), verbose: verbose };
+  var compileOptions = {
+    extra: webppl.parsePackageCode(packages, verbose),
+    filename: programFile,
+    verbose: verbose
+  };
 
-  compiledCode += (
-      printWebPPLValue.toString() + '\n' +
-      'var topK = function(s, x){ \n' +
-      " console.log('\\n* Program return value:\\n'); \n" +
-      ' printWebPPLValue(x); \n};\n\n');
-  compiledCode += 'var main = ' + webppl.compile(code, compileOptions) + '\n\n';
-  compiledCode += "main({}, topK, '');";
+  var compiledBody = webppl.compile(code, compileOptions);
+
+  compiledCode += lines([
+    'var __runner__ = ' + cliRunner.toString() + ';',
+    printWebPPLValue.toString() + ';',
+    topK.toString() + ';',
+    'var main = ' + compiledBody + '\n',
+    "main(__runner__)({}, topK, '');"
+  ]);
+
   // Write Javascript code to file
   fs.writeFile(
       outputFile,
@@ -70,32 +86,15 @@ function compile(code, packages, verbose, outputFile) {
       });
 }
 
-function checkErpJsIsPresent() {
-  try {
-    fs.accessSync(path.join(__dirname, 'src/erp.js'));
-  } catch (e) {
-    console.log('ERROR: erp.js not found');
-    console.log('Run "./script/transformERP" and try again.');
-    process.exit();
-  }
-}
-
 function main() {
 
   var argv = parseArgs(process.argv.slice(2));
 
   // Print version if requested
   if (argv.version) {
-    git.branch(
-        __dirname,
-        function(err, branch) {
-          __dirname,
-          git.short(
-              function(err, shortName) {
-                console.log(branch, shortName, __dirname);
-              });
-        }
-    );
+    version.get(__dirname, function(ver) {
+      console.log(ver.branch, ver.describe, __dirname);
+    });
     return;
   }
 
@@ -130,7 +129,7 @@ function main() {
     util.seedRNG(seed);
   }
 
-  processCode(code, packages, argv.verbose, outputFile);
+  processCode(code, packages, argv.verbose, programFile, outputFile);
 }
 
 main();

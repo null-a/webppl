@@ -5,17 +5,18 @@
 // Q is the queue object to use. It should have enq, deq, and size methods.
 
 'use strict';
+'use ad';
 
 var _ = require('underscore');
 var PriorityQueue = require('priorityqueuejs');
-var erp = require('../erp');
 var util = require('../util');
+var Distribution = require('../aggregation/distribution');
 
 module.exports = function(env) {
 
   function Enumerate(store, k, a, wpplFn, maxExecutions, Q) {
     this.score = 0; // Used to track the score of the path currently being explored
-    this.marginal = {}; // We will accumulate the marginal distribution here
+    this.marginal = new Distribution(); // We will accumulate the marginal distribution here
     this.numCompletedExecutions = 0;
     this.store = store; // will be reinstated at the end
     this.k = k;
@@ -91,6 +92,9 @@ module.exports = function(env) {
   Enumerate.prototype.factor = function(s, cc, a, score) {
     // Update score and continue
     this.score += score;
+    if (this.score === -Infinity) {
+      return this.exit();
+    }
     return cc(s);
   };
 
@@ -117,27 +121,22 @@ module.exports = function(env) {
 
   Enumerate.prototype.exit = function(s, retval) {
     // We have reached an exit of the computation. Accumulate probability into retval bin.
-    var r = util.serialize(retval);
-    if (this.score !== -Infinity) {
-      if (this.marginal[r] === undefined) {
-        this.marginal[r] = {val: retval, prob: -Infinity};
-      }
-      this.marginal[r].prob = util.logsumexp([this.marginal[r].prob, this.score])
-    }
+    this.marginal.add(retval, this.score);
 
     // Increment the completed execution counter
-    this.numCompletedExecutions++;
+    this.numCompletedExecutions += 1;
 
     // If anything is left in queue do it:
     if (this.queue.size() > 0 && (this.numCompletedExecutions < this.maxExecutions)) {
       return this.nextInQueue();
     } else {
-      var marginal = this.marginal;
-      var dist = erp.makeMarginalERP(marginal);
+      if (this.marginal.size === 0) {
+        throw 'All paths explored by Enumerate have probability zero.';
+      }
       // Reinstate previous coroutine:
       env.coroutine = this.coroutine;
       // Return from enumeration by calling original continuation with original store:
-      return this.k(this.store, dist);
+      return this.k(this.store, this.marginal.toERP());
     }
   };
 

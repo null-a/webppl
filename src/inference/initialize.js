@@ -3,6 +3,7 @@
 var _ = require('underscore');
 var assert = require('assert');
 var Trace = require('../trace');
+var ad = require('../ad');
 
 module.exports = function(env) {
 
@@ -10,23 +11,29 @@ module.exports = function(env) {
 
   var warnAfter = [1e3, 1e4, 1e5, 1e6];
 
-  function Initialize(k, runWppl) {
+  function Initialize(cont, wpplFn, s, k, a, options) {
+    this.cont = cont;
+
+    this.wpplFn = wpplFn;
+    this.s = s;
     this.k = k;
-    this.runWppl = runWppl;
+    this.a = a;
+
+    this.ad = options.ad;
     this.failures = 0;
     this.coroutine = env.coroutine;
     env.coroutine = this;
   }
 
   Initialize.prototype.run = function() {
-    this.trace = new Trace();
+    this.trace = new Trace(this.wpplFn, this.s, this.k, this.a);
     env.query.clear();
-    return this.runWppl();
+    return this.trace.continue();
   };
 
   Initialize.prototype.sample = function(s, k, a, erp, params) {
     var _val = erp.sample(ad.untapify(params));
-    var val = erp.isContinuous ? ad.tapify(_val) : _val;
+    var val = this.ad && erp.isContinuous ? ad.tapify(_val) : _val;
     this.trace.addChoice(erp, params, val, a, s, k);
     return k(s, val);
   };
@@ -52,14 +59,17 @@ module.exports = function(env) {
   Initialize.prototype.exit = function(s, val) {
     assert.notStrictEqual(this.trace.score, -Infinity);
     this.trace.complete(val);
+    if (this.trace.value === env.query) {
+      this.trace.value = env.query.getTable();
+    }
     env.coroutine = this.coroutine;
-    return this.k(this.s, this.trace);
+    return this.cont(this.trace);
   };
 
   Initialize.prototype.incrementalize = env.defaultCoroutine.incrementalize;
 
-  return function(s, k, a, wpplFn) {
-    return new Initialize(s, k, a, wpplFn).run();
+  return function(cont, wpplFn, s, k, a, options) {
+    return new Initialize(cont, wpplFn, s, k, a, options).run();
   };
 
 };

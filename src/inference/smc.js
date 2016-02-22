@@ -4,8 +4,10 @@ var _ = require('underscore');
 var util = require('../util');
 var erp = require('../erp');
 var Trace = require('../trace');
+
 var assert = require('assert');
-var Histogram = require('../aggregation').Histogram;
+var Histogram = require('../aggregation/histogram');
+var ad = require('../ad');
 
 module.exports = function(env) {
 
@@ -19,10 +21,10 @@ module.exports = function(env) {
       finalRejuv: true
     });
 
-    var runWppl = function() { return wpplFn(_.clone(s), env.exit, a); };
-    this.rejuvKernel = _.partial(kernels.parseOptions(options.rejuvKernel), _, runWppl);
+    this.rejuvKernel = kernels.parseOptions(options.rejuvKernel);
     this.rejuvSteps = options.rejuvSteps;
 
+    this.adRequired = this.rejuvKernel.adRequired;
     this.performRejuv = this.rejuvSteps > 0;
     this.performFinalRejuv = this.performRejuv && options.finalRejuv;
     this.numParticles = options.particles;
@@ -34,23 +36,16 @@ module.exports = function(env) {
 
     this.step = 0;
 
-    var exitK = function(s) {
-      return wpplFn(s, env.exit, a);
-    };
-
     // Create initial particles.
     for (var i = 0; i < this.numParticles; i++) {
-      var trace = new Trace();
-      trace.saveContinuation(_.clone(s), exitK);
+      var trace = new Trace(wpplFn, s, env.exit, a);
       this.particles.push(new Particle(trace));
     }
 
     this.k = k;
     this.s = s;
-    this.a = a;
     this.coroutine = env.coroutine;
     env.coroutine = this;
-
   }
 
   SMC.prototype.run = function() {
@@ -61,7 +56,7 @@ module.exports = function(env) {
     var importanceERP = erp.importanceERP || erp;
     var _params = ad.untapify(params);
     var _val = importanceERP.sample(_params);
-    var val = importanceERP.isContinuous ? ad.tapify(_val) : _val;
+    var val = this.adRequired && importanceERP.isContinuous ? ad.tapify(_val) : _val;
     var importanceScore = importanceERP.score(_params, _val);
     var choiceScore = erp.score(_params, _val);
     var particle = this.currentParticle();
@@ -93,8 +88,7 @@ module.exports = function(env) {
   };
 
   SMC.prototype.runCurrentParticle = function() {
-    var trace = this.currentParticle().trace;
-    return trace.k(trace.store);
+    return this.currentParticle().trace.continue();
   };
 
   SMC.prototype.advanceParticleIndex = function() {

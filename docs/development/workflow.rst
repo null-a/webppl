@@ -1,12 +1,38 @@
 Workflow
 ========
 
-Before committing changes, run grunt (which runs tests and linting)::
+Committing changes
+------------------
+
+Before committing changes, run grunt (which runs `tests`_ and
+`linting`_)::
 
     grunt
 
 If grunt doesn’t succeed, the `continuous integration tests`_ will fail
 as well.
+
+Modifying .ad.js files
+----------------------
+
+Files with names which end with ``.ad.js`` are transformed to use AD
+primitives when WebPPL is installed.
+
+During development it is necessary to run this transform after any
+such files have been modified. This is done with::
+
+    ./scripts/adify
+
+The scope of the transform is controlled with the ``'use ad'``
+directive. If this directive appears directly after the ``'use
+strict'`` directive at the top of a file, then the whole file will be
+transformed. Otherwise, those functions which include the directive
+before any other statements or expressions in their body will be
+transformed. Any function nested within a function which includes the
+directive will also be transformed.
+
+Tests
+-----
 
 To only run the tests, do::
 
@@ -23,6 +49,9 @@ nodeunit can also run individual tests or test groups. For example::
 
 See the `nodeunit documentation`_ for details.
 
+Linting
+-------
+
 To only run the linter::
 
     grunt gjslint
@@ -36,29 +65,57 @@ many of them automatically using::
 
     grunt fixjsstyle
 
+Compiling for browser
+---------------------
+
 To compile webppl for use in browser, run::
 
     npm install -g browserify uglifyjs
-    cd compiled
-    make clean
-    make
+    grunt compile
 
-Then, to run the browser tests use::
+The compiled code is written to ``compiled/webppl.js`` and a minified
+version is written to ``compiled/webppl.min.js``.
 
-    make test
+Testing
+^^^^^^^
+
+To check that compilation was successful, run the browser tests
+using::
+
+    grunt test-browser
 
 The tests will run in the default browser. Specify a different browser
 using the ``BROWSER`` environment variable. For example::
 
-    BROWSER="Google Chrome" make test
+    BROWSER="Google Chrome" grunt test-browser
+
+Incremental Compilation
+^^^^^^^^^^^^^^^^^^^^^^^
+
+Repeatedly making changes to the code and then testing the changes in
+the browser can be a slow process. `watchify`_ speeds up this process
+by performing an incremental compile whenever it detects changes to
+source files. To start `watchify`_ use::
+
+    npm install -g watchify
+    grunt watchify
+
+Note that `watchify`_ only updates ``compiled/webppl.js``. Before
+running the browser tests and deploying, create the minified version
+like so::
+
+    grunt uglify
+
+Packages
+^^^^^^^^
 
 Packages can also be used in the browser. For example, to include the
 ``webppl-viz`` package use::
 
-    browserify -t [./src/bundle.js --require webppl-viz] -g brfs src/browser.js > compiled/webppl.js
+    grunt compile:path/to/webppl-viz
 
-Multiple ``--require`` arguments can be used to include multiple
-packages.
+Multiple packages can specified, separated by colons.
 
 .. _continuous integration tests: https://travis-ci.org/probmods/webppl
 .. _nodeunit documentation: https://github.com/caolan/nodeunit#command-line-options
+.. _watchify: https://github.com/substack/watchify
