@@ -476,11 +476,11 @@ function discreteScoreSkipT(params, val) {
 
 var discreteERP = new ERP({
   sample: function(params) {
-    return multinomialSample(params[0]);
+    return multinomialSample(params[0].data);
   },
   score: discreteScoreSkipT,
   support: function(params) {
-    return _.range(params[0].length);
+    return _.range(ad.value(params[0]).length);
   }
 });
 
