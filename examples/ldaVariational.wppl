@@ -1,0 +1,141 @@
+// LDA
+//
+// Run this with:
+// LOG_LEVEL=1 ./webppl examples/ldaVariational.wppl
+
+// Known issues:
+
+// It's not uncommon to see the following error:
+// "AssertionError: Expected marginal to be normalized."
+
+// I'm not sure what causes this, but one guess is that it's possible
+// to sample values on the boundary of the simplex from the logistic
+// normal. Such values are outside of the support of the Dirichlet, so
+// scoring them may lead to the gradient blowing up.
+
+// This seem to happen more often with larger step sizes.
+
+var ones = function(dims) { zeros(dims).add(1); };
+
+// TODO: Add these helpers to header.wppl if useful.
+var forEach2 = function(xs, f) {
+  map(function(i) {
+    return f(xs[i], i);
+  }, _.range(xs.length));
+  return;
+};
+
+var times = function(n, f) {
+  forEach2(_.range(n), f);
+};
+
+var paramInit = function(val, options) {
+  return paramChoice(deltaERP, [val], options);
+};
+
+// Hack to call erp logistic without member expression. Useful for
+// approximating dirichlet with delta...
+var erp = { logistic: logistic };
+
+var lda = function(corpus, vocabSize, numTopics, alpha, eta) {
+
+  var topics = repeat(numTopics, function() {
+    var q = sampleGuide(logisticNormalERP, [
+      paramInit(zeros([vocabSize - 1, 1]), { prefix: 'topic_mu' }),
+      ad.tensor.exp(paramInit(zeros([vocabSize - 1, 1]), { prefix: 'topic_log_sigma' }))
+    ]);
+
+    return sample(dirichletERP, [eta], { guideVal: q }); // beta_k
+  });
+
+
+  forEach2(corpus, function(doc) {
+    // gamma_d
+    var q = sampleGuide(logisticNormalERP, [
+      paramInit(zeros([numTopics - 1, 1]), { prefix: 'props_mu' }),
+      ad.tensor.exp(paramInit(zeros([numTopics - 1, 1]), { prefix: 'props_log_sigma' }))
+    ]);
+
+    var topicDist = sample(dirichletERP, [alpha], { guideVal: q }); // theta_d
+
+
+    // Note, that this forEach should not use mini-batches.
+    forEach2(doc, function(count, word) {
+
+      times(count, function() {
+        // TODO: More efficient summing out of z.
+        // 1. Move outside the inner-most loop.
+        // 2. Move the factor inside Enumerate. (Need a version of
+        // Enumerate which doesn't normalize? Check math.)
+        // 3. Replace loop with multiplication of score by count.
+
+        var marginal = Enumerate(function() {
+          var z = sample(discreteERP, [topicDist]);
+          var topic = topics[z];
+          return sample(discreteERP, [topic]);
+        });
+
+        factor(marginal.score([], word));
+      });
+
+
+    });
+
+  });
+
+  return topics;
+
+};
+
+
+// Each document is represented by an array of word counts. Therefore
+// doc.length == vocabSize, and sum(doc) = no. of words in doc.
+
+var bars = readJSON('bars2.json');
+
+var vocabSize = 4; // V
+var numTopics = 4; // K
+
+// Parameter for prior on topic proportions.
+var alpha = Vector(repeat(numTopics, constF(0.1)));
+// Parameter for prior on topics.
+var eta = Vector(repeat(vocabSize, constF(0.1)));
+
+
+
+var marginal = Variational(function() {
+  return lda(bars, vocabSize, numTopics, alpha, eta);
+}, {
+  optimizer: { adagrad: { stepSize: 0.5 } },
+  //optimizer: { adam: { stepSize: 0.01 } },
+  steps: 500,
+  samplesPerStep: 1,
+  returnSamples: 1,
+  callback: function(i, parameters) {
+    var mus = [parameters.topic_mu0,
+               parameters.topic_mu1,
+               parameters.topic_mu2,
+               parameters.topic_mu3];
+
+    // var sigmas = [parameters.topic_log_sigma0,
+    //               parameters.topic_log_sigma1,
+    //               parameters.topic_log_sigma2,
+    //               parameters.topic_log_sigma3];
+
+    // The topics used to generate the bars2 data are 2x2 horizontal
+    // and vertical stripes.
+
+    // [.5, .5, .0, .0]
+    // [.0, .0, .5, .5]
+    // [.5, .0, .5, .0]
+    // [.0, .5, .0, .5]
+
+    display(_.map(mus, logistic));
+    //display(_.map(sigmas, ad.tensor.exp));
+  }
+});
+
+//map(function(t) { return ad.value(t).toFlatArray(); }, marginal.support()[0]);
+//writeJSON('topics.json', map(function(topic) { topic.toFlatArray(); }, marginal.support()[0]));
+
+'done';
