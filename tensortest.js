@@ -96,4 +96,22 @@ var test6 = function() {
 
 };
 
-test6();
+var test7 = function() {
+
+
+  var a = ad.lift(new Tensor([2, 2]).fromFlatArray([1, 2, 3, 4]));
+
+  var b = ad.tensor.mul(a, new Tensor([2, 2]).fromFlatArray([1, 10, 1, 1]));
+
+  var y = ad.tensor.sumreduce(ad.tensor.reshape(b, [4, 1]));
+
+  y.backprop();
+
+  console.log(ad.derivative(a));
+  console.log(ad.value(y));
+
+
+};
+
+
+test7();

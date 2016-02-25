@@ -267,7 +267,6 @@ var gaussianERP = new ERP({
   isContinuous: true
 });
 
-
 function mvGaussianSample(params) {
   var mu = params[0];
   var cov = params[1];
@@ -370,6 +369,58 @@ var diagCovGaussianERP = new ERP({
     return ad.tensor.add(ad.tensor.mul(sigma, x), mu);
   },
   isContinuous: false
+});
+
+// TODO: Don't export this from here. I think we'll want to call it
+// from wppl code, so move elsewhere.
+var logistic = function(x) {
+  // Map a d dimensional vector onto the d simplex.
+  var d = ad.value(x).dims[0];
+  var u = ad.tensor.reshape(ad.tensor.concat(x, ad.scalarsToTensor(0)), [d + 1, 1]);
+  // Numeric stability.
+  // TODO: Make this less messy.
+  // There's no Tensor max. Can't use Math.max.apply as Math.max is
+  // rewritten to use ad. The ad version only takes 2 args.
+  var max = ad.value(u).toFlatArray().reduce(function(a, b) { return Math.max(a, b); });
+  var v = ad.tensor.exp(ad.tensor.sub(u, max));
+  var ret = ad.tensor.div(v, ad.tensor.sumreduce(v));
+  return ret;
+};
+
+// TODO: Generalize to allow correlations.
+
+var logisticNormalERP = new ERP({
+  sample: function(params) {
+    return logistic(diagCovGaussianSample(params));
+  },
+
+  score: function(params, val) {
+    var mu = params[0];
+    var sigma = params[1];
+    var _mu = ad.value(mu);
+    var _sigma = ad.value(sigma);
+    var _val = ad.value(val);
+
+    assert.ok(_val.dims[0] - 1 === _mu.dims[0]);
+
+    var d = _mu.dims[0];
+
+    var u = ad.tensor.reshape(ad.tensor.range(val, 0, d), [d, 1]);
+
+    var u_last = ad.tensorEntry(val, d);
+    var inv = ad.tensor.log(ad.tensor.div(u, u_last));
+
+    var normScore = diagCovGaussianScoreSkipT(params, inv);
+
+    return ad.scalar.sub(normScore, ad.tensor.sumreduce(ad.tensor.log(val)));
+
+  },
+  baseERP: diagCovGaussianERP,
+  baseParams: diagCovGaussianERP.baseParams,
+  transform: function(x, params) {
+    return logistic(diagCovGaussianERP.transform(x, params));
+  },
+  isContinuous: true
 });
 
 function matrixGaussianScoreSkipT(params, x) {
@@ -1017,6 +1068,8 @@ module.exports = setErpNames({
   multivariateGaussianERP: multivariateGaussianERP,
   diagCovGaussianERP: diagCovGaussianERP,
   matrixGaussianERP: matrixGaussianERP,
+  logisticNormalERP: logisticNormalERP,
+  logistic: logistic,
   cauchyERP: cauchyERP,
   poissonERP: poissonERP,
   randomIntegerERP: randomIntegerERP,
