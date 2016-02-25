@@ -499,13 +499,14 @@ module.exports = function(env) {
       // out the dimension of multivariate Gaussians. Perhaps this
       // would be nice if we change the ERP interface.
 
+      var baseERP = erp.baseERP || erp;
       var baseParams = erp.baseParams(_params);
-      var z = erp.sample(baseParams);
-      this.logr = ad.scalar.add(this.logr, erp.score(baseParams, z));
+      var z = baseERP.sample(baseParams);
+      this.logr = ad.scalar.add(this.logr, baseERP.score(baseParams, z));
       val = erp.transform(z, params);
       trace('Sampled ' + ad.value(val) + ' for ' + a);
       trace('  ' + erp.name + '(' + _params + ') reparameterized as ' +
-            erp.name + '(' + baseParams + ') + transform');
+            baseERP.name + '(' + baseParams + ') + transform');
     } else if (options.reparam && !(erp.baseParams && erp.transform)) {
       // Warn when reparameterization is explicitly requested but
       // isn't supported by the ERP.
