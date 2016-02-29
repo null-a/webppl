@@ -28,3 +28,7 @@ dist: trusty
 
 notifications:
   slack: cocolab-stanford:X2Ebs0qIMVUidJBD1xZd2XU1
+
+branches:
+  except:
+    - variational-adnn
