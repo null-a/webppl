@@ -523,6 +523,7 @@ module.exports = function(env) {
   };
 
   Variational.prototype.forEach = function(s, k, a, arr, f) {
+
     var m = Math.min(this.miniBatchSize, arr.length);
 
     if (arr.length % m !== 0) {
@@ -567,10 +568,69 @@ module.exports = function(env) {
     }
   }
 
+  //FIXME: does this need to trampoline?
+  function webpplCpsForEachWithAddresses(s, k, a, arr, add, f, i) {
+    var i = (i === undefined) ? 0 : i;
+    if (i === arr.length) {
+      return k(s);
+    } else {
+      return f(s, function(s) {
+        return function() {
+          return webpplCpsForEachWithAddresses(s, k, a, arr, add, f, i + 1);
+        };
+      }, a.concat('_$$'+add[i]), arr[i]);
+    }
+  }
+
   function paramChoice(s, k, a, erp, params, opts) {
     assert.ok(env.coroutine instanceof Variational);
     return env.coroutine.paramChoice(s, k, a, erp, params, opts);
   }
+
+  Variational.prototype.miniBatch = function(s, k, a, arr, f, options) {
+
+    var options = util.mergeDefaults(options, {
+      batchSize: 1,
+      selectionMethod: 'random'
+    });
+
+    var miniBatch=[]
+    var batchAddresses=[]
+    if(options.selectionMethod == 'random'){
+      for(var i=0; i<options.batchSize; i++) {
+        var randIndex = Math.floor(Math.random() * arr.length);
+        miniBatch.push(arr[randIndex])
+        batchAddresses.push(randIndex)
+      }
+      var numBatches = arr.length / options.batchSize;
+    } else if (options.selectionMethod == 'inorder') {
+      var m = Math.min(options.batchSize, arr.length);
+      if (arr.length % m !== 0) {
+        throw 'Mini batch size should be a divisor of total array length (' + arr.length + ').';
+      }
+      var numBatches = arr.length / m;
+      var curBatch = this.curStep % numBatches;
+      miniBatch = arr.slice(curBatch * m, (curBatch + 1) * m);
+      batchAddresses = _.range(curBatch * m, (curBatch + 1) * m)
+    }
+
+    var logp0 = this.logp;
+    var logq0 = this.logq;
+    var logr0 = this.logr;
+
+    return webpplCpsForEachWithAddresses(s, function(s) {
+      // Compute score corrections to account for the fact we only
+      // looked at a subset of the data.
+      var logpdiff = ad.scalar.sub(this.logp, logp0);
+      var logqdiff = ad.scalar.sub(this.logq, logq0);
+      var logrdiff = ad.scalar.sub(this.logr, logr0);
+      this.logp = ad.scalar.add(this.logp, ad.scalar.mul(logpdiff, numBatches - 1));
+      this.logq = ad.scalar.add(this.logq, ad.scalar.mul(logqdiff, numBatches - 1));
+      this.logr = ad.scalar.add(this.logr, ad.scalar.mul(logrdiff, numBatches - 1));
+
+      return k(s);
+    }.bind(this), a.concat('_$'), miniBatch, batchAddresses, f);
+  };
 
   function sampleGuide(s, k, a, erp, params, transform) {
     assert.ok(env.coroutine instanceof Variational);
@@ -582,6 +642,11 @@ module.exports = function(env) {
     return env.coroutine.forEach(s, k, a, arr, f);
   }
 
+  function miniBatch(s, k, a, arr, f, op) {
+    assert.ok(env.coroutine instanceof Variational);
+    return env.coroutine.miniBatch(s, k, a, arr, f, op);
+  }
+
   Variational.prototype.incrementalize = env.defaultCoroutine.incrementalize;
 
   return {
@@ -590,7 +655,8 @@ module.exports = function(env) {
     },
     paramChoice: paramChoice,
     sampleGuide: sampleGuide,
-    forEach: forEach
+    forEach: forEach,
+    miniBatch: miniBatch
   };
 
 };
