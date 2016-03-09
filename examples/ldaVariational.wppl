@@ -15,6 +15,17 @@
 
 // This seem to happen more often with larger step sizes.
 
+// What appears to happen is that on some runs, one of the variance
+// params of a logistic normal gets driven really high. (e.g. We end
+// up sampling from a normal with sd=600 or something.) This can lead
+// to sampling extreme values for q, which in turn have a large
+// gradient under the Dirichlet score. The question is why do we end
+// up with such large variance params? Could it be that we happen to
+// make a large update to the parameter simply as a result of the
+// variance of the gradient estimate, but that this is exagerated by
+// using exp to map from R to R+? (Check the math.) I've tried using
+// soft-plus in place of exp, and it does appear to be better behaved.
+
 var ones = function(dims) { zeros(dims).add(1); };
 
 // TODO: Add these helpers to header.wppl if useful.
@@ -33,6 +44,11 @@ var paramInit = function(val, options) {
   return paramChoice(deltaERP, [val], options);
 };
 
+
+var softplus = function(z) {
+  return ad.tensor.log(ad.tensor.add(ad.tensor.exp(z), 1));
+};
+
 // Hack to call erp logistic without member expression. Useful for
 // approximating dirichlet with delta...
 var erp = { logistic: logistic };
@@ -42,7 +58,7 @@ var lda = function(corpus, vocabSize, numTopics, alpha, eta) {
   var topics = repeat(numTopics, function() {
     var q = sampleGuide(logisticNormalERP, [
       paramInit(zeros([vocabSize - 1, 1]), { prefix: 'topic_mu' }),
-      ad.tensor.exp(paramInit(zeros([vocabSize - 1, 1]), { prefix: 'topic_log_sigma' }))
+      softplus(paramInit(zeros([vocabSize - 1, 1]), { prefix: 'topic_log_sigma' }))
     ]);
 
     return sample(dirichletERP, [eta], { guideVal: q }); // beta_k
@@ -53,8 +69,9 @@ var lda = function(corpus, vocabSize, numTopics, alpha, eta) {
     // gamma_d
     var q = sampleGuide(logisticNormalERP, [
       paramInit(zeros([numTopics - 1, 1]), { prefix: 'props_mu' }),
-      ad.tensor.exp(paramInit(zeros([numTopics - 1, 1]), { prefix: 'props_log_sigma' }))
+      softplus(paramInit(zeros([numTopics - 1, 1]), { prefix: 'props_log_sigma' }))
     ]);
+
 
     var topicDist = sample(dirichletERP, [alpha], { guideVal: q }); // theta_d
 
