@@ -62,22 +62,19 @@ var lda = function(corpus, vocabSize, numTopics, alpha, eta) {
     // Note, that this forEach should not use mini-batches.
     forEach2(doc, function(count, word) {
 
-      times(count, function() {
-        // TODO: More efficient summing out of z.
-        // 1. Move outside the inner-most loop.
-        // 2. Move the factor inside Enumerate. (Need a version of
-        // Enumerate which doesn't normalize? Check math.)
-        // 3. Replace loop with multiplication of score by count.
+      // TODO: More efficient summing out of z.
+      // Move the factor inside Enumerate. (Need a version of
+      // Enumerate which doesn't normalize? Check math.)
 
+      if (count > 0) {
         var marginal = Enumerate(function() {
           var z = sample(discreteERP, [topicDist]);
           var topic = topics[z];
           return sample(discreteERP, [topic]);
         });
 
-        factor(marginal.score([], word));
-      });
-
+        factor(count * marginal.score([], word));
+      }
 
     });
 
