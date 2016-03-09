@@ -135,7 +135,23 @@ var marginal = Variational(function() {
   }
 });
 
-//map(function(t) { return ad.value(t).toFlatArray(); }, marginal.support()[0]);
-//writeJSON('topics.json', map(function(topic) { topic.toFlatArray(); }, marginal.support()[0]));
+
+// The following will write the history of the elbo estimates to disk
+// using a filename based on the parameters used for inference. The
+// filename will also include a timestamp so multiple runs can be made
+// without worrying about overwrite previous data.
+
+// All of the files in a single directory can be viewed on a single
+// plot using:
+
+// python viz.py dirname
+
+// (I have Python 2 installed.)
+
+// Extra information about a particular set-up should be added to the
+// *front* of the filename as the Python script expects the timestamp
+// to come at the end. (Just before the extension.)
+
+writeJSON('histlda/' + marginal.info + '.json', marginal.history);
 
 'done';

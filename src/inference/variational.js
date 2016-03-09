@@ -75,7 +75,20 @@ module.exports = function(env) {
     }
     var optimizer = optimize[name](options);
     trace('Will optimize using ' + name + '. ' + JSON.stringify(optimizer.options));
+    optimizer.options.name = name;
     return optimizer;
+  };
+
+  Variational.prototype.info = function() {
+    // Summarize the parameters and other informtion about this run of
+    // inference in a string suitable for use a filename.
+    // This is useful because it includes defaults supplied by the
+    // algorithm.
+    return JSON.stringify([
+      ['samplesPerStep', this.samplesPerStep],
+      [this.optimize.options.name, _.omit(this.optimize.options, 'name')],
+      Date.now()
+    ]).replace(/[\[\]\{}:",]+/g, '_').slice(1, -1);
   };
 
   Variational.prototype.run = function() {
@@ -87,6 +100,8 @@ module.exports = function(env) {
     this.paramPrefixCount = Object.create(null);
     this.paramNames = Object.create(null); // Set of all param names used.
     this.paramAddressNameMap = Object.create(null); // Maps addresses to names.
+
+    this.historyELBO = [];
 
     return util.cpsLoop(
         this.steps,
@@ -176,6 +191,8 @@ module.exports = function(env) {
               }.bind(this),
               function() {
 
+                this.historyELBO.push(this.estELBO);
+
                 // * 1/N
                 _.each(this.grad, function(g, a) {
                   this.grad[a] = generic.scalarDiv(g, this.samplesPerStep);
@@ -239,7 +256,9 @@ module.exports = function(env) {
           env.coroutine = this.coroutine;
           var erp = hist.toERP();
           erp.estELBO = estELBO;
+          erp.history = this.historyELBO;
           erp.parameters = this.namedParams();
+          erp.info = this.info();
           return this.k(this.s, erp);
         }.bind(this));
   };
