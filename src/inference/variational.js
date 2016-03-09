@@ -5,6 +5,8 @@ var numeric = require('numeric');
 var Tensor = require('../tensor');
 var assert = require('assert');
 var util = require('../util.js');
+var generic = require('../generic');
+var optimize = require('../optimize');
 var Histogram = require('../aggregation/histogram');
 
 var logLevel = process.env.LOG_LEVEL ? parseInt(process.env.LOG_LEVEL) : 0;
@@ -68,97 +70,12 @@ module.exports = function(env) {
       name = nameOrObj;
       options = {};
     }
-    if (!optimizers[name]) {
+    if (!optimize[name]) {
       throw 'Unknown optimizer: ' + name;
     }
-    var optimizer = optimizers[name](options);
+    var optimizer = optimize[name](options);
     trace('Will optimize using ' + name + '. ' + JSON.stringify(optimizer.options));
     return optimizer;
-  };
-
-  optimizers = {
-    gd: function(options) {
-      var options = util.mergeDefaults(options, { stepSize: 0.1 });
-      var stepSize = options.stepSize;
-      return _.extendOwn(function(params, grad) {
-        _.each(grad, function(g, a) {
-          assert(_.has(params, a));
-          params[a] = sub(params[a], scalarMul(g, stepSize));
-        });
-      }, { options: options });
-    },
-    // TODO: The next 3 methods each avoid division by zero in different ways. Unify?
-    adagrad: function(options) {
-      var options = util.mergeDefaults(options, { stepSize: 0.001 });
-      var stepSize = options.stepSize;
-      // State.
-      // Map from a to running sum of grad^2.
-      var g2 = Object.create(null);
-      return _.extendOwn(function(params, grad) {
-        _.each(grad, function(g, a) {
-          assert(_.has(params, a));
-          if (!_.has(g2, a)) {
-            // Start with small non-zero g2 to avoid divide by zero.
-            g2[a] = scalarMul(onesLike(g), 0.001);
-          }
-          g2[a] = add(g2[a], mul(g, g));
-          params[a] = sub(params[a], scalarMul(div(g, sqrt(g2[a])), stepSize));
-        });
-      }, { options: options });
-    },
-    // TODO: Make it possible to specify params such as decayRate from within programs.
-    rmsprop: function(options) {
-      var options = util.mergeDefaults(options, { stepSize: 0.001, decayRate: 0.9 });
-      var stepSize = options.stepSize;
-      var decayRate = options.decayRate;
-      var g2 = Object.create(null);
-      return _.extendOwn(function(params, grad) {
-        _.each(grad, function(g, a) {
-          assert(_.has(params, a));
-          if (!_.has(g2, a)) {
-            g2[a] = zerosLike(g);
-          }
-          g2[a] = add(scalarMul(g2[a], decayRate), scalarMul(mul(g, g), 1 - decayRate));
-          params[a] = sub(params[a], scalarMul(div(g, sqrt(scalarAdd(g2[a], 1e-8))), stepSize));
-        });
-      }, { options: options });
-    },
-    adam: function(options) {
-      var options = util.mergeDefaults(options, {
-        stepSize: 0.001, // alpha
-        decayRate1: 0.9, // beta1
-        decayRate2: 0.999, // beta2
-        eps: 1e-8
-      });
-
-      var stepSize = options.stepSize;
-      var decayRate1 = options.decayRate1;
-      var decayRate2 = options.decayRate2;
-      var eps = options.eps;
-
-      var m = Object.create(null);
-      var v = Object.create(null);
-      var t = 0;
-
-      return _.extendOwn(function(params, grad) {
-        t += 1;
-
-        _.each(grad, function(g, a) {
-          assert(_.has(params, a));
-          if (!_.has(m, a)) {
-            m[a] = zerosLike(g);
-            v[a] = zerosLike(g);
-          }
-          m[a] = add(scalarMul(m[a], decayRate1), scalarMul(g, 1 - decayRate1));
-          v[a] = add(scalarMul(v[a], decayRate2), scalarMul(mul(g, g), 1 - decayRate2));
-          //var mHat = scalarDiv(m[a], 1 - Math.pow(decayRate1, t));
-          //var vHat = scalarDiv(v[a], 1 - Math.pow(decayRate2, t));
-          //params[a] = sub(params[a], scalarMul(div(mHat, scalarAdd(sqrt(vHat), eps)), stepSize));
-          var alpha_t = stepSize * Math.sqrt(1 - Math.pow(decayRate2, t)) / (1 - Math.pow(decayRate1, t));
-          params[a] = sub(params[a], scalarMul(div(m[a], scalarAdd(sqrt(v[a]), eps)), alpha_t));
-        });
-      }, { options: options });
-    }
   };
 
   Variational.prototype.run = function() {
@@ -239,10 +156,10 @@ module.exports = function(env) {
                     // L2 regularization.
                     if (_.has(this.regScale, a)) {
                       trace('Computing regularization term for ' + this.paramName(a));
-                      g = add(g, scalarMul(ad.value(val), this.regScale[a]));
+                      g = generic.add(g, generic.scalarMul(ad.value(val), this.regScale[a]));
                     }
 
-                    if (allZero(g)) {
+                    if (generic.allZero(g)) {
                       var msg = 'Gradient w.r.t parameter ' + this.paramName(a) + ' is zero';
                       if (this.throwOnZeroGrad) {
                         throw msg;
@@ -256,9 +173,9 @@ module.exports = function(env) {
 
                     if (!_.has(this.grad, a)) {
                       // Initialize gradients to zero.
-                      this.grad[a] = zerosLike(g);
+                      this.grad[a] = generic.zerosLike(g);
                     }
-                    this.grad[a] = add(this.grad[a], g);
+                    this.grad[a] = generic.add(this.grad[a], g);
 
                   }, this);
 
@@ -271,7 +188,7 @@ module.exports = function(env) {
 
                 // * 1/N
                 _.each(this.grad, function(g, a) {
-                  this.grad[a] = scalarDiv(g, this.samplesPerStep);
+                  this.grad[a] = generic.scalarDiv(g, this.samplesPerStep);
                 }, this);
 
                 // Take gradient step.
@@ -300,69 +217,6 @@ module.exports = function(env) {
         }.bind(this),
         this.finish.bind(this));
   };
-
-  // Polymorphic functions to simplify dealing with scalars and
-  // tensors. How much of an overhead would treating all params as
-  // Tensors introduce?
-
-  function allZero(x) {
-    return _.isNumber(x) ? x === 0 : !x.anyreduce();
-  }
-
-  function zerosLike(x) {
-    return _.isNumber(x) ? 0 : new Tensor(x.dims);
-  }
-
-  function onesLike(x) {
-    return _.isNumber(x) ? 1 : new Tensor(x.dims).fill(1);
-  }
-
-  function add(a, b) {
-    assert.ok(
-        _.isNumber(a) && _.isNumber(b) ||
-        a instanceof Tensor && b instanceof Tensor);
-    return _.isNumber(a) ? a + b : a.add(b);
-  }
-
-  function sub(a, b) {
-    assert.ok(
-        _.isNumber(a) && _.isNumber(b) ||
-        a instanceof Tensor && b instanceof Tensor);
-    return _.isNumber(a) ? a - b : a.sub(b);
-  }
-
-  function mul(a, b) {
-    assert.ok(
-        _.isNumber(a) && _.isNumber(b) ||
-        a instanceof Tensor && b instanceof Tensor);
-    return _.isNumber(a) ? a * b : a.mul(b);
-  }
-
-  function div(a, b) {
-    assert.ok(
-        _.isNumber(a) && _.isNumber(b) ||
-        a instanceof Tensor && b instanceof Tensor);
-    return _.isNumber(a) ? a / b : a.div(b);
-  }
-
-  function scalarAdd(a, b) {
-    assert.ok(_.isNumber(b));
-    return _.isNumber(a) ? a + b : a.add(b);
-  }
-
-  function scalarMul(a, b) {
-    assert.ok(_.isNumber(b));
-    return _.isNumber(a) ? a * b : a.mul(b);
-  }
-
-  function scalarDiv(a, b) {
-    assert.ok(_.isNumber(b));
-    return _.isNumber(a) ? a / b : a.div(b);
-  }
-
-  function sqrt(a) {
-    return _.isNumber(a) ? Math.sqrt(a) : a.sqrt();
-  }
 
   Variational.prototype.finish = function() {
 
