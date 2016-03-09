@@ -21,19 +21,29 @@ comments on variational from my explorations (these belong somewhere else):
 -Q: if we use LR with differentiable sampler, do we get reparam? A: no.
 -need to understand what trick yields LR from non-differentiable sampler.
 
--can we relax or enumerate all discrete vars, and then add discrete randomization only at conditionals? i.e. we should only have to incur the variance hit for structure change.
- -is the current method actually correct when there’s structure change?
+- can we relax or enumerate all discrete vars, and then add discrete
+  randomization only at conditionals? i.e. we should only have to
+  incur the variance hit for structure change.
+- is the current method actually correct when there’s structure
+  change?
 
--how can / should we use the VI guide for SMC? get guide params, use in withImportanceDist?
--maybe the core variational routine should just return a parameters / sampler object?
- -arguably variational is not a standalone inference method, but only finds guide params for use in importance sampling, SMC, etc.
--we should probably unify proposers (MH), importance distributions (SMC), and guides (Variational).
+- how can / should we use the VI guide for SMC? get guide params, use
+  in withImportanceDist?
+- maybe the core variational routine should just return a parameters /
+  sampler object?
+- arguably variational is not a standalone inference method, but only
+  finds guide params for use in importance sampling, SMC, etc.
+- we should probably unify proposers (MH), importance distributions
+  (SMC), and guides (Variational).
 
--should make better library for mini-batches / updates to parallel sub-models.
-  -should allow random mini-batch as well as cycling.
-  -the minibatch forEach should take batch size (rather than being global) to facilitate nested batching.
+- should make better library for mini-batches / updates to parallel
+  sub-models.
+  - should allow random mini-batch as well as cycling.
+  - the minibatch forEach should take batch size (rather than being
+    global) to facilitate nested batching.
 
--what does .bind(this) do? it’s all over the code! there must be a clearer way to write these inference loops... macros to the rescue?
+- what does .bind(this) do? it’s all over the code! there must be a
+  clearer way to write these inference loops... macros to the rescue?
 
 -for LDA:
  -need to fix the simplex-edge bug.
@@ -93,9 +103,15 @@ var lda = function(corpus, vocabSize, numTopics, alpha, eta) {
 
   forEach2(corpus, function(doc) {
 
-    //neural guide: use a NN with the word-count vector for the document as input that spits out the props_mu and props_log_sigma for the logisticNormal guide.
-    //a fancy modern way to do this woulld be to convert words to vectors via a (learned) embedding and then use an RNN to build the doc vector from which we get mu and sigma.... not sure this would actually do better than the count-vector method.
-    var docTensor = ad.tensor.reshape({data:doc, length:doc.length},[vocabSize,1])
+    // neural guide: use a NN with the word-count vector for the
+    // document as input that spits out the props_mu and
+    // props_log_sigma for the logisticNormal guide.
+
+    // a fancy modern way to do this woulld be to convert words to
+    // vectors via a (learned) embedding and then use an RNN to build
+    // the doc vector from which we get mu and sigma.... not sure this
+    // would actually do better than the count-vector method.
+    var docTensor = ad.tensor.reshape({data: doc, length: doc.length}, [vocabSize, 1])
     var h = ad.tensor.tanh(ad.tensor.add(ad.tensor.dot(W0, docTensor), b0));
     var mu = ad.tensor.add(ad.tensor.dot(W1, h), b1);
     var log_sigma = ad.tensor.exp(ad.tensor.add(ad.tensor.dot(W2, h), b2));
@@ -115,20 +131,20 @@ var lda = function(corpus, vocabSize, numTopics, alpha, eta) {
     // don't reduce to counts. (working over raw words instead of counts will be necessary if
     // we want to explore topic/sequence models.)
     forEach2(doc,
-      function(count, word) {
+        function(count, word) {
 
-      //note: when in the situation where most docs don't contain most words,
-      //it'll be faster to compute here the marginal score for each observed word.
-      var marginal = Enumerate(function() {
-        var z = sample(discreteERP, [topicDist]);
-        var topic = topics[z];
-        return sample(discreteERP, [topic]);
-      });
+          //note: when in the situation where most docs don't contain most words,
+          //it'll be faster to compute here the marginal score for each observed word.
+          var marginal = Enumerate(function() {
+            var z = sample(discreteERP, [topicDist]);
+            var topic = topics[z];
+            return sample(discreteERP, [topic]);
+          });
 
-      //this version is much faster (and prettier):
-      factor(count*marginal.score([], word));
+          //this version is much faster (and prettier):
+          factor(count * marginal.score([], word));
 
-    });
+        });
 
   });
 

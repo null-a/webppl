@@ -432,7 +432,7 @@ module.exports = function(env) {
         return function() {
           return webpplCpsForEachWithAddresses(s, k, a, arr, add, f, i + 1);
         };
-      }, a.concat('_$$'+add[i]), arr[i]);
+      }, a.concat('_$$' + add[i]), arr[i]);
     }
   }
 
@@ -448,10 +448,10 @@ module.exports = function(env) {
       selectionMethod: 'random'
     });
 
-    var miniBatch=[]
-    var batchAddresses=[]
-    if(options.selectionMethod == 'random'){
-      for(var i=0; i<options.batchSize; i++) {
+    var miniBatch = []
+    var batchAddresses = []
+    if (options.selectionMethod == 'random') {
+      for (var i = 0; i < options.batchSize; i++) {
         var randIndex = Math.floor(Math.random() * arr.length);
         miniBatch.push(arr[randIndex])
         batchAddresses.push(randIndex)
