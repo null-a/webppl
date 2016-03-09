@@ -88,10 +88,6 @@ module.exports = function(env) {
     this.paramNames = Object.create(null); // Set of all param names used.
     this.paramAddressNameMap = Object.create(null); // Maps addresses to names.
 
-    // Maps param names to regularization scaling constant for those
-    // parameters for which regularization is requested.
-    this.regScale = Object.create(null);
-
     return util.cpsLoop(
         this.steps,
         function(i, nextStep) {
@@ -152,12 +148,6 @@ module.exports = function(env) {
                   _.each(this.paramsSeen, function(val, a) {
 
                     var g = ad.derivative(val);
-
-                    // L2 regularization.
-                    if (_.has(this.regScale, a)) {
-                      trace('Computing regularization term for ' + this.paramName(a));
-                      g = generic.add(g, generic.scalarMul(ad.value(val), this.regScale[a]));
-                    }
 
                     if (generic.allZero(g)) {
                       var msg = 'Gradient w.r.t parameter ' + this.paramName(a) + ' is zero';
@@ -322,12 +312,6 @@ module.exports = function(env) {
       var _val = erp.sample(params);
       this.params[a] = _val;
       debug('Initialized parameter ' + this.paramName(a) + ' to ' + _val);
-
-      if (_.has(opts, 'reg')) {
-        assert.ok(opts.reg > 0);
-        this.regScale[a] = opts.reg;
-        debug('Will regularize parameter ' + this.paramName(a) + ' (Scale = ' + opts.reg + ')');
-      }
     } else {
       _val = this.params[a];
       trace('Seen parameter ' + this.paramName(a) + ' before. Value is: ' + _val);
