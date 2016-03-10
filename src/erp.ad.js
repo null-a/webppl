@@ -535,6 +535,32 @@ var discreteERP = new ERP({
   }
 });
 
+
+var discreteOneHotERP = new ERP({
+  sample: function(params) {
+    var ps = params[0];
+    var i = multinomialSample(ps.data);
+    var d = ps.length;
+    var x = new Tensor([d, 1]);
+    x.data[i] = 1;
+    return x;
+  },
+  score: function(params, x) {
+    var ps = params[0];
+    return ad.scalar.log(ad.tensor.sumreduce(ad.tensor.mul(ps, x)));
+  },
+  support: function(params) {
+    var ps = ad.value(params[0]);
+    var d = ps.length;
+    return _.range(d).map(function(i) {
+      var x = new Tensor([d, 1]);
+      x.data[i] = 1;
+      return x;
+    });
+  }
+});
+
+
 var gammaCof = [
   76.18009172947146,
   -86.50532032941677,
@@ -1061,6 +1087,7 @@ module.exports = setErpNames({
   deltaERP: deltaERP,
   dirichletERP: dirichletERP,
   discreteERP: discreteERP,
+  discreteOneHotERP: discreteOneHotERP,
   exponentialERP: exponentialERP,
   gammaERP: gammaERP,
   gaussianERP: gaussianERP,

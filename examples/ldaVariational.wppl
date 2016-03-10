@@ -53,6 +53,12 @@ var softplus = function(z) {
 // approximating dirichlet with delta...
 var erp = { logistic: logistic };
 
+// This is a ridiculously inefficient way to do this.
+var oneHotIndex = function(x) {
+  var d = ad.value(x).length;
+  return ad.tensor.sumreduce(ad.tensor.mul(Vector(_.range(d)), x));
+};
+
 var lda = function(corpus, vocabSize, numTopics, alpha, eta) {
 
   var topics = repeat(numTopics, function() {
