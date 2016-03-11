@@ -114,7 +114,7 @@ var lda = function(corpus, vocabSize, numTopics, alpha, eta) {
     var docTensor = Vector(doc);
     var h = ad.tensor.tanh(ad.tensor.add(ad.tensor.dot(W0, docTensor), b0));
     var mu = ad.tensor.add(ad.tensor.dot(W1, h), b1);
-    var log_sigma = ad.tensor.exp(ad.tensor.add(ad.tensor.dot(W2, h), b2));
+    var log_sigma = ad.tensor.add(ad.tensor.dot(W2, h), b2);
     var q = sampleGuide(logisticNormalERP, [mu, ad.tensor.exp(log_sigma)]);
 
     // //version without the NN guide:
