@@ -85,16 +85,29 @@ var lda = function(corpus, vocabSize, numTopics, alpha, eta) {
     // Note, that this forEach should not use mini-batches.
     forEach2(doc, function(count, word) {
 
-      // TODO: More efficient summing out of z.
-      // Move the factor inside Enumerate. (Need a version of
-      // Enumerate which doesn't normalize? Check math.)
-
       if (count > 0) {
         var marginal = Enumerate(function() {
           var z = sample(discreteERP, [topicDist]);
           var topic = topics[z];
           return sample(discreteERP, [topic]);
         });
+
+        // More efficient summing out of z by moving the factor inside
+        // Enumerate.
+
+        // e.g. On bars2 this reduces run time for 200 steps from
+        // ~8.8s to ~6.7s.
+
+        // This needs a version of Enumerate which doesn't normalize
+        // its result. (Change `normalize` in discribution.ad.js and
+        // remove the check in `makeMarginalERP` in erp.ad.js.)
+
+        // var marginal = Enumerate(function() {
+        //   var z = sample(discreteERP, [topicDist]);
+        //   var topic = topics[z];
+        //   factor(discreteERP.score([topic], word));
+        //   return word;
+        // });
 
         factor(count * marginal.score([], word));
       }
