@@ -111,7 +111,7 @@ var lda = function(corpus, vocabSize, numTopics, alpha, eta) {
     // vectors via a (learned) embedding and then use an RNN to build
     // the doc vector from which we get mu and sigma.... not sure this
     // would actually do better than the count-vector method.
-    var docTensor = ad.tensor.reshape({data: doc, length: doc.length}, [vocabSize, 1])
+    var docTensor = Vector(doc);
     var h = ad.tensor.tanh(ad.tensor.add(ad.tensor.dot(W0, docTensor), b0));
     var mu = ad.tensor.add(ad.tensor.dot(W1, h), b1);
     var log_sigma = ad.tensor.exp(ad.tensor.add(ad.tensor.dot(W2, h), b2));
