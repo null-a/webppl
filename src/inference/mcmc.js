@@ -4,6 +4,7 @@ var _ = require('underscore');
 var util = require('../util');
 var Histogram = require('../aggregation/histogram');
 var MAP = require('../aggregation/map');
+var ad = require('../ad');
 
 module.exports = function(env) {
 
@@ -108,7 +109,8 @@ module.exports = function(env) {
 
   function formatOutput(trace, i) {
     var ratio = (trace.info.accepted / trace.info.total).toFixed(4);
-    return 'Iteration: ' + i + ' | Acceptance ratio: ' + ratio;
+    var score = ad.value(trace.score);
+    return 'Iteration: ' + i + ' | Acceptance ratio: ' + ratio + ' | Score: ' + score;
   }
 
   function makeVMCallbackForPlatform() {
