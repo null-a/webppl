@@ -21,14 +21,14 @@ daipp.vec2dist chooses an importance ERP ad generates its params.
 // dritchie: It's not clear to me why we really need another net here? Why not let the initial
 //    context be the output of val2vec?
 var initNet = nn.mlp(daipp.latentSize, [
-  {nOut: daipp.latentSize, activation: nn.tanh},
-  {nOut: daipp.latentSize}
+  {nOut: daipp.latentSize, activation: nn.tanh}
 ], 'initNet', daipp.debug);
 initNet.setTraining(true)
+
 var initContext = function(data) {
   var dataVec = daipp.val2vec(data)
 
-  var context = daipp.nneval(initNet, dataVec);
+  var context = T.add(dataVec, daipp.nneval(initNet, dataVec));
 
   globalStore.context = context
 
@@ -38,11 +38,14 @@ var initContext = function(data) {
 //A function used to update the context upon getting a sampled (or deterministic) value
 //TODO: make deeper? use GRU / LSTM? ResNet?
 //TODO: take optional name/type to allow different update nets, eg for sample vs deterministic vs return.
-var updateNet = nn.mlp(3*daipp.latentSize, [
-  {nOut: daipp.latentSize, activation: nn.tanh},
-  {nOut: daipp.latentSize}
-], 'updateNet', daipp.debug);
-updateNet.setTraining(true)
+// var updateNet = nn.mlp(3*daipp.latentSize, [
+//   {nOut: daipp.latentSize, activation: nn.tanh},
+//   {nOut: daipp.latentSize}
+// ], 'updateNet', daipp.debug);
+// updateNet.setTraining(true)
+
+// TODO: Update using a similar scheme to init/predict.
+
 var updateContext = function(val) {
   var dataVec = daipp.val2vec(val)
   var address = getRelativeAddress()
@@ -72,23 +75,22 @@ var updateContext = function(val) {
 
 // paul: note that params isn't necessarily an array of reals.
 
-var predictNet = nn.mlp(3*daipp.latentSize, [
-  {nOut: daipp.latentSize, activation: nn.tanh},
-  {nOut: daipp.latentSize}
+var predictNet = nn.mlp(1*daipp.latentSize, [
+  {nOut: daipp.latentSize, activation: nn.tanh}
 ], 'predictNet', daipp.debug);
 predictNet.setTraining(true)
 
 var DAIPPguide = function(ERP, val) {
-  var dataVec = daipp.val2vec(val)
-  var address = getRelativeAddress()
+  //var dataVec = daipp.val2vec(val)
+  //var address = getRelativeAddress()
   //TODO: at the moment the address will be a single string, so val2vec will learn a separate embedding per address. we may want to split the string into an array (of syntax sites); in that case val2vec will use an RNN along the array, making related addresses have related vectors.
-  var addressVec = daipp.val2vec(address)
+  //var addressVec = daipp.val2vec(address)
   // var context = zeros([daipp.latentSize]) //for testing how much the context net matters...
   var context = globalStore.context
 
   //merge the val, context, address together
-  var predictInput = ad.tensor.concat(context, addressVec, dataVec);
-  var predict = daipp.nneval(predictNet, predictInput);
+  //var predictInput = ad.tensor.concat(context, addressVec, dataVec);
+  var predict = T.add(context, daipp.nneval(predictNet, context))
 
   //generate params as appropriate to ERP
   var guide = daipp.vec2dist(predict, ERP)
@@ -105,7 +107,7 @@ var sampleDaipp = function(ERP,opt) {
     // handling of this directly in val2vec at some point.
     var params = daipp.orderedValues(ERP.params);
     var val = sample(ERP, {guide: DAIPPguide(ERP, params)})
-    updateContext(val)
+    //updateContext(val)
     return val
   } else {
     var val = opt.observedVal
