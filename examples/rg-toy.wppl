@@ -1,0 +1,141 @@
+// iterate(5, 0, function(x) { x + 1 });
+// =>
+// [1,2,3,4,5]
+var iterate = function(n, init, f) {
+  if (n === 0) {
+    return [];
+  } else {
+    var val = f(init);
+    return [val].concat(iterate(n - 1, val, f));
+  }
+};
+
+var pp = function(x) { console.log(JSON.stringify(x, null, 2)); };
+
+var bindParams = function(params, f) {
+  return function() {
+    var args = arguments;
+    sample(Infer({method: 'forward', guide: true, params: params}, function() {
+      return apply(f, args);
+    }));
+  };
+};
+
+// state is threaded along the program and contains:
+// i      | the index of the current step
+// ctx    | the guide hidden state/context
+// val    | sampled value
+// p      | parameter of guided Bernoulli
+var initialState = {i: 0, ctx: 0, val: undefined, p: undefined};
+
+// This captures the general structure of the recurrent guide for a
+// single coin flip. This is the core of the model.
+var makeStepFn = function(guide) {
+  return function(state) {
+    var predict = guide('predict'), update = guide('update'), embed = guide('embed');
+
+    var p = predict(state);
+
+    var val = sample(Bernoulli({p: .5}), {
+      guide: Bernoulli({p: p})
+    });
+
+    var ctx = update(state, embed(val));
+
+    return {
+      i: state.i + 1,
+      ctx: ctx,
+      val: val,
+      p: ad.value(p)
+    };
+  };
+};
+
+// A guide architecture is specified by a function like this. (Written
+// in a funny way since we can't call wppl functions using member
+// expressions.)
+var blah = function(m) {
+  return ({
+    predict: function() {
+    },
+    update: function() {
+    },
+    embed: function() {
+    }
+  })[m];
+};
+
+// A mean-field guide.
+var mf = function(m) {
+  return ({
+    predict: function(state) {
+      return Math.sigmoid(param({name: 'p' + state.i}));
+    },
+    update: constF(0),
+    embed: idF
+  })[m];
+};
+
+
+// A simple guide to capture the correlation.
+
+// Observation: As well as capturing the correlation, this also
+// appears to approximate the intermediate choices better then mean
+// field.
+
+var simple = function(m) {
+  return ({
+    predict: function(state) {
+      // The predict function is a linear function of the context,
+      // appropriately squished, with per choice parameters.
+      var i = state.i;
+      var w = param({name: 'w' + i});
+      var b = param({name: 'b' + i});
+      return Math.sigmoid(w * state.ctx + b);
+    },
+    update: function(state, v) {
+      // At the first step, stick the (embedded) value into the
+      // context. (We know this is sufficient for this problem.)
+      return state.i === 0 ? v : state.ctx;
+    },
+    embed: function(val) {
+      return val ? 1 : 0; // Q: How does different embeddings (e.g. .5,-.5) affect optimization?
+    }
+  })[m];
+};
+
+// This specifies the version of the guide we run below.
+var guide = simple;
+
+var model = function() {
+  var steps = iterate(5, initialState, makeStepFn(guide));
+  // Condition
+  // Exact posterior:
+  // [false,true]  : 0.4762870634112165
+  // [true,false]  : 0.4762870634112165
+  // [false,false] : 0.023712936588783384
+  // [true,true]   : 0.023712936588783384
+  var firstVal = first(steps).val;
+  var lastVal = last(steps).val;
+  factor(firstVal !== lastVal ? 0 : -3);
+  return [firstVal, lastVal];
+};
+
+var params = Optimize(model, {steps: 20000, optMethod: {adam: {stepSize: 0.01}}});
+pp(params);
+// TODO: Pretty print parameters.
+
+var m = Infer({method: 'forward', params: params, guide: true, samples: 1000}, model);
+display(m.print());
+
+var fakeit = bindParams(params, function(val) {
+  var predict = guide('predict'), update = guide('update'), embed = guide('embed');
+  // Pretend we sampled val at the first choice, and then run the
+  // guide from there.
+  var ctx = update(initialState, embed(val));
+  var state = {i: 1, ctx: ctx, val: val, p: '<dummy>'};
+  return [state].concat(iterate(4, state, makeStepFn(guide)));
+});
+
+display(fakeit(true));
+display(fakeit(false));
