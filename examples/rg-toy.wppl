@@ -32,7 +32,7 @@ var bindParams = function(params, f) {
   return function() {
     var args = arguments;
     sample(Infer({method: 'forward', guide: true, params: params}, function() {
-      return apply(f, args);
+      return ad.valueRec(apply(f, args));
     }));
   };
 };
