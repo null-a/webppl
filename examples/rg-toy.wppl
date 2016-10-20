@@ -313,8 +313,63 @@ var simple4 = dict({
 
 
 
-// TODO: Implement the strategy currently used by daipp. How does that
-// compare to this?
+// This is (an approximation to) the strategy current implemented by
+// daipp.
+
+// Observation: This doesn't seem to do much unless I switch the
+// hidden layer of predictMlp from sigmoid to tanh. (I made the same
+// observation in another setting above.) Why does this happen?
+
+// Observation: The way this appears to solve the problem is by
+// setting up an oscillation in the context.
+
+// TODO: Try some variations of this model to see whether these guides
+// can find solutions to those too.
+
+// TODO: How does this compare to some of the versions above.
+
+var predictDaipp = function(state) {
+  // 1. daipp has the option of taking in the parameters of the prior
+  // distribution which we don't do here since they are always .5
+  // anyway.
+  //
+  // 2. The position plays the role of address.
+  //
+  // 3. The final layer that outputs the probability is analogous to
+  // the net build by vec2dist.
+  //
+  // Actually, is this just:
+  return predictMlp(state);
+};
+
+var updateDaipp = function(state, v) {
+  // v is embedded value.
+  //
+  // 1. daipp embeds the address (position here)
+  //
+  // 2. Concatenates embedded address, embedded val and context.
+  //
+  // 3. Generates a new context from that RNN style. i.e linear map +
+  // p.w. non-linearity.
+  var i = state.i;
+  var pos = param({name: 'update_pos' + i});
+  var ctx = state.ctx;
+
+  return Math.tanh(
+    pos * param({name: 'update_w1'}) +
+    v * param({name: 'update_w2'}) +
+    ctx * param({name: 'update_w3'}) +
+    param({name: 'update_b'}));
+};
+
+var daipp = dict({
+  predict: predictDaipp,
+  update: updateDaipp,
+  embed: function(val) {
+    return val ? 1 : 0;
+  }
+});
+
 
 // TODO: What's the delta between what we're doing here and GRU/LSTM
 // for context update?
@@ -330,7 +385,7 @@ var simple4 = dict({
 
 // This specifies the version of the guide we run below.
 var len = 5;
-var guide = simple4;
+var guide = daipp;
 
 var model = function() {
   var steps = iterate(len, initialState, makeStepFn(guide));
