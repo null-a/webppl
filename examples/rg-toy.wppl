@@ -300,6 +300,25 @@ var simple4 = dict({
   }
 });
 
+// Q: One question to ask is how long can the program get before we
+// stop been able to optimize this simple guide? If I increase the
+// length to 10, then optimization can still find a good solution, but
+// I had to run for ~100K steps.
+
+// Observation: If I just add the previous context to the value
+// returned by updateWithVal then optimization can find good solutions
+// to long sequences much more quickly. This is a little unsatisfying
+// as the context gets very large, but is perhaps evidence that skip
+// connections can help here.
+
+
+
+// TODO: Implement the strategy currently used by daipp. How does that
+// compare to this?
+
+// TODO: What's the delta between what we're doing here and GRU/LSTM
+// for context update?
+
 // TODO: Squishing state. (How does this interact with gates vs. mlp
 // for predict?)
 
@@ -310,10 +329,11 @@ var simple4 = dict({
 
 
 // This specifies the version of the guide we run below.
+var len = 5;
 var guide = simple4;
 
 var model = function() {
-  var steps = iterate(5, initialState, makeStepFn(guide));
+  var steps = iterate(len, initialState, makeStepFn(guide));
   // Condition
   // Exact posterior:
   // [false,true]  : 0.4762870634112165
@@ -338,7 +358,7 @@ var fakeit = bindParams(params, function(val) {
   // guide from there.
   var ctx = update(initialState, embed(val));
   var state = {i: 1, ctx: ctx, val: val, p: null};
-  return [state].concat(iterate(4, state, makeStepFn(guide)));
+  return [state].concat(iterate(len - 1, state, makeStepFn(guide)));
 });
 
 var formatStep = function(step) {
