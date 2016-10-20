@@ -128,6 +128,12 @@ var simple = dict({
 // incorporated into the state. Note that the previous guide is just a
 // special case of this, where w=1 and b=0.
 
+var updateLin = function(state, v) {
+  var w = param({name: 'w_up'});
+  var b = param({name: 'b_up'});
+  return state.i === 0 ? v : w * state.ctx + b;
+};
+
 // Observation: This change introduces more sensitivity to the choice
 // of learning rate. The previous guide usually optimizes OK with a
 // step size of 0.1, this usually doesn't.
@@ -139,18 +145,115 @@ var simple = dict({
 
 var simple2 = dict({
   predict: predictLinSigPerChoice,
-  update: function(state, v) {
-    var w = param({name: 'w_up'});
-    var b = param({name: 'b_up'});
-    return state.i === 0 ? v : w * state.ctx + b;
-  },
+  update: updateLin,
+  embed: function(val) {
+    return val ? 1 : 0;
+  }
+});
+
+// Now we share weights across choices in the predict function.
+// Previously, the predict for each intermediate choice could ignore
+// the guide (with w=0) and predict 0.5.
+
+// Note that just adding weight sharing (as in predictLinSig below)
+// does not allow posterior to be captured accurately.
+
+var predictLinSig = function(state) {
+  var i = state.i;
+  var w = param({name: 'w'});
+  var b = param({name: 'b'});
+  return Math.sigmoid(w * state.ctx + b);
+};
+
+// One way you can imagine fixing this is to try to allow the
+// intermediate choices to ignore the state.
+
+// (Another, not explored here, might be to have a non-linear update
+// function that can approximately count. This might be able to keep
+// the state roughly constat for the intermediate choices, and then
+// modify it before the final choice. This would still benefit from a
+// richer predict function though, as you'd want to map the two
+// contexts that encode the inital choice to the same prediction.)
+
+// The question then is, what function will allow the context to be
+// ignored base on the current position?
+
+// One option is to have a little 2 layer MLP that takes as input the
+// context and an embedding of the current position.
+
+var predictMlp = function(state) {
+  var i = state.i;
+  var ctx = state.ctx;
+  var pos = param({name: 'pos'+i});
+  var h1 = Math.sigmoid(ctx * param({name: 'wp11'}) + param({name: 'wp12'}) * pos + param({name: 'bp1'}));
+  var h2 = Math.sigmoid(ctx * param({name: 'wp21'}) + param({name: 'wp22'}) * pos + param({name: 'bp2'}));
+  return Math.sigmoid(param({name: 'vp1'}) * h1 + param({name: 'vp2'}) * h2 + param({name: 'cp1'}));
+};
+
+// (Note that the shallow version of this, sigmoid(pos + w * ctx + b)
+// does not work, since pos and ctx can't interact in the required
+// way. Which is kinda multiplicatively?)
+
+// This works nicely, though I'm not entirely clear *what* the MLP
+// ends up implementing here. My guess is that rather than learning to
+// *ignore* the context, it learns to map both of the two contexts it
+// encounters to 0.5.
+
+// Observation: This is interesting because it feels like we'd really
+// rather learn to ignore the context here. I'm guessing that with the
+// MLP all parts of the guide are interconnected in complicated what
+// that (1) maybe tricky to learn and (2) might not generalize well.
+// If the guide for the intermediate choices could become disconnected
+// from the context then we can have independent guide fragments for
+// those, and the context part only has to handle capturing the
+// correlation.
+
+// With that in mind, we can try using a gate to make the option to
+// ignore the context within easy reach of optimization. This is a
+// very simple gate: if open we predict from the context, if its
+// closed we predict 0.5. This is fine for this model, but would need
+// to be generalized for other models.
+
+// Q: How can we keep the guide flexible if it ignores the context. We
+// don't really want to have lots of mean field parameters available
+// just in case. Perhaps the general version of this to vector valued
+// contexts is to allow predict to ignore *parts* of the context.
+// Parts of the context might carry information about previous choices
+// which can be ignored, while the part of the context encoding the
+// current datum is used for a prediction. Having a way that the
+// predict function can avoid having to handle variation in irrelevant
+// parts of the context might still be useful?
+
+// Q: How does optimization progress compare across mlp vs. gated?
+
+// Observation: A guide optimized with the gated version tends to use
+// less extreme values for the context compared to the MLP version.
+// The final value of the context might have magnitude ~10 rather than
+// ~200.
+
+var predictBasicGate = function(state) {
+  var i = state.i;
+  var ctx = state.ctx;
+  // Per choice gate.
+  var pos = param({name: 'pos'+i});
+  var gate = Math.sigmoid(pos);
+  // Predict from context.
+  var w = param({name: 'w'});
+  var b = param({name: 'b'});
+  return Math.sigmoid(gate * (w * state.ctx + b));
+};
+
+var simple3 = dict({
+  predict: predictBasicGate,
+  //predict: predictMlp,
+  update: updateLin,
   embed: function(val) {
     return val ? 1 : 0;
   }
 });
 
 // This specifies the version of the guide we run below.
-var guide = simple2;
+var guide = simple3;
 
 var model = function() {
   var steps = iterate(5, initialState, makeStepFn(guide));
