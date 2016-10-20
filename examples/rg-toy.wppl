@@ -252,6 +252,18 @@ var simple3 = dict({
   }
 });
 
+
+// TODO: Squishing state. (How does this interact with gates vs. mlp
+// for predict?)
+
+// TODO: Incorporate observations into update state. (Gates here too?)
+
+// TODO: Initializing update to be the identity helps when we tell the
+// model that to put in the context, since this is the "right" answer.
+// What's the equivalent of this when there is squishing and the model
+// has to learn what to add to the context?
+
+
 // This specifies the version of the guide we run below.
 var guide = simple3;
 
@@ -299,3 +311,7 @@ var ppSteps = function(steps) { pp(map(formatStep, steps)); };
 
 ppSteps(fakeit(true));
 ppSteps(fakeit(false));
+
+
+//var f = bindParams(params, predictGated);
+//f({i: 3, ctx: 1})
