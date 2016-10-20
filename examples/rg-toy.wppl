@@ -253,10 +253,55 @@ var simple3 = dict({
 });
 
 
+// Here we add flexibility to the way in which sampled vales are added
+// to the context, removing the current strategy of adding the
+// important random choice explicitly.
+
+// How should this work? The obvious first thing to try is to set
+// things up such that it's clear the guide can mimic the current
+// hand-coded thing. To that end, we have a per choice gate that
+// decides whether to pass on the current context or use the sampled
+// value.
+
+var updateWithVal = function(state, v) {
+  // v is the embedded value.
+  var i = state.i;
+  var g = Math.sigmoid(param({name: 'g_up' + i}));
+  return g * v + (1 - g) * state.ctx; // note, always in [0,1] with embed of t=>1, f=>0.
+};
+
+// This works reliably when paired with predictBasicGate.
+
+// Observation: When paired with predictMlp, this almost always fails
+// to find the optimal solution. Interestingly predictMlp continues to
+// fail when a suitable strategy for setting the context (to either 0
+// or 1) is hand-coded. Note that updateWithVal only ever sets the
+// state to between zero and one because of the embedding and form of
+// the update. It appears that the success of predictMlp strongly
+// depends on update increasing the magnitude of the context at each
+// step. i.e. As implemented by updateLin.
+
+// Observation: Switching predictMlp to use tanh rather than sigmoid
+// appears to make it work *much* more reliably. (I've only seen
+// sigmoid work twice, and I've only seen tanh *not* work once.)
+
+// TODO: It would be good to understand exactly why sigmoid is so
+// tricky to optimize here.
+
+var simple4 = dict({
+  //predict: predictMlp,
+  predict: predictBasicGate,
+  update: updateWithVal,
+  // update: function(state, v) {
+  //  return state.i === 0 ? v : state.ctx;
+  // },
+  embed: function(val) {
+    return val ? 1 : 0;
+  }
+});
+
 // TODO: Squishing state. (How does this interact with gates vs. mlp
 // for predict?)
-
-// TODO: Incorporate observations into update state. (Gates here too?)
 
 // TODO: Initializing update to be the identity helps when we tell the
 // model that to put in the context, since this is the "right" answer.
@@ -265,7 +310,7 @@ var simple3 = dict({
 
 
 // This specifies the version of the guide we run below.
-var guide = simple3;
+var guide = simple4;
 
 var model = function() {
   var steps = iterate(5, initialState, makeStepFn(guide));
