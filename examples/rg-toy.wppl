@@ -324,9 +324,18 @@ var simple4 = dict({
 // setting up an oscillation in the context.
 
 // TODO: Try some variations of this model to see whether these guides
-// can find solutions to those too.
+// can find solutions to those too. One simple thing to do is to have
+// both the last and second last choices (anti)correlated with the
+// first choice. At first glance, this appears to defeat the current
+// daipp guide. (Even with tanh.) The version of this where the one of
+// the last two is correlated and the other is anti-correlated defeats
+// simple4.
 
-// TODO: How does this compare to some of the versions above.
+// TODO: Another thing to try could be to have the last choice be a
+// (noisy/soft) function of the first two choices. So instead of
+// "not(val[0])", things like "xor(val[0], val[1])".
+
+// TODO: How does this perform compared to some of the versions above.
 
 var predictDaipp = function(state) {
   // 1. daipp has the option of taking in the parameters of the prior
@@ -406,7 +415,10 @@ ppp(params);
 
 var m = Infer({method: 'forward', params: params, guide: true, samples: 1000}, model);
 display(m.print());
+//display(Infer({method: 'enumerate'}, model).print());
 
+// TODO: Generalize this so that I can specify an array of initial
+// choices that are fixed.
 var fakeit = bindParams(params, function(val) {
   var predict = guide('predict'), update = guide('update'), embed = guide('embed');
   // Pretend we sampled val at the first choice, and then run the
