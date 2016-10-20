@@ -123,9 +123,34 @@ var simple = dict({
   }
 });
 
+// Now consider allowing the guide the flexibility to alter the
+// context after each choice. We don't yet allow sampled values to be
+// incorporated into the state. Note that the previous guide is just a
+// special case of this, where w=1 and b=0.
+
+// Observation: This change introduces more sensitivity to the choice
+// of learning rate. The previous guide usually optimizes OK with a
+// step size of 0.1, this usually doesn't.
+
+// Observation: I've not seen this learn that identity for updates.
+// Instead, w is always no zero causing the magnitude of the context
+// to increase during execution. When w is negative, this sets up an
+// oscillation in the context.
+
+var simple2 = dict({
+  predict: predictLinSigPerChoice,
+  update: function(state, v) {
+    var w = param({name: 'w_up'});
+    var b = param({name: 'b_up'});
+    return state.i === 0 ? v : w * state.ctx + b;
+  },
+  embed: function(val) {
+    return val ? 1 : 0;
+  }
+});
 
 // This specifies the version of the guide we run below.
-var guide = simple;
+var guide = simple2;
 
 var model = function() {
   var steps = iterate(5, initialState, makeStepFn(guide));
