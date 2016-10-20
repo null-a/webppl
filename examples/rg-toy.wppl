@@ -12,6 +12,22 @@ var iterate = function(n, init, f) {
 
 var pp = function(x) { console.log(JSON.stringify(x, null, 2)); };
 
+var isSingleton = function(t) { return t.dims.length === 1 && t.dims[0] === 1; };
+
+// Extract a simple name => value mapping from the webppl params
+// object.
+var extractParams = function(params) {
+  return _.object(map(function(pair) {
+    assert.ok(pair[1].length === 1, 'Cannot handle multiple parameters per name.');
+    var name = pair[0];
+    var val = ad.value(pair[1][0]);
+    return [name, isSingleton(val) ? ad.tensor.get(val, 0) : val];
+  }, _.pairs(params)));
+};
+
+// Pretty print parameters.
+var ppp = function(params) { pp(extractParams(params)); };
+
 var bindParams = function(params, f) {
   return function() {
     var args = arguments;
@@ -122,8 +138,7 @@ var model = function() {
 };
 
 var params = Optimize(model, {steps: 20000, optMethod: {adam: {stepSize: 0.01}}});
-pp(params);
-// TODO: Pretty print parameters.
+ppp(params);
 
 var m = Infer({method: 'forward', params: params, guide: true, samples: 1000}, model);
 display(m.print());
