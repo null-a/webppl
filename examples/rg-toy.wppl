@@ -98,19 +98,21 @@ var mf = dict({
 
 // A simple guide to capture the correlation.
 
+var predictLinSigPerChoice = function(state) {
+  // The predict function is a linear function of the context,
+  // appropriately squished, with per choice parameters.
+  var i = state.i;
+  var w = param({name: 'w' + i});
+  var b = param({name: 'b' + i});
+  return Math.sigmoid(w * state.ctx + b);
+};
+
 // Observation: As well as capturing the correlation, this also
 // appears to approximate the intermediate choices better then mean
 // field.
 
 var simple = dict({
-  predict: function(state) {
-    // The predict function is a linear function of the context,
-    // appropriately squished, with per choice parameters.
-    var i = state.i;
-    var w = param({name: 'w' + i});
-    var b = param({name: 'b' + i});
-    return Math.sigmoid(w * state.ctx + b);
-  },
+  predict: predictLinSigPerChoice,
   update: function(state, v) {
     // At the first step, stick the (embedded) value into the
     // context. (We know this is sufficient for this problem.)
