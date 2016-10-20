@@ -150,9 +150,22 @@ var fakeit = bindParams(params, function(val) {
   // Pretend we sampled val at the first choice, and then run the
   // guide from there.
   var ctx = update(initialState, embed(val));
-  var state = {i: 1, ctx: ctx, val: val, p: '<dummy>'};
+  var state = {i: 1, ctx: ctx, val: val, p: null};
   return [state].concat(iterate(4, state, makeStepFn(guide)));
 });
 
-display(fakeit(true));
-display(fakeit(false));
+var formatStep = function(step) {
+  var padNonNeg = function(s) { return s[0] === '-' ? s : ' '.concat(s); };
+  var pad = function(n, s) { return s.length >= n ? s : s.concat(' '.repeat(n - s.length)); };
+  return [
+    'i ', step.i,
+    ' | p ', step.p === null ? pad(8, '*') : step.p.toFixed(6),
+    ' | val ', pad(5, step.val.toString()),
+    ' | ctx ', padNonNeg(ad.value(step.ctx).toFixed(6))
+  ].join('');
+};
+
+var ppSteps = function(steps) { pp(map(formatStep, steps)); };
+
+ppSteps(fakeit(true));
+ppSteps(fakeit(false));
