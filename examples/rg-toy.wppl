@@ -37,6 +37,14 @@ var bindParams = function(params, f) {
   };
 };
 
+// Make a dictionary type object where look up uses function
+// application rather than member expression.
+var dict = function(obj) {
+  return function(key) {
+    return obj[key];
+  };
+};
+
 // state is threaded along the program and contains:
 // i      | the index of the current step
 // ctx    | the guide hidden state/context
@@ -70,28 +78,23 @@ var makeStepFn = function(guide) {
 // A guide architecture is specified by a function like this. (Written
 // in a funny way since we can't call wppl functions using member
 // expressions.)
-var blah = function(m) {
-  return ({
-    predict: function() {
-    },
-    update: function() {
-    },
-    embed: function() {
-    }
-  })[m];
-};
+var blah = dict({
+  predict: function() {
+  },
+  update: function() {
+  },
+  embed: function() {
+  }
+});
 
 // A mean-field guide.
-var mf = function(m) {
-  return ({
-    predict: function(state) {
-      return Math.sigmoid(param({name: 'p' + state.i}));
-    },
-    update: constF(0),
-    embed: idF
-  })[m];
-};
-
+var mf = dict({
+  predict: function(state) {
+    return Math.sigmoid(param({name: 'p' + state.i}));
+  },
+  update: constF(0),
+  embed: idF
+});
 
 // A simple guide to capture the correlation.
 
@@ -99,26 +102,25 @@ var mf = function(m) {
 // appears to approximate the intermediate choices better then mean
 // field.
 
-var simple = function(m) {
-  return ({
-    predict: function(state) {
-      // The predict function is a linear function of the context,
-      // appropriately squished, with per choice parameters.
-      var i = state.i;
-      var w = param({name: 'w' + i});
-      var b = param({name: 'b' + i});
-      return Math.sigmoid(w * state.ctx + b);
-    },
-    update: function(state, v) {
-      // At the first step, stick the (embedded) value into the
-      // context. (We know this is sufficient for this problem.)
-      return state.i === 0 ? v : state.ctx;
-    },
-    embed: function(val) {
-      return val ? 1 : 0; // Q: How does different embeddings (e.g. .5,-.5) affect optimization?
-    }
-  })[m];
-};
+var simple = dict({
+  predict: function(state) {
+    // The predict function is a linear function of the context,
+    // appropriately squished, with per choice parameters.
+    var i = state.i;
+    var w = param({name: 'w' + i});
+    var b = param({name: 'b' + i});
+    return Math.sigmoid(w * state.ctx + b);
+  },
+  update: function(state, v) {
+    // At the first step, stick the (embedded) value into the
+    // context. (We know this is sufficient for this problem.)
+    return state.i === 0 ? v : state.ctx;
+  },
+  embed: function(val) {
+    return val ? 1 : 0; // Q: How does different embeddings (e.g. .5,-.5) affect optimization?
+  }
+});
+
 
 // This specifies the version of the guide we run below.
 var guide = simple;
