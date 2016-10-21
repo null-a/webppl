@@ -51,7 +51,7 @@ var formatStep = function(step) {
   return [
     'i ', step.i,
     ' | p ', step.p === null ? pad(8, '*') : step.p.toFixed(6),
-    ' | val ', pad(5, step.val.toString()),
+    ' | val ', pad(10, step.val.toString()),
     ' | ctx ', padNonNeg(step.ctx.toFixed(6))
   ].join('');
 };
@@ -442,15 +442,23 @@ var m = Infer({method: 'forward', params: params, guide: true, samples: 1000}, m
 display(m.print());
 //display(Infer({method: 'enumerate'}, model).print());
 
-// TODO: Generalize this so that I can specify an array of initial
-// choices that are fixed.
-var fakeit = bindParams(params, function(val) {
+var fakeit = bindParams(params, function() {
+  var initialVals = arguments;
   var predict = guide('predict'), update = guide('update'), embed = guide('embed');
-  // Pretend we sampled val at the first choice, and then run the
-  // guide from there.
-  var ctx = update(initialState, embed(val));
-  var state = {i: 1, ctx: ctx, val: val, p: null};
-  return [state].concat(iterate(len - 1, state, makeStepFn(guide)));
+  // Pretend we sampled initialVals at the first initalVals.length
+  // choices, then run the guide from there.
+  var initialSteps = iterate(initialVals.length, initialState, function(state) {
+    var val = initialVals[state.i];
+    var p = predict(state);
+    var ctx = update(state, embed(val));
+    return {
+      i: state.i + 1,
+      ctx: ctx,
+      val: val + ' (*)',
+      p: p
+    };
+  });
+  return initialSteps.concat(iterate(len - initialSteps.length, last(initialSteps), makeStepFn(guide)));
 });
 
 ppSteps(fakeit(true));
