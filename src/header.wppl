@@ -150,6 +150,14 @@ var entropy = function(dist) {
   return dist.entropy();
 };
 
+var kl = function(p, q) {
+  return expectation(p, function(x) {
+    var logp = p.score(x);
+    var logq = q.score(x);
+    return logp === -Infinity ? 0 : logp - logq;
+  });
+};
+
 // Data structures & higher-order functions
 
 var append = function(a, b) {
