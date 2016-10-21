@@ -26,7 +26,7 @@ var extractParams = function(params) {
 };
 
 // Pretty print parameters.
-var ppp = function(params) { pp(extractParams(params)); };
+var ppParams = function(params) { pp(extractParams(params)); };
 
 var bindParams = function(params, f) {
   return function() {
@@ -436,7 +436,7 @@ var model = function() {
 };
 
 var params = Optimize(model, {steps: 20000, optMethod: {adam: {stepSize: 0.01}}});
-ppp(params);
+ppParams(params);
 
 var m = Infer({method: 'forward', params: params, guide: true, samples: 1000}, model);
 display(m.print());
