@@ -52,7 +52,7 @@ var formatStep = function(step) {
     'i ', step.i,
     ' | p ', step.p === null ? pad(8, '*') : step.p.toFixed(6),
     ' | val ', pad(5, step.val.toString()),
-    ' | ctx ', padNonNeg(ad.value(step.ctx).toFixed(6))
+    ' | ctx ', padNonNeg(step.ctx.toFixed(6))
   ].join('');
 };
 
@@ -83,7 +83,7 @@ var makeStepFn = function(guide) {
       i: state.i + 1,
       ctx: ctx,
       val: val,
-      p: ad.value(p)
+      p: p
     };
   };
 };
