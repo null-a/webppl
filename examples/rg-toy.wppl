@@ -306,9 +306,6 @@ var updateWithVal = function(state, v) {
 // (I've only seen sigmoid work twice, and I've only seen tanh *not*
 // work once.)
 
-// TODO: It would be good to understand exactly why sigmoid is so
-// tricky to optimize here.
-
 var simple4 = dict({
   //predict: predictMlpSigmoid,
   //predict: predictMlpTanh,
@@ -340,7 +337,13 @@ var simple4 = dict({
 
 // Observation: This doesn't seem to do much unless I switch the
 // hidden layer of predictMlp from sigmoid to tanh. (I made the same
-// observation in another setting above.) Why does this happen?
+// observation in another setting above. Though here, tanh is also
+// fairly unreliably.) Changing the embedding from 0,1 to -.5,.5 looks
+// like it might help a little.
+
+// TODO: It would be good to understand exactly why sigmoid is so
+// tricky to optimize here. (Or in the case above.)
+
 
 // Observation: The way this appears to solve the problem is by
 // setting up an oscillation in the context.
