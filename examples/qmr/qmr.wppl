@@ -1,0 +1,58 @@
+// var graph = JSON.parse(fs.read('examples/qmr-graph.json'));
+
+var graph = {
+  diseases: [{p: .5}, {p: .5}],
+  symptoms: [
+    {leakProb: 0.001, parents: [{i: 0, p: .9}, {i: 1, p: .1}]},
+    {leakProb: 0.001, parents: [{i: 0, p: .9}, {i: 1, p: .1}]}
+  ]
+};
+
+//console.log(JSON.stringify(graph, null, 2));
+
+var noisyOrProb = function(node, diseases) {
+  var pFalse = (1 - node.leakProb) * product(map(function(parent) {
+    return diseases[parent.i] ? (1 - parent.p) : 1;
+  }, node.parents));
+  return 1 - pFalse;
+};
+
+var model = function() {
+  var diseases = map(function(node) {
+    return sample(Bernoulli({p: node.p}));
+  }, graph.diseases);
+
+  var symptoms = map2(function(node, val) {
+    observe(Bernoulli({p: noisyOrProb(node, diseases)}), val);
+    //return sample(Bernoulli({p: noisyOrProb(node, diseases)}));
+  }, graph.symptoms, [false, true]);
+
+  return {
+    diseases: diseases,
+    //symptoms: symptoms
+  };
+};
+
+var q = Infer({
+  method: 'optimize',
+  samples: 10000,
+  steps: 10000,
+  optMethod: {adam: {stepSize: 0.01}}
+}, function() {
+  var obj = model();
+  //condition(!obj.symptoms[0] && obj.symptoms[1]);
+  return obj.diseases;
+});
+
+var p = Enumerate(function() {
+  var obj = model();
+  //condition(!obj.symptoms[0] && obj.symptoms[1]);
+  return obj.diseases;
+});
+
+display('p');
+display(p.print());
+display('q');
+display(q.print());
+
+kl(q,p);
