@@ -194,14 +194,21 @@ var predictLinSig = function(state) {
 // One option is to have a little 2 layer MLP that takes as input the
 // context and an embedding of the current position.
 
-var predictMlp = function(state) {
+var predictMlp = function(state, nonlinearfn) {
+  assert.ok(nonlinearfn, 'Non-linear function not given.');
   var i = state.i;
   var ctx = state.ctx;
   var pos = param({name: 'pos'+i});
-  var h1 = Math.sigmoid(ctx * param({name: 'wp11'}) + param({name: 'wp12'}) * pos + param({name: 'bp1'}));
-  var h2 = Math.sigmoid(ctx * param({name: 'wp21'}) + param({name: 'wp22'}) * pos + param({name: 'bp2'}));
+  var h1 = nonlinearfn(ctx * param({name: 'wp11'}) + param({name: 'wp12'}) * pos + param({name: 'bp1'}));
+  var h2 = nonlinearfn(ctx * param({name: 'wp21'}) + param({name: 'wp22'}) * pos + param({name: 'bp2'}));
   return Math.sigmoid(param({name: 'vp1'}) * h1 + param({name: 'vp2'}) * h2 + param({name: 'cp1'}));
 };
+
+var sigmoid = function(x) { return Math.sigmoid(x); };
+var tanh = function(x) { return Math.tanh(x); };
+
+var predictMlpSigmoid = function(state) { return predictMlp(state, sigmoid); };
+var predictMlpTanh = function(state) { return predictMlp(state, tanh); };
 
 // (Note that the shallow version of this, sigmoid(pos + w * ctx + b)
 // does not work, since pos and ctx can't interact in the required
@@ -258,7 +265,7 @@ var predictBasicGate = function(state) {
 
 var simple3 = dict({
   predict: predictBasicGate,
-  //predict: predictMlp,
+  //predict: predictMlpSigmoid,
   update: updateLin,
   embed: function(val) {
     return val ? 1 : 0;
@@ -285,24 +292,26 @@ var updateWithVal = function(state, v) {
 
 // This works reliably when paired with predictBasicGate.
 
-// Observation: When paired with predictMlp, this almost always fails
-// to find the optimal solution. Interestingly predictMlp continues to
-// fail when a suitable strategy for setting the context (to either 0
-// or 1) is hand-coded. Note that updateWithVal only ever sets the
-// state to between zero and one because of the embedding and form of
-// the update. It appears that the success of predictMlp strongly
-// depends on update increasing the magnitude of the context at each
-// step. i.e. As implemented by updateLin.
+// Observation: When paired with predictMlpSigmoid, this almost always
+// fails to find the optimal solution. Interestingly predictMlp
+// continues to fail when a suitable strategy for setting the context
+// (to either 0 or 1) is hand-coded. Note that updateWithVal only ever
+// sets the state to between zero and one because of the embedding and
+// form of the update. It appears that the success of predictMlp
+// strongly depends on update increasing the magnitude of the context
+// at each step. i.e. As implemented by updateLin.
 
-// Observation: Switching predictMlp to use tanh rather than sigmoid
-// appears to make it work *much* more reliably. (I've only seen
-// sigmoid work twice, and I've only seen tanh *not* work once.)
+// Observation: Switching to predictMlpTanh (rather than
+// predictMlpSigmoid) appears to make it work *much* more reliably.
+// (I've only seen sigmoid work twice, and I've only seen tanh *not*
+// work once.)
 
 // TODO: It would be good to understand exactly why sigmoid is so
 // tricky to optimize here.
 
 var simple4 = dict({
-  //predict: predictMlp,
+  //predict: predictMlpSigmoid,
+  //predict: predictMlpTanh,
   predict: predictBasicGate,
   update: updateWithVal,
   // update: function(state, v) {
@@ -361,7 +370,7 @@ var predictDaipp = function(state) {
   // the net build by vec2dist.
   //
   // Actually, is this just:
-  return predictMlp(state);
+  return predictMlpTanh(state);
 };
 
 var updateDaipp = function(state, v) {
