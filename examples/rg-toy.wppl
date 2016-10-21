@@ -453,5 +453,26 @@ var fakeit = bindParams(params, function(val) {
 ppSteps(fakeit(true));
 ppSteps(fakeit(false));
 
-//var f = bindParams(params, predictGated);
-//f({i: 3, ctx: 1})
+// var ctxrange = map(function(x) { x / 10; }, _.range(10+1));
+// var optPredict = bindParams(params, guide('predict'));
+// display(map(function(ctx) { return optPredict({i: 1, ctx: ctx}); }, ctxrange));
+// display(map(function(ctx) { return optPredict({i: 2, ctx: ctx}); }, ctxrange));
+// display(map(function(ctx) { return optPredict({i: 3, ctx: ctx}); }, ctxrange));
+// display(map(function(ctx) { return optPredict({i: 4, ctx: ctx}); }, ctxrange));
+
+// var optUpdate = bindParams(params, guide('update'));
+// display('i=0');
+// display(optUpdate({i: 0, ctx: 0}, guide('embed')(true)));
+// display(optUpdate({i: 0, ctx: 0}, guide('embed')(false)));
+// display('i=1');
+// display(map(function(ctx) { return optUpdate({i: 1, ctx: ctx }, guide('embed')(true)); }, ctxrange));
+// display(map(function(ctx) { return optUpdate({i: 1, ctx: ctx }, guide('embed')(false)); }, ctxrange));
+// display('i=2');
+// display(map(function(ctx) { return optUpdate({i: 2, ctx: ctx }, guide('embed')(true)); }, ctxrange));
+// display(map(function(ctx) { return optUpdate({i: 2, ctx: ctx }, guide('embed')(false)); }, ctxrange));
+// display('i=3');
+// display(map(function(ctx) { return optUpdate({i: 3, ctx: ctx }, guide('embed')(true)); }, ctxrange));
+// display(map(function(ctx) { return optUpdate({i: 3, ctx: ctx }, guide('embed')(false)); }, ctxrange));
+// display('i=4');
+// display(map(function(ctx) { return optUpdate({i: 4, ctx: ctx }, guide('embed')(true)); }, ctxrange));
+// display(map(function(ctx) { return optUpdate({i: 4, ctx: ctx }, guide('embed')(false)); }, ctxrange));
