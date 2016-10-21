@@ -214,8 +214,8 @@ var predictMlp = function(state) {
 
 // Observation: This is interesting because it feels like we'd really
 // rather learn to ignore the context here. I'm guessing that with the
-// MLP all parts of the guide are interconnected in complicated what
-// that (1) maybe tricky to learn and (2) might not generalize well.
+// MLP all parts of the guide are interconnected in complicated ways
+// that (1) may be tricky to learn and (2) might not generalize well.
 // If the guide for the intermediate choices could become disconnected
 // from the context then we can have independent guide fragments for
 // those, and the context part only has to handle capturing the
@@ -229,7 +229,7 @@ var predictMlp = function(state) {
 
 // Q: How can we keep the guide flexible if it ignores the context. We
 // don't really want to have lots of mean field parameters available
-// just in case. Perhaps the general version of this to vector valued
+// just in case. Perhaps the generalization of this to vector valued
 // contexts is to allow predict to ignore *parts* of the context.
 // Parts of the context might carry information about previous choices
 // which can be ignored, while the part of the context encoding the
@@ -266,8 +266,8 @@ var simple3 = dict({
 });
 
 
-// Here we add flexibility to the way in which sampled vales are added
-// to the context, removing the current strategy of adding the
+// Here we add flexibility to the way in which sampled values are
+// added to the context, removing the current strategy of adding the
 // important random choice explicitly.
 
 // How should this work? The obvious first thing to try is to set
