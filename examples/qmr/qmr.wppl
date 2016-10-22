@@ -17,6 +17,19 @@ var noisyOrProb = function(node, diseases) {
   return 1 - pFalse;
 };
 
+// TODO: Thought - it's unclear to me how to evaluate this in a way
+// that will distinguish between mean field and a richer guide.
+// (Comparing "true" latents with samples from optimized guide doesn't
+// see like it will work. If there are two explanations in the true
+// posterior, mean-field will sometimes find the right one because of
+// mode seeking, and the structure posterior will onyly sometimes find
+// it because it might sample from either mode.) As an alternative,
+// can we compute the probability the guide assigns to the "true"
+// latents by exploiting the sequentiality? Predict, check score of
+// "true" val, pretend "true" val was samples, predict, etc.? The
+// problem then is, one of the problems with optimizing the ELBo is
+// over confidence, which complicates this comparison.
+
 var model = function() {
   var diseases = map(function(node) {
     return sample(Bernoulli({p: node.p}));
