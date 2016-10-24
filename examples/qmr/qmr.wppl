@@ -81,11 +81,6 @@ var updateDaipp = function(state, v) {
 };
 
 var daipp = dict({
-  predict: predictDaipp,
-  update: updateDaipp,
-  embed: function(val) {
-    return val ? 1 : 0;
-  },
   init: function(obs) {
     //return 0;
     // obs are embedded observations.
@@ -96,10 +91,18 @@ var daipp = dict({
     var w2 = param({name: 'init_w2'});
     var b = param({name: 'init_b'});
     return Math.tanh(o1 * w1 + o2 * w2 + b);
+  },
+  predict: predictDaipp,
+  update: updateDaipp,
+  embed: function(val) {
+    return val ? 1 : 0;
   }
 });
 
 var mf = dict({
+  init: function() {
+    return 0;
+  },
   predict: function(state) {
     var i = state.i;
     return Math.sigmoid(param({name: 'p' + i}));
@@ -109,9 +112,6 @@ var mf = dict({
   },
   embed: function(val) {
     return val ? 1 : 0;
-  },
-  init: function() {
-    return 0;
   }
 });
 
