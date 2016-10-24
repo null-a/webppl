@@ -99,6 +99,17 @@ var daipp = dict({
   update: updateDaipp,
   embed: function(val) {
     return val ? 1 : 0;
+  },
+  init: function(obs) {
+    //return 0;
+    // obs are embedded observations.
+    assert.ok(obs.length === 2, 'init assumes there are 2 observations.');
+    var o1 = obs[0];
+    var o2 = obs[1];
+    var w1 = param({name: 'init_w1'});
+    var w2 = param({name: 'init_w2'});
+    var b = param({name: 'init_b'});
+    return Math.tanh(o1 * w1 + o2 * w2 + b);
   }
 });
 
@@ -112,19 +123,25 @@ var mf = dict({
   },
   embed: function(val) {
     return val ? 1 : 0;
+  },
+  init: function() {
+    return 0;
   }
 });
 
-var guide = mf;
-//var guide = daipp;
+//var guide = mf;
+var guide = daipp;
+var predict = guide('predict'),
+    update = guide('update'),
+    embed = guide('embed'),
+    init = guide('init');
 
-var model = function() {
+var model = function(observations) {
+
   var steps = iterate(
     graph.diseases.length,
-    {i: 0, ctx: 0}, // Initial state.
+    {i: 0, ctx: init(map(embed, observations))}, // Initial state.
     function(state) {
-      var predict = guide('predict'), update = guide('update'), embed = guide('embed');
-
       var p = predict(state);
 
       var val = sample(Bernoulli({p: graph.diseases[state.i].p}), {
@@ -144,28 +161,41 @@ var model = function() {
   var diseases = _.pluck(steps, 'val');
   var symptoms = map2(function(node, val) {
     observe(Bernoulli({p: noisyOrProb(node, diseases)}), val);
-  }, graph.symptoms, [false, true]);
+  }, graph.symptoms, observations);
 
   return {diseases: diseases};
 };
 
+// Optimize the guide on a subset of possible observations.
+var params = Optimize(function() {
+  model([false, true]);
+  model([true, false]);
+  model([false, false]);
+}, {steps: 10000, optMethod: {adam: {stepSize: 0.01}}});
 
-var q = Infer({
-  method: 'optimize',
-  samples: 10000,
-  steps: 10000,
-  optMethod: {adam: {stepSize: 0.01}}
-}, function() {
-  return model().diseases;
-});
+var klToExactPosterior = function(observations, params) {
+  var q = Infer({
+    method: 'forward',
+    samples: 1000,
+    guide: true,
+    params: params
+  }, function() {
+    return model(observations).diseases;
+  });
+  var p = Infer({method: 'enumerate'}, function() {
+    return model(observations).diseases;
+  });
+  return kl(q,p);
+};
 
-var p = Enumerate(function() {
-  return model().diseases;
-});
-
-display('p');
-display(p.print());
-display('q');
-display(q.print());
-
-kl(q,p);
+display(map(function(obs) {
+  return {
+    kl: klToExactPosterior(obs, params),
+    obs: obs
+  };
+}, [
+  [false, true],
+  [true, false],
+  [false, false],
+  [true, true] // Not optimized for.
+]));
