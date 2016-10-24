@@ -17,20 +17,6 @@ var noisyOrProb = function(node, diseases) {
   return 1 - pFalse;
 };
 
-// TODO: Thought - it's unclear to me how to evaluate this in a way
-// that will distinguish between mean field and a richer guide.
-// (Comparing "true" latents with samples from optimized guide doesn't
-// see like it will work. If there are two explanations in the true
-// posterior, mean-field will sometimes find the right one because of
-// mode seeking, and the structure posterior will onyly sometimes find
-// it because it might sample from either mode.) As an alternative,
-// can we compute the probability the guide assigns to the "true"
-// latents by exploiting the sequentiality? Predict, check score of
-// "true" val, pretend "true" val was samples, predict, etc.? The
-// problem then is, one of the problems with optimizing the ELBo is
-// over confidence, which complicates this comparison.
-
-
 var _model = function() {
   var diseases = map(function(node) {
     return sample(Bernoulli({p: node.p}));
@@ -172,6 +158,30 @@ var params = Optimize(function() {
   model([true, false]);
   model([false, false]);
 }, {steps: 10000, optMethod: {adam: {stepSize: 0.01}}});
+
+// TODO: How do we evaluate this when we can no longer compute the
+// exact posterior?
+
+// Q: When exactly are we trying to evaluate? The ability of the guide
+// to capture correllations, how well the guide generalized to
+// observations not directly optimized for?
+
+// It's unclear to me what makes a good proxy for something like kl.
+
+// Comparing "true" latents with samples from the optimized guide
+// doesn't seem like it would distinguish between the two approaches
+// when there are two equally good explanations/modes in the true
+// posterior.
+
+// Mean field might get this right about half the time (when it locks
+// onto the "correct" mode) and the recurrent guide might get it right
+// about half the time when it samples from the correct mode.
+
+// We might try compute the score of the "true" latents under the
+// approximate posterior, but the problem here is that if optimization
+// has locked onto the "correct" mode, then it will over estimate the
+// score relative to the true posterior. So higher score isn't better
+// here.
 
 var klToExactPosterior = function(observations, params) {
   var q = Infer({
