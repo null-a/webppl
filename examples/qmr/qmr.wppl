@@ -30,7 +30,8 @@ var noisyOrProb = function(node, diseases) {
 // problem then is, one of the problems with optimizing the ELBo is
 // over confidence, which complicates this comparison.
 
-var model = function() {
+
+var _model = function() {
   var diseases = map(function(node) {
     return sample(Bernoulli({p: node.p}));
   }, graph.diseases);
@@ -46,21 +47,120 @@ var model = function() {
   };
 };
 
+var iterate = function(n, init, f) {
+  if (n === 0) {
+    return [];
+  } else {
+    var val = f(init);
+    return [val].concat(iterate(n - 1, val, f));
+  }
+};
+
+var dict = function(obj) {
+  return function(key) {
+    return obj[key];
+  };
+};
+
+var predictMlp = function(state, nonlinearfn) {
+  assert.ok(nonlinearfn, 'Non-linear function not given.');
+  var i = state.i;
+  var ctx = state.ctx;
+  var pos = param({name: 'pos'+i});
+  var h1 = nonlinearfn(ctx * param({name: 'wp11'}) + param({name: 'wp12'}) * pos + param({name: 'bp1'}));
+  var h2 = nonlinearfn(ctx * param({name: 'wp21'}) + param({name: 'wp22'}) * pos + param({name: 'bp2'}));
+  return Math.sigmoid(param({name: 'vp1'}) * h1 + param({name: 'vp2'}) * h2 + param({name: 'cp1'}));
+};
+
+var sigmoid = function(x) { return Math.sigmoid(x); };
+var tanh = function(x) { return Math.tanh(x); };
+
+var predictMlpSigmoid = function(state) { return predictMlp(state, sigmoid); };
+var predictMlpTanh = function(state) { return predictMlp(state, tanh); };
+
+var predictDaipp = function(state) {
+  return predictMlpTanh(state);
+};
+
+var updateDaipp = function(state, v) {
+  var i = state.i;
+  var pos = param({name: 'update_pos' + i});
+  var ctx = state.ctx;
+
+  return Math.tanh(
+    pos * param({name: 'update_w1'}) +
+    v * param({name: 'update_w2'}) +
+    ctx * param({name: 'update_w3'}) +
+    param({name: 'update_b'}));
+};
+
+var daipp = dict({
+  predict: predictDaipp,
+  update: updateDaipp,
+  embed: function(val) {
+    return val ? 1 : 0;
+  }
+});
+
+var mf = dict({
+  predict: function(state) {
+    var i = state.i;
+    return Math.sigmoid(param({name: 'p' + i}));
+  },
+  update: function(state, v) {
+    return state.ctx;
+  },
+  embed: function(val) {
+    return val ? 1 : 0;
+  }
+});
+
+var guide = mf;
+//var guide = daipp;
+
+var model = function() {
+  var steps = iterate(
+    graph.diseases.length,
+    {i: 0, ctx: 0}, // Initial state.
+    function(state) {
+      var predict = guide('predict'), update = guide('update'), embed = guide('embed');
+
+      var p = predict(state);
+
+      var val = sample(Bernoulli({p: graph.diseases[state.i].p}), {
+        guide: Bernoulli({p: p})
+      });
+
+      var ctx = update(state, embed(val));
+
+      return {
+        i: state.i + 1,
+        ctx: ctx,
+        val: val
+        // p: p
+      };
+    });
+
+  var diseases = _.pluck(steps, 'val');
+  var symptoms = map2(function(node, val) {
+    observe(Bernoulli({p: noisyOrProb(node, diseases)}), val);
+  }, graph.symptoms, [false, true]);
+
+  return {diseases: diseases};
+};
+
+
 var q = Infer({
   method: 'optimize',
   samples: 10000,
   steps: 10000,
   optMethod: {adam: {stepSize: 0.01}}
 }, function() {
-  var obj = model();
-  //condition(!obj.symptoms[0] && obj.symptoms[1]);
-  return obj.diseases;
+  return model().diseases;
 });
 
 var p = Enumerate(function() {
-  var obj = model();
-  //condition(!obj.symptoms[0] && obj.symptoms[1]);
-  return obj.diseases;
+  return model().diseases;
 });
 
 display('p');
