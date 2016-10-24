@@ -209,3 +209,20 @@ display(map(function(obs) {
   [false, false],
   [true, true] // Not optimized for.
 ]));
+
+// Before optimization there is distance between the guide and true
+// posterior for all possible observations.
+
+// [ { kl: 0.9037423466514625, obs: [ false, true ] },
+//   { kl: 0.9205977261711624, obs: [ true, false ] },
+//   { kl: 1.4619992171834526, obs: [ false, false ] },
+//   { kl: 4.188901291858791, obs: [ true, true ] } ]
+
+// After optimization, the guide is very close to the true posterior
+// for the observations optimized for. It's also closer than it was to
+// the true posterior for an observation *not* directly optimized for.
+
+// [ { kl: 0.0010352020561353679, obs: [ false, true ] },
+//   { kl: 0.0009561009665033128, obs: [ true, false ] },
+//   { kl: 0.0012572534343594875, obs: [ false, false ] },
+//   { kl: 1.1999742812475505, obs: [ true, true ] } ]
