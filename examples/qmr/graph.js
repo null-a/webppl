@@ -43,9 +43,9 @@ function sampleQmr(opts) {
 
 
 var qmr = sampleQmr({
-  numDiseases: 3,
-  numSymptoms: 3,
-  numParentsRange: [1, 3],
+  numDiseases: 10,
+  numSymptoms: 10,
+  numParentsRange: [2, 5],
   baseProbRange: [0, .1],
   leakProbRange: [0, .05],
   condProbRange: [0, .7]

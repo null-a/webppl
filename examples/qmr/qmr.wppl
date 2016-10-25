@@ -1,12 +1,13 @@
-// var graph = JSON.parse(fs.read('examples/qmr-graph.json'));
+// var graph = {
+//   diseases: [{p: .5}, {p: .5}],
+//   symptoms: [
+//     {leakProb: 0.001, parents: [{i: 0, p: .9}, {i: 1, p: .1}]},
+//     {leakProb: 0.001, parents: [{i: 0, p: .9}, {i: 1, p: .1}]}
+//   ]
+// };
 
-var graph = {
-  diseases: [{p: .5}, {p: .5}],
-  symptoms: [
-    {leakProb: 0.001, parents: [{i: 0, p: .9}, {i: 1, p: .1}]},
-    {leakProb: 0.001, parents: [{i: 0, p: .9}, {i: 1, p: .1}]}
-  ]
-};
+// Requires webppl-fs package.
+var graph = JSON.parse(fs.read('examples/qmr/10x10.json'));
 
 //console.log(JSON.stringify(graph, null, 2));
 
@@ -15,22 +16,6 @@ var noisyOrProb = function(node, diseases) {
     return diseases[parent.i] ? (1 - parent.p) : 1;
   }, node.parents));
   return 1 - pFalse;
-};
-
-var _model = function() {
-  var diseases = map(function(node) {
-    return sample(Bernoulli({p: node.p}));
-  }, graph.diseases);
-
-  var symptoms = map2(function(node, val) {
-    observe(Bernoulli({p: noisyOrProb(node, diseases)}), val);
-    //return sample(Bernoulli({p: noisyOrProb(node, diseases)}));
-  }, graph.symptoms, [false, true]);
-
-  return {
-    diseases: diseases,
-    //symptoms: symptoms
-  };
 };
 
 var iterate = function(n, init, f) {
@@ -122,8 +107,7 @@ var predict = guide('predict'),
     embed = guide('embed'),
     init = guide('init');
 
-var model = function(observations) {
-
+var sampleLatents = function(observations) {
   var steps = iterate(
     graph.diseases.length,
     {i: 0, ctx: init(map(embed, observations))}, // Initial state.
@@ -136,28 +120,118 @@ var model = function(observations) {
 
       var ctx = update(state, embed(val));
 
-      return {
-        i: state.i + 1,
-        ctx: ctx,
-        val: val
-        // p: p
-      };
+      return {i: state.i + 1, ctx: ctx, val: val};
     });
 
   var diseases = _.pluck(steps, 'val');
+  return diseases;
+};
+
+var model = function(observations) {
+  assert.ok(observations.length === 0 ||
+            observations.length === graph.symptoms.length);
+  var diseases = sampleLatents(observations);
   var symptoms = map2(function(node, val) {
     observe(Bernoulli({p: noisyOrProb(node, diseases)}), val);
   }, graph.symptoms, observations);
-
-  return {diseases: diseases};
+  return {diseases: diseases, symptoms: symptoms};
 };
 
-// Optimize the guide on a subset of possible observations.
+var klToExactPosterior = function(observations, params, n) {
+  var q = Infer({
+    method: 'forward',
+    samples: n,
+    guide: true,
+    params: params
+  }, function() {
+    return model(observations).diseases;
+  });
+  var p = Infer({method: 'enumerate'}, function() {
+    return model(observations).diseases;
+  });
+  return kl(q,p);
+};
+
+var indicesWhereTrue = function(arr) {
+  return filter(function(i) {
+    return i >= 0;
+  }, mapIndexed(function(i, x) {
+    return x ? i : -1;
+  }, arr));
+};
+
+// **************************************************
+
+// Uses the 10x10 graph.
+
+var obs = repeat(9, falseF).concat(true);
+
 var params = Optimize(function() {
-  model([false, true]);
-  model([true, false]);
-  model([false, false]);
+  model(obs);
 }, {steps: 10000, optMethod: {adam: {stepSize: 0.01}}});
+
+// The 10 most probable configurations of the latents (showing the
+// indices of latents set to true) from the true posterior are:
+
+// [6]   : 0.309387091638377
+// [9]   : 0.2427410042844149
+// []    : 0.17942893122248812
+// [5]   : 0.08695470509940276
+// [3]   : 0.06173520610128723
+// [6,9] : 0.01983404311986202
+// [7]   : 0.012722005258345694
+// [2,6] : 0.00930207069644313
+// [3,6] : 0.008623134532906822
+
+// With this observation the posterior has the property that it's
+// likely to be caused by either this or that, or be a false alarm.
+
+// A case where there are 2 observed symptoms (i.e. obs[3], obs[4] in
+// the case i tried) also has a similar structure.
+
+display(klToExactPosterior(obs, params, 10000));
+
+Infer({method: 'forward', samples: 10000, guide: true, params: params}, function() {
+  return indicesWhereTrue(model(obs).diseases);
+});
+
+// mean field
+// kl 0.2662361693680813
+// []      : 0.4014          overly confident the patient is well...
+// [6]     : 0.2096
+// [9]     : 0.1167
+// [6,9]   : 0.0588
+// [5]     : 0.0424
+// [3]     : 0.031
+// [5,6]   : 0.0184
+// [2]     : 0.0148
+// [3,6]   : 0.014
+// [5,9]   : 0.0108
+// [3,9]   : 0.0096
+// [2,6]   : 0.0076
+// [3,6,9] : 0.0054
+// [5,6,9] : 0.0054
+// [7]     : 0.005
+
+// daipp (no init. as we only have one observation)
+// kl 0.05529032700329285
+// [6]     : 0.3233
+// [9]     : 0.2541
+// []      : 0.1547
+// [5]     : 0.0969
+// [3]     : 0.0752
+// [6,9]   : 0.0277
+// [2]     : 0.0131
+// [7]     : 0.013
+// [5,9]   : 0.0066
+// [3,9]   : 0.0058
+// [8]     : 0.0046
+// [0]     : 0.0045
+// [5,6]   : 0.0037
+// [3,6]   : 0.0021
+// [4]     : 0.002
+
+// **************************************************
 
 // TODO: How do we evaluate this when we can no longer compute the
 // exact posterior?
@@ -183,32 +257,26 @@ var params = Optimize(function() {
 // score relative to the true posterior. So higher score isn't better
 // here.
 
-var klToExactPosterior = function(observations, params) {
-  var q = Infer({
-    method: 'forward',
-    samples: 1000,
-    guide: true,
-    params: params
-  }, function() {
-    return model(observations).diseases;
-  });
-  var p = Infer({method: 'enumerate'}, function() {
-    return model(observations).diseases;
-  });
-  return kl(q,p);
-};
+// **************************************************
 
-display(map(function(obs) {
-  return {
-    kl: klToExactPosterior(obs, params),
-    obs: obs
-  };
-}, [
-  [false, true],
-  [true, false],
-  [false, false],
-  [true, true] // Not optimized for.
-]));
+// Optimize the guide on a subset of possible observations.
+// var params = Optimize(function() {
+//   model([false, true]);
+//   model([true, false]);
+//   model([false, false]);
+// }, {steps: 10000, optMethod: {adam: {stepSize: 0.01}}});
+
+// display(map(function(obs) {
+//   return {
+//     kl: klToExactPosterior(obs, params, 1000),
+//     obs: obs
+//   };
+// }, [
+//   [false, true],
+//   [true, false],
+//   [false, false],
+//   [true, true] // Not optimized for.
+// ]));
 
 // Before optimization there is distance between the guide and true
 // posterior for all possible observations.
