@@ -138,6 +138,8 @@ var model = function(observations) {
 };
 
 var klToExactPosterior = function(observations, params, n) {
+  // TODO: It would be nice to not have to sample here. A global
+  // parameter store make enumerating guides easier I think.
   var q = Infer({
     method: 'forward',
     samples: n,
@@ -231,27 +233,38 @@ Infer({method: 'forward', samples: 10000, guide: true, params: params}, function
 // [3,6]   : 0.0021
 // [4]     : 0.002
 
+// Q: Is this guide able to achieve kl=0 if given enough time?
+
+// Q: Try optimizing for some subset of observations and seeing if the
+// guide generalizes. Using samples from the model might not be a good
+// idea since (as Andreas pointed out) these will often be all false.
+// Consider all observations where a single symptom, or pairs of
+// symptoms are observed, or subsets of those?
+
 // **************************************************
 
-// TODO: How do we evaluate this when we can no longer compute the
-// exact posterior?
-
 // Q: When exactly are we trying to evaluate? The ability of the guide
-// to capture correllations, how well the guide generalized to
-// observations not directly optimized for?
+// to capture correlations, how well the guide generalized to
+// observations not directly optimized for? How quickly we can do
+// inference for a new observation starting from a guide optimized for
+// other observations?
 
-// It's unclear to me what makes a good proxy for something like kl.
+// Q: How do we evaluate this when we can no longer compute the exact
+// posterior?
+
+// It would be sensible to evaluate any candidate metric on small
+// problems so we can check that it is in fact a good proxy for kl or
+// whatever we're interested in.
 
 // Comparing "true" latents with samples from the optimized guide
-// doesn't seem like it would distinguish between the two approaches
-// when there are two equally good explanations/modes in the true
-// posterior.
-
-// Mean field might get this right about half the time (when it locks
-// onto the "correct" mode) and the recurrent guide might get it right
+// doesn't seem like it would distinguish between mean
+// field/structured guide. Imagine the case where there are two
+// equally good explanations/modes in the true posterior. Mean field
+// might get the latents right about half the time (when it locks onto
+// the "correct" mode) and the recurrent guide might get it right
 // about half the time when it samples from the correct mode.
 
-// We might try compute the score of the "true" latents under the
+// We might try to compute the score of the "true" latents under the
 // approximate posterior, but the problem here is that if optimization
 // has locked onto the "correct" mode, then it will over estimate the
 // score relative to the true posterior. So higher score isn't better
