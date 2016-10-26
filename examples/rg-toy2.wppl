@@ -84,6 +84,53 @@ var mf = dict({
   update: constF(0)
 });
 
+// ----------------------------------------------------------------------
+
+// This is similar to the guide in the webppl-daipp package.
+
+var predictMlp = function(state, nonlinearfn) {
+  assert.ok(nonlinearfn, 'Non-linear function not given.');
+  var i = state.i;
+  var ctx = state.ctx;
+  var pos = param({name: 'pos' + i});
+  var h1 = nonlinearfn(ctx * param({name: 'wp11'}) + param({name: 'wp12'}) * pos + param({name: 'bp1'}));
+  var h2 = nonlinearfn(ctx * param({name: 'wp21'}) + param({name: 'wp22'}) * pos + param({name: 'bp2'}));
+  return Math.sigmoid(param({name: 'vp1'}) * h1 + param({name: 'vp2'}) * h2 + param({name: 'cp1'}));
+};
+
+var sigmoid = function(x) { return Math.sigmoid(x); };
+var tanh = function(x) { return Math.tanh(x); };
+
+var predictMlpSigmoid = function(state) { return predictMlp(state, sigmoid); };
+var predictMlpTanh = function(state) { return predictMlp(state, tanh); };
+
+var daippUpdate = function(state, embededVal) {
+  // daipp does the following:
+  // 1. embeds the address (position here)
+  // 2. Concatenates embedded address, embedded val and context.
+  // 3. Generates a new context from that RNN style. i.e linear map +
+  // p.w. non-linearity.
+  var i = state.i;
+  var pos = param({name: 'daipp_update_pos' + i});
+  var ctx = state.ctx;
+
+  return Math.tanh(
+    pos * param({name: 'daipp_update_w1'}) +
+      embededVal * param({name: 'daipp_update_w2'}) +
+      ctx * param({name: 'daipp_update_w3'}) +
+      param({name: 'daipp_update_b'}));
+};
+
+var daipp = function(nonlinearfn) {
+  return dict({
+    embed: boolToInt,
+    predict: function(state) {
+      return predictMlp(state, nonlinearfn);
+    },
+    update: daippUpdate
+  });
+};
+
 // ======================================================================
 
 var pp = function(obj) {
@@ -204,4 +251,6 @@ var runTest = function(task, n, guide) {
   ppinspect([false], task, n, guide, params);
 };
 
-runTest(notTask, 5, mf);
+//runTest(notTask, 5, mf);
+runTest(notTask, 5, daipp(tanh));
+runTest(notTask, 5, daipp(sigmoid));
