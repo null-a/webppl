@@ -1,0 +1,207 @@
+// // A series of toy problems to test how well guide architectures are
+// // able to capture simple patterns of dependency between binary
+// // variable.
+
+// // A guide is specified like so:
+
+// var sampleGuide = dict({
+//   embed: function() {},
+//   predict: function() {},
+//   update: function() {}
+// });
+
+// // Each task is set in a model where there are n independent binary
+// // variables in the prior. Each task induces dependencies between the
+// // first 1 or 2 variables samples (which we view as inputs) and the
+// // last 1 or 2 variables (which we view as outputs). The guides job is
+// // to capture the correct input/output behavior. The intermediary
+// // variables serve only to increase the length of the path along which
+// // information must be passed.
+
+// // If problems show up optimizing guides here, then it seems unlikely
+// // they'll be useful generally?
+
+// // TODO: I should probably have the intermediary variables be
+// // independent, but with different probability from the prior so that
+// // the guide has to do *something*.
+
+// var sampleTask = function(vals) {
+//   assert.ok(vals.length >= 2);
+//   // The 'not' task. The guide should learn a noisy logical not. i.e.
+//   // input and output should be anti-correlated in the posterior.
+//   var input = first(vals);
+//   var output = last(vals);
+//   factor(input !== output ? 0 : -3);
+//   return [input, output]; // The posterior is a marginal on this.
+// };
+
+// // TODO: Describe how to see what a guide is computing.
+
+// // To optimize a guide for task:
+// var params = opt(task, n, guide);
+
+// // To compare posterior to exact posterior.
+// var cmp = compare(task, n, guide, params);
+// cmp('kl')() // compute kl divergence
+// cmp('posteriors')() // print full posteriors
+
+// // To inspect the computation performed by the guide for a given
+// // 'input'.
+// inspect(input, task, n, guide, params);
+
+// ======================================================================
+// Tasks
+// ----------------------------------------------------------------------
+
+var notTask = function(vals) {
+  assert.ok(vals.length >= 2);
+  var input = first(vals);
+  var output = last(vals);
+  factor(input !== output ? 0 : -3);
+  return [input, output];
+};
+
+// ======================================================================
+
+var dict = function(obj) {
+  return function(key) {
+    return obj[key];
+  };
+};
+
+var boolToInt = function(b) { return b ? 1 : 0; };
+
+// ======================================================================
+// Guides
+// ----------------------------------------------------------------------
+
+var mf = dict({
+  embed: idF,
+  predict: function(state) {
+    var i = state.i;
+    return Math.sigmoid(param({name: 'p' + i}));
+  },
+  update: constF(0)
+});
+
+// ======================================================================
+
+var pp = function(obj) {
+  return display(JSON.stringify(obj, null, 2));
+};
+
+var formatStep = function(step) {
+  var padNonNeg = function(s) { return s[0] === '-' ? s : ' '.concat(s); };
+  var pad = function(n, s) { return s.length >= n ? s : s.concat(' '.repeat(n - s.length)); };
+  return [
+    'i ', step.i,
+    ' | p ', step.p === null ? pad(8, '*') : step.p.toFixed(6),
+    ' | val ', pad(10, step.val.toString()),
+    ' | ctx ', padNonNeg(step.ctx.toFixed(6))
+  ].join('');
+};
+
+var ppSteps = function(steps) { pp(map(formatStep, steps)); };
+
+var bindParams = function(params, f) {
+  return function() {
+    var args = arguments;
+    sample(Infer({method: 'forward', guide: true, params: params}, function() {
+      return ad.valueRec(apply(f, args));
+    }));
+  };
+};
+
+var iterate = function(n, init, f) {
+  if (n === 0) {
+    return [];
+  } else {
+    var val = f(init);
+    return [val].concat(iterate(n - 1, val, f));
+  }
+};
+
+var step = function(guide, state, maybeVal) {
+  var embed = guide('embed'),
+      predict = guide('predict'),
+      update = guide('update');
+
+  var p = predict(state);
+
+  var val = (maybeVal !== undefined) ?
+      maybeVal :
+      sample(Bernoulli({p: .5}), {guide: Bernoulli({p: p})});
+
+  var ctx = update(state, embed(val));
+
+  return {i: state.i + 1, ctx: ctx, val: val, p: p};
+};
+
+var prior = function(task, n, guide, maybeVals) {
+  var vals = maybeVals !== undefined ? maybeVals : [];
+  var initialState = {i: 0, ctx: 0};
+  return iterate(n, initialState, function(state) {
+    return step(guide, state, vals[state.i]);
+  });
+};
+
+var model = function(task, n, guide) {
+  var steps = prior(task, n, guide);
+  return task(_.pluck(steps, 'val'));
+};
+
+var opt = function(task, n, guide) {
+  return Optimize(function() {
+    return model(task, n, guide);
+  }, {
+    steps: 10000,
+    optMethod: {adam: {stepSize: .01}}
+  });
+};
+
+var compare = function(task, n, guide, params) {
+  var p = Infer({
+    method: 'enumerate'
+  }, function() {
+    model(task, n, guide);
+  });
+  var q = Infer({
+    samples: 1000,
+    method: 'forward',
+    guide: true,
+    params: params
+  }, function() {
+    model(task, n, guide);
+  });
+  return dict({
+    kl: function() {
+      return kl(q,p);
+    },
+    posteriors: function() {
+      return [
+        'Exact:',
+        p.print(),
+        'Approx:',
+        q.print()
+      ].join('\n');
+    }
+  });
+};
+
+var inspect = function(input, task, n, guide, params) {
+  var run = bindParams(params, prior);
+  return run(task, n, guide, input);
+};
+
+var ppinspect = function() { ppSteps(apply(inspect, arguments)); };
+
+var runTest = function(task, n, guide) {
+  var params = opt(task, n, guide);
+  var cmp = compare(task, n, guide, params);
+  display(cmp('posteriors')());
+  display('kl: ' + cmp('kl')());
+  ppinspect([true], task, n, guide, params);
+  ppinspect([false], task, n, guide, params);
+};
+
+runTest(notTask, 5, mf);
