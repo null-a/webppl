@@ -131,6 +131,36 @@ var daipp = function(nonlinearfn) {
   });
 };
 
+// ----------------------------------------------------------------------
+
+// Simple gated predict and update functions.
+
+// TODO: Fix that this can only predict .5 if the gate is closed.
+var predictSimpleGate = function(state) {
+  var i = state.i;
+  var ctx = state.ctx;
+  // Per choice gate.
+  var pos = param({name: 'sg_pos' + i});
+  var gate = Math.sigmoid(pos);
+  // Predict from context.
+  var w = param({name: 'sg_w'});
+  var b = param({name: 'sg_b'});
+  return Math.sigmoid(gate * (w * state.ctx + b));
+};
+
+var updateSimpleGate = function(state, embededVal) {
+  var i = state.i;
+  var g = Math.sigmoid(param({name: 'sg_update' + i}));
+  // note, always in {0,1} when embed fn is boolToInt.
+  return g * embededVal + (1 - g) * state.ctx;
+};
+
+var simpleGated = dict({
+  embed: boolToInt,
+  predict: predictSimpleGate,
+  update: updateSimpleGate
+});
+
 // ======================================================================
 
 var pp = function(obj) {
@@ -254,3 +284,4 @@ var runTest = function(task, n, guide) {
 //runTest(notTask, 5, mf);
 runTest(notTask, 5, daipp(tanh));
 runTest(notTask, 5, daipp(sigmoid));
+runTest(notTask, 5, simpleGated);
