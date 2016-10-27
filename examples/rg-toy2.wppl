@@ -180,24 +180,26 @@ var daipp = function(a) {
 // TODO: Fix that this can only predict .5 if the gate is closed.
 var predictSimpleGate = function(state) {
   var i = state.i;
-  var ctx = state.ctx;
+  var ctx = T.get(state.ctx, 0);
   // Per choice gate.
   var pos = param({name: 'sg_pos' + i});
   var gate = Math.sigmoid(pos);
   // Predict from context.
   var w = param({name: 'sg_w'});
   var b = param({name: 'sg_b'});
-  return Math.sigmoid(gate * (w * state.ctx + b));
+  return Math.sigmoid(gate * (w * ctx + b));
 };
 
 var updateSimpleGate = function(state, embededVal) {
   var i = state.i;
+  var ctx = T.get(state.ctx, 0);
   var g = Math.sigmoid(param({name: 'sg_update' + i}));
   // note, always in {0,1} when embed fn is boolToInt.
-  return g * embededVal + (1 - g) * state.ctx;
+  return Vector([g * embededVal + (1 - g) * ctx]);
 };
 
 var simpleGated = dict({
+  initialCtx: zeros([1, 1]),
   embed: boolToInt,
   predict: predictSimpleGate,
   update: updateSimpleGate
@@ -326,6 +328,6 @@ var runTest = function(task, n, guide) {
 };
 
 //runTest(notTask, 5, mf);
-runTest(notTask, 5, daipp({ctxdim: 1, hdim: 2}));
+//runTest(notTask, 5, daipp({ctxdim: 1, hdim: 2}));
 //runTest(notTask, 5, daipp(sigmoid));
-//runTest(notTask, 5, simpleGated);
+runTest(notTask, 5, simpleGated);
