@@ -77,12 +77,13 @@ var boolToVec = function(b) { return Vector([boolToInt(b)]); };
 // ----------------------------------------------------------------------
 
 var mf = dict({
+  initialCtx: zeros([1, 1]),
   embed: idF,
   predict: function(state) {
     var i = state.i;
     return Math.sigmoid(param({name: 'p' + i}));
   },
-  update: constF(0)
+  update: constF(zeros([1, 1]))
 });
 
 // ----------------------------------------------------------------------
