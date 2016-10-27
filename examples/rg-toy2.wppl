@@ -61,6 +61,50 @@ var notTask = function(vals) {
   return [input, output];
 };
 
+var binaryLogicTask = function(f) {
+  return function(vals) {
+    assert.ok(vals.length >= 3);
+    var input0 = vals[0];
+    var input1 = vals[1];
+    var output = last(vals);
+    factor(f(input0, input1) === output ? 0 : -3);
+    return [input0, input1, output];
+  };
+};
+
+var orTask = binaryLogicTask(function(x, y) { return x || y; });
+var andTask = binaryLogicTask(function(x, y) { return x && y; });
+var xorTask = binaryLogicTask(function(x, y) { return x !== y; });
+var impTask = binaryLogicTask(function(x, y) { return !x || y; });
+
+var reverse = function(arr) {
+  if (arr.length === 0) {
+    return [];
+  } else {
+    return reverse(arr.slice(1)).concat(arr[0]);
+  }
+};
+
+var reverseTask = function(n) {
+  return function(vals) {
+    assert.ok(vals.length >= 2 * n);
+    var input = vals.slice(0, n);
+    var output = vals.slice(-n);
+    factor(_.isEqual(reverse(input), output) ? 0 : -3);
+    return input.concat(output);
+  };
+};
+
+var countTask = function(vals) {
+  assert.ok(vals.length >= 5);
+  var input = vals.slice(0, 3);
+  var output = vals.slice(-2);
+  var actual = reduce(function(x, acc) { return acc + (x ? 1 : 0); }, 0, input);
+  var computed = sum(mapIndexed(function(i, x) { return Math.pow(2, i) * (x ? 1 : 0); }, reverse(output)));
+  factor(actual === computed ? 0 : -3);
+  return [actual, computed];
+};
+
 // ======================================================================
 
 var dict = function(obj) {
