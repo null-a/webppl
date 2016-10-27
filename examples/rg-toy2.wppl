@@ -73,7 +73,11 @@ var binaryLogicTask = function(f) {
 };
 
 var orTask = binaryLogicTask(function(x, y) { return x || y; });
+
+// The only guide I've seen get this is the GRU. At first glance, this
+// appears to require ctxdim >= 2, posdim >= 1, hdim >= 2.
 var andTask = binaryLogicTask(function(x, y) { return x && y; });
+
 var xorTask = binaryLogicTask(function(x, y) { return x !== y; });
 var impTask = binaryLogicTask(function(x, y) { return !x || y; });
 
@@ -247,6 +251,65 @@ var simpleGated = dict({
   predict: predictSimpleGate,
   update: updateSimpleGate
 });
+
+// ----------------------------------------------------------------------
+
+var updategru = function(state, embeddedVal, args) {
+  var i = state.i;
+  var ctx = state.ctx;
+  var ctxdim = args.ctxdim;
+  var posdim = args.posdim;
+  // The input is the concatenation of the value sampled and the
+  // current position. (Both embedded.)
+  var pos = param({name: 'update_pos' + i, dims: [posdim, 1]});
+  var x = concat(embeddedVal, pos);
+  var xdim = posdim + 1;
+
+  // Reset gate.
+  var Wr = param({name: 'Wr', dims: [ctxdim, xdim]});
+  var Ur = param({name: 'Ur', dims: [ctxdim, ctxdim]});
+  var r = T.sigmoid(T.add(T.dot(Wr, x), T.dot(Ur, ctx)));
+
+  // Candidate activation.
+  var W = param({name: 'W', dims: [ctxdim, xdim]});
+  var U = param({name: 'U', dims: [ctxdim, ctxdim]});
+  var candidate = T.tanh(T.add(T.dot(W, x), T.dot(U, T.mul(r, ctx))));
+
+  // Update gate.
+  var Wz = param({name: 'Wz', dims: [ctxdim, xdim]});
+  var Uz = param({name: 'Uz', dims: [ctxdim, ctxdim]});
+  var z = T.sigmoid(T.add(T.dot(Wz, x), T.dot(Uz, ctx)));
+
+  // Output is interpolation between old ctx and candidate.
+  var oneminusz = T.add(T.neg(z), 1);
+  var out = T.add(T.mul(oneminusz, ctx), T.mul(z, candidate));
+
+  return out;
+};
+
+var gruGuide = function(a) {
+  var args = util.mergeDefaults(a, {
+    posdim: 1,
+    ctxdim: 1,
+    hdim: 2,
+    nonlinearfn: tanh
+  });
+  assert.ok(isPosInt(args.posdim));
+  assert.ok(isPosInt(args.ctxdim));
+  assert.ok(isPosInt(args.hdim));
+  return dict({
+    initialCtx: zeros([args.ctxdim, 1]),
+    embed: boolToVec,
+    predict: function(state) {
+      // TODO: Is there a gated analog to update?
+      return predictMlp(state, args);
+    },
+    update: function(state, embeddedVal) {
+      return updategru(state, embeddedVal, args);
+    }
+  });
+};
+
 
 // ======================================================================
 
