@@ -310,6 +310,110 @@ var gruGuide = function(a) {
   });
 };
 
+// ----------------------------------------------------------------------
+
+var updatelstm = function(state, embeddedVal, args) {
+  var ctx = state.ctx;
+  var initsd = args.initsd;
+
+  // For the LSTM the context vector is a concatenation of the cell
+  // state and the hidden state: ctx = concat(h, c). The cell state
+  // and hidden state are the same size in the LSTM.
+  var ctxdim = args.ctxdim;
+  var cdim = args.ctxdim / 2;
+  var hprev = T.range(ctx, 0, cdim);
+  var cprev = T.range(ctx, cdim, ctxdim);
+
+  // Position embedding.
+  var posdim = args.posdim;
+  var pos = param({name: 'pos' + state.i, dims: [posdim, 1]});
+
+  // The input to the LSTM is the concatenation of the value sampled
+  // and the current position. (Both embedded.) To simplify what
+  // follows we further concatenate this input and the previous hidden
+  // state in to a single vector, hprevx.
+  // var x = concat(embeddedVal, pos);
+  // var hprevx = concat(hprev, x);
+  var hprevx = concat(hprev, embeddedVal, pos);
+  var hprevxdim = cdim + 1 + posdim;
+
+  // This variant mostly follows Graves 2013, but it does not have
+  // 'peephole' connections.
+
+  // Forget gate.
+  var Wf = param({name: 'Wf', dims: [cdim, hprevxdim], sigma: initsd});
+  var f = T.sigmoid(T.dot(Wf, hprevx));
+
+  // Input gate.
+  var Wi = param({name: 'Wi', dims: [cdim, hprevxdim], sigma: initsd});
+  var i = T.sigmoid(T.dot(Wi, hprevx));
+
+  // Candidate cell state.
+  var Wc = param({name: 'Wc', dims: [cdim, hprevxdim], sigma: initsd});
+  var candidate = T.tanh(T.dot(Wc, hprevx));
+
+  // New cell state.
+  var c = T.add(T.mul(cprev, f), T.mul(candidate, i));
+
+  // Output gate.
+  var Wo = param({name: 'Wo', dims: [cdim, hprevxdim], sigma: initsd});
+  var o = T.sigmoid(T.dot(Wo, hprevx));
+
+  // New hidden state.
+  var h = T.mul(o, T.tanh(c));
+
+  return concat(h, c);
+};
+
+// TODO: Refactor. This is very similar to predictMlp. The difference
+// is that we only put the first half of the context (the LSTM hidden
+// state) through the MLP.
+
+var predictlstm = function(state, args) {
+  assert.ok(args.nonlinearfn, 'Non-linear function not given.');
+  var nonlinearfn = args.nonlinearfn;
+  var i = state.i;
+  var ctx = state.ctx;
+  var cdim = args.ctxdim / 2;
+  var lstmhid = T.range(ctx, 0, cdim);
+  var posdim = args.posdim;
+  var pos = param({name: 'pos' + state.i, dims: [posdim, 1]});
+
+  var w1 = param({name: 'w1', dims: [args.hdim, cdim + posdim]});
+  var b1 = param({name: 'b1', dims: [args.hdim, 1]});
+  var w2 = param({name: 'w2', dims: [1, args.hdim]});
+  var b2 = param({name: 'b2', dims: [1, 1]});
+
+  var x = concat(lstmhid, pos);
+  var h = nonlinearfn(T.add(T.dot(w1, x), b1));
+  var o = T.sigmoid(T.add(T.dot(w2, h), b2));
+  return toscalar(o);
+};
+
+var lstmGuide = function(a) {
+  var args = util.mergeDefaults(a, {
+    posdim: 1,
+    ctxdim: 2,
+    hdim: 2,
+    nonlinearfn: tanh,
+    initsd: .1
+  });
+  assert.ok(isPosInt(args.posdim));
+  assert.ok(isPosInt(args.hdim));
+  assert.ok(isInt(args.ctxdim));
+  assert.ok(args.ctxdim >= 2);
+  assert.ok(args.ctxdim % 2 === 0);
+  return dict({
+    initialCtx: zeros([args.ctxdim, 1]),
+    embed: boolToVec,
+    predict: function(state) {
+      return predictlstm(state, args);
+    },
+    update: function(state, embeddedVal) {
+      return updatelstm(state, embeddedVal, args);
+    }
+  });
+};
 
 // ======================================================================
 
