@@ -141,6 +141,7 @@ var isPosInt = function(i) {
 
 var sigmoid = function(x) { return T.sigmoid(x); };
 var tanh = function(x) { return T.tanh(x); };
+var relu = function(x) { return nn.relu.eval(x); };
 
 // ======================================================================
 // Guides
@@ -193,8 +194,6 @@ var updaternn = function(state, embededVal, args) {
   return T.tanh(T.add(T.dot(w, x), b));
 };
 
-// TODO: Try iRNN?
-
 var rnnGuide = function(a) {
   var args = util.mergeDefaults(a, {
     nonlin: tanh,
@@ -213,6 +212,46 @@ var rnnGuide = function(a) {
     },
     update: function(state, embededVal) {
       return updaternn(state, embededVal, args);
+    }
+  });
+};
+
+
+// ----------------------------------------------------------------------
+
+var updateirnn = function(state, embededVal, args) {
+  var i = state.i;
+  var ctx = state.ctx;
+  var posdim = args.posdim;
+  var ctxdim = args.ctxdim;
+
+  var pos = param({name: 'pos' + i, dims: [posdim, 1]});
+  var v = param({name: 'v', dims: [ctxdim, ctxdim], init: 'id'});
+  var w = param({name: 'w', dims: [ctxdim, posdim + 1]});
+  var b = param({name: 'b', dims: [ctxdim, 1]});
+
+  var x = concat(pos, embededVal);
+  return relu(T.add(T.add(T.dot(v, ctx), T.dot(w, x)), b));
+};
+
+var irnnGuide = function(a) {
+  var args = util.mergeDefaults(a, {
+    nonlin: tanh,
+    ctxdim: 1,
+    posdim: 1,
+    hdim: 2
+  });
+  assert.ok(isPosInt(args.ctxdim));
+  assert.ok(isPosInt(args.posdim));
+  assert.ok(isPosInt(args.hdim));
+  return dict({
+    initialCtx: zeros([args.ctxdim, 1]),
+    embed: boolToVec,
+    predict: function(state) {
+      return predictmlp(state, args);
+    },
+    update: function(state, embededVal) {
+      return updateirnn(state, embededVal, args);
     }
   });
 };

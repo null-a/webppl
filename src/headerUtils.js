@@ -90,24 +90,41 @@ module.exports = function(env) {
     options = util.mergeDefaults(options, {
       mu: 0,
       sigma: .1,
-      dims: dimsForScalarParam
+      dims: dimsForScalarParam,
+      init: 'rand'
     });
     var mu = options.mu;
     var sigma = options.sigma;
     var dims = options.dims;
     var name = _.has(options, 'name') ? options.name : util.relativizeAddress(env, a);
+    var init = options.init;
+
+    assert.ok(init === 'rand' || init === 'id');
+
+    if (init === 'id') {
+      assert.ok(dims.length === 2 && dims[0] === dims[1]);
+    }
 
     var val = util.registerParams(env, name, function() {
 
       // Initialization.
-
       var val = new Tensor(dims);
-      if (sigma === 0) {
-        val.fill(mu);
-      } else {
-        for (var i = 0; i < val.length; i++) {
-          val.data[i] = dists.gaussianSample(mu, sigma);
+
+      if (init === 'rand') {
+        if (sigma === 0) {
+          val.fill(mu);
+        } else {
+          for (var i = 0; i < val.length; i++) {
+            val.data[i] = dists.gaussianSample(mu, sigma);
+          }
         }
+      } else if (init === 'id') {
+        // Initialize to identity matrix.
+        for (var j = 0; j < dims[0]; j++) {
+          val.data[j * (dims[0] + 1)] = 1;
+        }
+      } else {
+        throw new Error('Unreachable.');
       }
 
       // registerParams tracks an array of parameters for each
