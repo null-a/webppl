@@ -345,31 +345,38 @@ var updatelstm = function(state, embeddedVal, args) {
 
   // Forget gate.
   var Wf = param({name: 'Wf', dims: [cdim, hprevxdim], sigma: initsd});
+  // Init. bias to 1 so that we don't forget things initially. Not
+  // original source, but described in "An Empirical Exploration of
+  // Recurrent Network Architectures".
+  var bf = param({name: 'bf', dims: [cdim, 1], mu: 1, sigma: 0});
   var fpeep = args.peep ?
       T.mul(param({name: 'Vf', dims: [cdim, 1]}), cprev) :
       zeros([cdim, 1]);
-  var f = T.sigmoid(T.add(T.dot(Wf, hprevx), fpeep));
+  var f = T.sigmoid(T.add(T.add(T.dot(Wf, hprevx), fpeep), bf));
 
   // Input gate.
   var Wi = param({name: 'Wi', dims: [cdim, hprevxdim], sigma: initsd});
+  var bi = param({name: 'bi', dims: [cdim, 1], mu: 0, sigma: 0});
   var ipeep = args.peep ?
       T.mul(param({name: 'Vi', dims: [cdim, 1]}), cprev) :
       zeros([cdim, 1]);
-  var i = T.sigmoid(T.add(T.dot(Wi, hprevx), ipeep));
+  var i = T.sigmoid(T.add(T.add(T.dot(Wi, hprevx), ipeep), bi));
 
   // Candidate cell state.
   var Wc = param({name: 'Wc', dims: [cdim, hprevxdim], sigma: initsd});
-  var candidate = T.tanh(T.dot(Wc, hprevx));
+  var bc = param({name: 'bc', dims: [cdim, 1], mu: 0, sigma: 0});
+  var candidate = T.tanh(T.add(T.dot(Wc, hprevx), bc));
 
   // New cell state.
   var c = T.add(T.mul(cprev, f), T.mul(candidate, i));
 
   // Output gate.
   var Wo = param({name: 'Wo', dims: [cdim, hprevxdim], sigma: initsd});
+  var bo = param({name: 'bo', dims: [cdim, 1], mu: 0, sigma: 0});
   var opeep = args.peep ?
       T.mul(param({name: 'Vo', dims: [cdim, 1]}), cprev) :
       zeros([cdim, 1]);
-  var o = T.sigmoid(T.add(T.dot(Wo, hprevx), opeep));
+  var o = T.sigmoid(T.add(T.add(T.dot(Wo, hprevx), opeep), bo));
 
   // New hidden state.
   var h = T.mul(o, T.tanh(c));
