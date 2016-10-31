@@ -161,6 +161,8 @@ var mf = dict({
 
 // This is similar to the guide in the webppl-daipp package.
 
+// TODO: Check that bad weight init. of mlp isn't hurting.
+
 var predictmlp = function(state, args) {
   assert.ok(args.nonlin, 'Non-linear function not given.');
   var nonlin = args.nonlin;
@@ -426,6 +428,13 @@ var updatelstm = function(state, embeddedVal, args) {
 // TODO: Refactor. This is very similar to predictMlp. The difference
 // is that we only put the first half of the context (the LSTM hidden
 // state) through the MLP.
+
+// I wonder whether it would be nice to use webppl functions for
+// building nets rather than adnn. The problem that adnn solves (it's
+// a pain passing parameters around) isn't one we have in webppl,
+// since we have `param`. We go to a lot of trouble to make use of the
+// adnn solution, but perhaps we achieve much the same thing with just
+// a few lines of code?
 
 var predictlstm = function(state, args) {
   assert.ok(args.nonlin, 'Non-linear function not given.');
