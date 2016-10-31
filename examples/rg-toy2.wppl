@@ -161,8 +161,8 @@ var mf = dict({
 // This is similar to the guide in the webppl-daipp package.
 
 var predictmlp = function(state, args) {
-  assert.ok(args.nonlinearfn, 'Non-linear function not given.');
-  var nonlinearfn = args.nonlinearfn;
+  assert.ok(args.nonlin, 'Non-linear function not given.');
+  var nonlin = args.nonlin;
   var i = state.i;
   var ctx = state.ctx;
   // Note: Position embedding uses same dim as context.
@@ -172,7 +172,7 @@ var predictmlp = function(state, args) {
   var w2 = param({name: 'w2', dims: [1, args.hdim]});
   var b2 = param({name: 'b2', dims: [1, 1]});
   var x = concat(ctx, pos);
-  var h = nonlinearfn(T.add(T.dot(w1, x), b1));
+  var h = nonlin(T.add(T.dot(w1, x), b1));
   var o = T.sigmoid(T.add(T.dot(w2, h), b2));
   return toscalar(o);
 };
@@ -198,7 +198,7 @@ var updaternn = function(state, embededVal, args) {
 
 var rnnGuide = function(a) {
   var args = util.mergeDefaults(a, {
-    nonlinearfn: tanh,
+    nonlin: tanh,
     ctxdim: 1,
     hdim: 2
   });
@@ -288,7 +288,7 @@ var gruGuide = function(a) {
     posdim: 1,
     ctxdim: 1,
     hdim: 2,
-    nonlinearfn: tanh
+    nonlin: tanh
   });
   assert.ok(isPosInt(args.posdim));
   assert.ok(isPosInt(args.ctxdim));
@@ -366,8 +366,8 @@ var updatelstm = function(state, embeddedVal, args) {
 // state) through the MLP.
 
 var predictlstm = function(state, args) {
-  assert.ok(args.nonlinearfn, 'Non-linear function not given.');
-  var nonlinearfn = args.nonlinearfn;
+  assert.ok(args.nonlin, 'Non-linear function not given.');
+  var nonlin = args.nonlin;
   var i = state.i;
   var ctx = state.ctx;
   var cdim = args.ctxdim / 2;
@@ -381,7 +381,7 @@ var predictlstm = function(state, args) {
   var b2 = param({name: 'b2', dims: [1, 1]});
 
   var x = concat(lstmhid, pos);
-  var h = nonlinearfn(T.add(T.dot(w1, x), b1));
+  var h = nonlin(T.add(T.dot(w1, x), b1));
   var o = T.sigmoid(T.add(T.dot(w2, h), b2));
   return toscalar(o);
 };
@@ -391,7 +391,7 @@ var lstmGuide = function(a) {
     posdim: 1,
     ctxdim: 2,
     hdim: 2,
-    nonlinearfn: tanh,
+    nonlin: tanh,
     initsd: .1
   });
   assert.ok(isPosInt(args.posdim));
