@@ -225,7 +225,7 @@ var predictSimpleGate = function(state) {
   var i = state.i;
   var ctx = T.get(state.ctx, 0);
   // Per choice gate.
-  var pos = param({name: 'sg_pos' + i});
+  var pos = param({name: 'pos' + i});
   var gate = Math.sigmoid(pos);
   // Predict from context.
   var w = param({name: 'sg_w'});
@@ -236,7 +236,7 @@ var predictSimpleGate = function(state) {
 var updateSimpleGate = function(state, embededVal) {
   var i = state.i;
   var ctx = T.get(state.ctx, 0);
-  var g = Math.sigmoid(param({name: 'sg_update' + i}));
+  var g = Math.sigmoid(param({name: 'pos' + i}));
   // note, always in {0,1} when embed fn is boolToInt.
   return Vector([g * embededVal + (1 - g) * ctx]);
 };
@@ -257,7 +257,7 @@ var updategru = function(state, embeddedVal, args) {
   var posdim = args.posdim;
   // The input is the concatenation of the value sampled and the
   // current position. (Both embedded.)
-  var pos = param({name: 'update_pos' + i, dims: [posdim, 1]});
+  var pos = param({name: 'pos' + i, dims: [posdim, 1]});
   var x = concat(embeddedVal, pos);
   var xdim = posdim + 1;
 
