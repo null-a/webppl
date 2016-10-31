@@ -114,24 +114,6 @@ var dict = function(obj) {
 var boolToInt = function(b) { return b ? 1 : 0; };
 var boolToVec = function(b) { return Vector([boolToInt(b)]); };
 
-// ======================================================================
-// Guides
-// ----------------------------------------------------------------------
-
-var mf = dict({
-  initialCtx: zeros([1, 1]),
-  embed: idF,
-  predict: function(state) {
-    var i = state.i;
-    return Math.sigmoid(param({name: 'p' + i}));
-  },
-  update: constF(zeros([1, 1]))
-});
-
-// ----------------------------------------------------------------------
-
-// This is similar to the guide in the webppl-daipp package.
-
 // Adds the trailing dimension to a rank 1 tensor.
 var tovec = function(t) {
   var dims = ad.value(t).dims;
@@ -157,7 +139,28 @@ var isPosInt = function(i) {
   return isInt(i) && i > 0;
 };
 
-var predictMlp = function(state, args) {
+var sigmoid = function(x) { return T.sigmoid(x); };
+var tanh = function(x) { return T.tanh(x); };
+
+// ======================================================================
+// Guides
+// ----------------------------------------------------------------------
+
+var mf = dict({
+  initialCtx: zeros([1, 1]),
+  embed: idF,
+  predict: function(state) {
+    var i = state.i;
+    return Math.sigmoid(param({name: 'p' + i}));
+  },
+  update: constF(zeros([1, 1]))
+});
+
+// ----------------------------------------------------------------------
+
+// This is similar to the guide in the webppl-daipp package.
+
+var predictmlp = function(state, args) {
   assert.ok(args.nonlinearfn, 'Non-linear function not given.');
   var nonlinearfn = args.nonlinearfn;
   var i = state.i;
@@ -174,10 +177,7 @@ var predictMlp = function(state, args) {
   return toscalar(o);
 };
 
-var sigmoid = function(x) { return T.sigmoid(x); };
-var tanh = function(x) { return T.tanh(x); };
-
-var daippUpdate = function(state, embededVal, args) {
+var updaternn = function(state, embededVal, args) {
   // daipp does the following:
   // 1. embeds the address (position here)
   // 2. Concatenates embedded address, embedded val and context.
@@ -194,7 +194,9 @@ var daippUpdate = function(state, embededVal, args) {
   return T.tanh(T.add(T.dot(w, x), b));
 };
 
-var daipp = function(a) {
+// TODO: Try iRNN?
+
+var rnnGuide = function(a) {
   var args = util.mergeDefaults(a, {
     nonlinearfn: tanh,
     ctxdim: 1,
@@ -206,10 +208,10 @@ var daipp = function(a) {
     initialCtx: zeros([args.ctxdim, 1]),
     embed: boolToVec,
     predict: function(state) {
-      return predictMlp(state, args);
+      return predictmlp(state, args);
     },
     update: function(state, embededVal) {
-      return daippUpdate(state, embededVal, args);
+      return updaternn(state, embededVal, args);
     }
   });
 };
@@ -296,7 +298,7 @@ var gruGuide = function(a) {
     embed: boolToVec,
     predict: function(state) {
       // TODO: Is there a gated analog to update?
-      return predictMlp(state, args);
+      return predictmlp(state, args);
     },
     update: function(state, embeddedVal) {
       return updategru(state, embeddedVal, args);
