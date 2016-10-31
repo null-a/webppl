@@ -1,8 +1,8 @@
-// // A series of toy problems to test how well guide architectures are
-// // able to capture simple patterns of dependency between binary
-// // variable.
+// A series of toy problems to test how well guide architectures are
+// able to capture simple patterns of dependency between binary
+// variables.
 
-// // A guide is specified like so:
+// A guide is specified like so:
 
 // var sampleGuide = dict({
 //   embed: function() {},
@@ -10,20 +10,20 @@
 //   update: function() {}
 // });
 
-// // Each task is set in a model where there are n independent binary
-// // variables in the prior. Each task induces dependencies between the
-// // first 1 or 2 variables samples (which we view as inputs) and the
-// // last 1 or 2 variables (which we view as outputs). The guides job is
-// // to capture the correct input/output behavior. The intermediary
-// // variables serve only to increase the length of the path along which
-// // information must be passed.
+// Each task is set in a model where there are n independent binary
+// variables in the prior. Each task induces dependencies between the
+// first 1 or 2 variables samples (which we view as inputs) and the
+// last 1 or 2 variables (which we view as outputs). The guides job is
+// to capture the correct input/output behavior. The intermediary
+// variables serve only to increase the length of the path along which
+// information must be passed.
 
-// // If problems show up optimizing guides here, then it seems unlikely
-// // they'll be useful generally?
+// If problems show up optimizing guides here, then it seems unlikely
+// they'll be useful generally?
 
-// // TODO: I should probably have the intermediary variables be
-// // independent, but with different probability from the prior so that
-// // the guide has to do *something*.
+// TODO: I should probably have the intermediary variables be
+// independent, but with different probabilities from the prior so
+// that the guide has to do *something*.
 
 // var sampleTask = function(vals) {
 //   assert.ok(vals.length >= 2);
@@ -34,8 +34,6 @@
 //   factor(input !== output ? 0 : -3);
 //   return [input, output]; // The posterior is a marginal on this.
 // };
-
-// // TODO: Describe how to see what a guide is computing.
 
 // // To optimize a guide for task:
 // var params = opt(task, n, guide);
@@ -73,11 +71,7 @@ var binaryLogicTask = function(f) {
 };
 
 var orTask = binaryLogicTask(function(x, y) { return x || y; });
-
-// The only guide I've seen get this is the GRU. At first glance, this
-// appears to require ctxdim >= 2, posdim >= 1, hdim >= 2.
 var andTask = binaryLogicTask(function(x, y) { return x && y; });
-
 var xorTask = binaryLogicTask(function(x, y) { return x !== y; });
 var impTask = binaryLogicTask(function(x, y) { return !x || y; });
 
