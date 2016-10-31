@@ -315,7 +315,8 @@ var gruGuide = function(a) {
 
 // This follows "Generating sequences with recurrent neural networks"
 // (Graves 2013) via "Empirical Evaluation of Gated Recurrent Neural
-// Networks on Sequence Modeling".
+// Networks on Sequence Modeling". (When peephole connections are
+// enabled.)
 
 var updatelstm = function(state, embeddedVal, args) {
   var ctx = state.ctx;
@@ -344,11 +345,17 @@ var updatelstm = function(state, embeddedVal, args) {
 
   // Forget gate.
   var Wf = param({name: 'Wf', dims: [cdim, hprevxdim], sigma: initsd});
-  var f = T.sigmoid(T.dot(Wf, hprevx));
+  var fpeep = args.peep ?
+      T.mul(param({name: 'Vf', dims: [cdim, 1]}), cprev) :
+      zeros([cdim, 1]);
+  var f = T.sigmoid(T.add(T.dot(Wf, hprevx), fpeep));
 
   // Input gate.
   var Wi = param({name: 'Wi', dims: [cdim, hprevxdim], sigma: initsd});
-  var i = T.sigmoid(T.dot(Wi, hprevx));
+  var ipeep = args.peep ?
+      T.mul(param({name: 'Vi', dims: [cdim, 1]}), cprev) :
+      zeros([cdim, 1]);
+  var i = T.sigmoid(T.add(T.dot(Wi, hprevx), ipeep));
 
   // Candidate cell state.
   var Wc = param({name: 'Wc', dims: [cdim, hprevxdim], sigma: initsd});
@@ -359,7 +366,10 @@ var updatelstm = function(state, embeddedVal, args) {
 
   // Output gate.
   var Wo = param({name: 'Wo', dims: [cdim, hprevxdim], sigma: initsd});
-  var o = T.sigmoid(T.dot(Wo, hprevx));
+  var opeep = args.peep ?
+      T.mul(param({name: 'Vo', dims: [cdim, 1]}), cprev) :
+      zeros([cdim, 1]);
+  var o = T.sigmoid(T.add(T.dot(Wo, hprevx), opeep));
 
   // New hidden state.
   var h = T.mul(o, T.tanh(c));
@@ -398,7 +408,8 @@ var lstmGuide = function(a) {
     ctxdim: 2,
     hdim: 2,
     nonlin: tanh,
-    initsd: .1
+    initsd: .1,
+    peep: false, // Add peephole connections to gates.
   });
   assert.ok(isPosInt(args.posdim));
   assert.ok(isPosInt(args.hdim));
