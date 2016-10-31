@@ -165,9 +165,8 @@ var predictmlp = function(state, args) {
   var nonlin = args.nonlin;
   var i = state.i;
   var ctx = state.ctx;
-  // Note: Position embedding uses same dim as context.
-  var pos = param({name: 'pos' + i, dims: [args.ctxdim, 1]});
-  var w1 = param({name: 'w1', dims: [args.hdim, 2 * args.ctxdim]});
+  var pos = param({name: 'pos' + i, dims: [args.posdim, 1]});
+  var w1 = param({name: 'w1', dims: [args.hdim, args.posdim + args.ctxdim]});
   var b1 = param({name: 'b1', dims: [args.hdim, 1]});
   var w2 = param({name: 'w2', dims: [1, args.hdim]});
   var b2 = param({name: 'b2', dims: [1, 1]});
@@ -185,7 +184,7 @@ var updaternn = function(state, embededVal, args) {
   // p.w. non-linearity.
   var i = state.i;
   var ctx = state.ctx;
-  var pos = param({name: 'pos' + i, dims: [args.ctxdim, 1]});
+  var pos = param({name: 'pos' + i, dims: [args.posdim, 1]});
 
   var w = param({name: 'w', dims: [args.ctxdim, 2 * args.ctxdim + 1]});
   var b = param({name: 'b', dims: [args.ctxdim, 1]});
@@ -200,9 +199,11 @@ var rnnGuide = function(a) {
   var args = util.mergeDefaults(a, {
     nonlin: tanh,
     ctxdim: 1,
+    posdim: 1,
     hdim: 2
   });
   assert.ok(isPosInt(args.ctxdim));
+  assert.ok(isPosInt(args.posdim));
   assert.ok(isPosInt(args.hdim));
   return dict({
     initialCtx: zeros([args.ctxdim, 1]),
