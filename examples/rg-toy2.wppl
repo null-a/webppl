@@ -430,7 +430,6 @@ var updatelstm = function(state, embeddedVal, args) {
 var predictlstm = function(state, args) {
   assert.ok(args.nonlin, 'Non-linear function not given.');
   var nonlin = args.nonlin;
-  var i = state.i;
   var ctx = state.ctx;
   var cdim = args.ctxdim / 2;
   var lstmhid = T.range(ctx, 0, cdim);
@@ -565,7 +564,7 @@ var compare = function(task, n, guide, params) {
   });
   return dict({
     kl: function() {
-      return kl(q,p);
+      return kl(q, p);
     },
     posteriors: function() {
       return [
