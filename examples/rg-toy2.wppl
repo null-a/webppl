@@ -251,6 +251,10 @@ var simpleGated = dict({
 
 // ----------------------------------------------------------------------
 
+// The variant described in "Empirical Evaluation of Gated Recurrent
+// Neural Networks on Sequence Modeling" which computes the candidate
+// activation in a slightly different way from the original paper.
+
 var updategru = function(state, embeddedVal, args) {
   var i = state.i;
   var ctx = state.ctx;
@@ -309,6 +313,10 @@ var gruGuide = function(a) {
 
 // ----------------------------------------------------------------------
 
+// This follows "Generating sequences with recurrent neural networks"
+// (Graves 2013) via "Empirical Evaluation of Gated Recurrent Neural
+// Networks on Sequence Modeling".
+
 var updatelstm = function(state, embeddedVal, args) {
   var ctx = state.ctx;
   var initsd = args.initsd;
@@ -333,9 +341,6 @@ var updatelstm = function(state, embeddedVal, args) {
   // var hprevx = concat(hprev, x);
   var hprevx = concat(hprev, embeddedVal, pos);
   var hprevxdim = cdim + 1 + posdim;
-
-  // This variant mostly follows Graves 2013, but it does not have
-  // 'peephole' connections.
 
   // Forget gate.
   var Wf = param({name: 'Wf', dims: [cdim, hprevxdim], sigma: initsd});
