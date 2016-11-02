@@ -1,0 +1,99 @@
+var iterate = function(n, init, f) {
+  if (n === 0) {
+    return [];
+  } else {
+    var val = f(init);
+    return [val].concat(iterate(n - 1, val, f));
+  }
+};
+
+var step = function(guide, state, reparam) {
+  var embed = guide('embed'),
+      predict = guide('predict'),
+      update = guide('update');
+
+  var i = state.i;
+  var p = predict(state);
+
+  var val = sample(Bernoulli({p: .5}), {
+    guide: Bernoulli(p)
+  });
+
+  var ctx = update(state, embed(val));
+
+  return {i: state.i + 1, ctx: ctx, val: val};
+};
+
+var prior = function(task, n, guide, reparam) {
+  var initialState = {i: 0, ctx: guide('initialCtx')};
+  return iterate(n, initialState, function(state) {
+    return step(guide, state, reparam);
+  });
+};
+
+var model = function(task, n, guide, reparam) {
+  var steps = prior(task, n, guide, reparam);
+  return task(_.pluck(steps, 'val'));
+};
+
+var notTask = function(vals) {
+  assert.ok(vals.length >= 2);
+  var x = first(vals);
+  var y = last(vals);
+  factor(x !== y ? 0 : -3);
+  return [x, y];
+};
+
+var embed = boolToVec;
+
+var adapt = function(h, args) {
+  var hdim = args.hdim;
+  var w = param({name: 'adapt-w', dims: [1, hdim]});
+  var b = param({name: 'adapt-b', dims: [1, 1]});
+  var o = T.sigmoid(T.add(T.dot(w, h), b));
+  return {p: toscalar(o)};
+};
+
+var opt = function(task, n, guide, reparam, callback) {
+  return Optimize(function() {
+    return model(task, n, guide, reparam);
+  }, {
+    steps: 20000,
+    //showGradNorm: 1,
+    //clip: 1,
+    estimator: {ELBO: {samples: 10}},
+    optMethod: {adam: {stepSize: .001}},
+    onFinish: callback
+  });
+};
+
+var test = function() {
+  var runs = 3; // per condition
+  var n = 4; // size of guide hidden state
+
+  var guides = {
+    rnn: rnnGuide({ctxdim: n, hdim: n, posdim: n, embed, adapt}),
+    // ['irnn', irnnGuide({ctxdim: n, hdim: n, posdim: n, embed, adapt})],
+    gru: gruGuide({ctxdim: n, hdim: n, posdim: n, embed, adapt}),
+    lstm: lstmGuide({ctxdim: n * 2, hdim: n, posdim: n, embed, adapt})
+  };
+  var lengths = [2, 4, 8, 16, 32];
+
+
+  var guideName = process.env.guide;
+  assert.ok(guideName && _.has(guides, guideName));
+  var guide = [guideName, guides[guideName]];
+
+  map(function(i) {
+    map(function(len) {
+      var fn = [guide[0], len, i].join('-');
+      display(fn);
+      opt(notTask, len, guide[1], true, function(data) {
+        fs.write('out2/' + fn + '.json', JSON.stringify(data.history));
+      });
+      return;
+    }, lengths);
+  }, _.range(runs));
+};
+
+test();
