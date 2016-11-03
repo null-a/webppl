@@ -46,6 +46,26 @@ var softplus = function(x) {
 // Guides
 // ----------------------------------------------------------------------
 
+var mfGuide = function(args) {
+  assert.ok(isPosInt(args.posdim));
+  assert.ok(_.isFunction(args.embed));
+  assert.ok(_.isFunction(args.adapt));
+  return dict({
+    initialCtx: null,
+    embed: args.embed,
+    predict: function(state) {
+      var i = state.i;
+      // A vector of mean field parameters.
+      var pos = param({name: 'pos' + i, dims: [args.posdim, 1]});
+      var adapt = args.adapt;
+      return adapt(pos);
+    },
+    update: constF(null)
+  });
+};
+
+// ----------------------------------------------------------------------
+
 // This is similar to the guide in the webppl-daipp package.
 
 // TODO: Check that bad weight init. of mlp isn't hurting.
