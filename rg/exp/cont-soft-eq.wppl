@@ -76,6 +76,10 @@ var opt = function(task, n, guide, reparam, callback) {
 
 var test = function() {
   var runs = 3; // per condition
+
+  // TODO: Bumping up the number of hidden units looks like it might
+  // help when length=4, but doesn't seem to be the fix for longer
+  // sequences.
   var n = 4; // size of guide hidden state
 
   var guides = {

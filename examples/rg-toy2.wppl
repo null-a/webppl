@@ -343,7 +343,8 @@ var gruGuide = function(a) {
     initialCtx: zeros([args.ctxdim, 1]),
     embed: boolToVec,
     predict: function(state) {
-      // TODO: Is there a gated analog to update?
+      // TODO: Is there a gated analog to update? Highway nets
+      // perhaps?
       return predictmlp(state, args);
     },
     update: function(state, embeddedVal) {
