@@ -78,7 +78,7 @@ var updaternn = function(state, embededVal, args) {
   var ctx = state.ctx;
   var pos = param({name: 'pos' + i, dims: [args.posdim, 1]});
 
-  var w = param({name: 'w', dims: [args.ctxdim, 2 * args.ctxdim + 1]});
+  var w = param({name: 'w', dims: [args.ctxdim, args.posdim + args.ctxdim + 1]});
   var b = param({name: 'b', dims: [args.ctxdim, 1]});
 
   var x = concat(ctx, pos, embededVal);
