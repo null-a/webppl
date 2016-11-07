@@ -42,6 +42,43 @@ var softplus = function(x) {
   return Math.log(1 + Math.exp(x));
 };
 
+var dims = function(x) { return ad.value(x).dims; };
+
+var linear = function(name, o) {
+  return function(x) {
+    var i = dims(x)[0];
+    var w = param({name: name + 'w', dims: [o, i]});
+    var b = param({name: name + 'b', dims: [o, 1]});
+    return T.add(T.dot(w, x), b);
+  };
+};
+
+var linearLayerNorm = function(name, o) {
+  return function(x) {
+    var i = dims(x)[0];
+    var g = param({name: name + 'g', dims: [o, 1]}); // gain
+    var w = param({name: name + 'w', dims: [o, i]});
+    var b = param({name: name + 'b', dims: [o, 1]});
+    var a = T.dot(w, x);
+    var mu = T.sumreduce(a) / o;
+    var acentered = T.sub(a, mu);
+    var sd = Math.sqrt(T.sumreduce(T.pow(acentered, 2)) / o);
+    return T.add(T.mul(T.div(g, sd), acentered), b);
+  };
+};
+
+var linearWeightNorm = function(name, o) {
+  return function(x) {
+    var i = dims(x)[0];
+    var g = Math.exp(param({name: name + 'g'})); // gain
+    var v = param({name: name + 'v', dims: [o, i]});
+    var norm = Math.sqrt(T.sumreduce(T.pow(v, 2)));
+    var w = T.mul(v, g / norm);
+    var b = param({name: name + 'b', dims: [o, 1]});
+    return T.add(T.dot(w, x), b);
+  };
+};
+
 // ======================================================================
 // Guides
 // ----------------------------------------------------------------------
@@ -75,15 +112,17 @@ var predictmlp = function(state, args) {
   var nonlin = args.nonlin;
   var i = state.i;
   var ctx = state.ctx;
+  var hdim = args.hdim;
   var pos = param({name: 'pos' + i, dims: [args.posdim, 1]});
-  var w1 = param({name: 'w1', dims: [args.hdim, args.posdim + args.ctxdim]});
-  var b1 = param({name: 'b1', dims: [args.hdim, 1]});
-  //var w2 = param({name: 'w2', dims: [1, args.hdim]});
-  //var b2 = param({name: 'b2', dims: [1, 1]});
+  var lin =
+        args.norm === 'none' ? linear('predict', hdim) :
+        args.norm === 'layer' ? linearLayerNorm('predict', hdim) :
+        args.norm === 'weight' ? linearWeightNorm('predict', hdim) :
+        null;
+  assert.ok(lin);
   var x = concat(ctx, pos);
-  var h = nonlin(T.add(T.dot(w1, x), b1));
-  //var o = T.add(T.dot(w2, h), b2);
-  //return toscalar(o);
+  var net = compose(nonlin, lin);
+  var h = net(x);
   var adapt = args.adapt;
   return adapt(h, args);
 };
@@ -96,27 +135,34 @@ var updaternn = function(state, embededVal, args) {
   // p.w. non-linearity.
   var i = state.i;
   var ctx = state.ctx;
+  var ctxdim = args.ctxdim;
   var pos = param({name: 'pos' + i, dims: [args.posdim, 1]});
-
-  var w = param({name: 'w', dims: [args.ctxdim, args.posdim + args.ctxdim + 1]});
-  var b = param({name: 'b', dims: [args.ctxdim, 1]});
-
+  var lin =
+        args.norm === 'none' ? linear('update', ctxdim) :
+        args.norm === 'layer' ? linearLayerNorm('update', ctxdim) :
+        args.norm === 'weight' ? linearWeightNorm('update', ctxdim) :
+        null;
+  assert.ok(lin);
+  var net = compose(tanh, lin);
   var x = concat(ctx, pos, embededVal);
-  return T.tanh(T.add(T.dot(w, x), b));
+  return net(x);
 };
+
 
 var rnnGuide = function(a) {
   var args = util.mergeDefaults(a, {
     nonlin: tanh,
     ctxdim: 1,
     posdim: 1,
-    hdim: 2
+    hdim: 2,
+    norm: 'none'
   });
   assert.ok(isPosInt(args.ctxdim));
   assert.ok(isPosInt(args.posdim));
   assert.ok(isPosInt(args.hdim));
   assert.ok(_.isFunction(args.embed));
   assert.ok(_.isFunction(args.adapt));
+  assert.ok(_.includes(['none', 'layer', 'weight'], args.norm));
   return dict({
     initialCtx: zeros([args.ctxdim, 1]),
     embed: args.embed,
@@ -152,13 +198,15 @@ var irnnGuide = function(a) {
     nonlin: tanh,
     ctxdim: 1,
     posdim: 1,
-    hdim: 2
+    hdim: 2,
+    norm: 'none'
   });
   assert.ok(isPosInt(args.ctxdim));
   assert.ok(isPosInt(args.posdim));
   assert.ok(isPosInt(args.hdim));
   assert.ok(_.isFunction(args.embed));
   assert.ok(_.isFunction(args.adapt));
+  assert.ok(_.includes(['none', 'layer', 'weight'], args.norm));
   return dict({
     initialCtx: zeros([args.ctxdim, 1]),
     embed: args.embed,
@@ -210,18 +258,21 @@ var updategru = function(state, embeddedVal, args) {
   return out;
 };
 
+
 var gruGuide = function(a) {
   var args = util.mergeDefaults(a, {
     posdim: 1,
     ctxdim: 1,
     hdim: 2,
-    nonlin: tanh
+    nonlin: tanh,
+    norm: 'none'
   });
   assert.ok(isPosInt(args.posdim));
   assert.ok(isPosInt(args.ctxdim));
   assert.ok(isPosInt(args.hdim));
   assert.ok(_.isFunction(args.embed));
   assert.ok(_.isFunction(args.adapt));
+  assert.ok(_.includes(['none', 'layer', 'weight'], args.norm));
   return dict({
     initialCtx: zeros([args.ctxdim, 1]),
     embed: args.embed,
@@ -349,6 +400,7 @@ var lstmGuide = function(a) {
     nonlin: tanh,
     initsd: .1,
     peep: false, // Add peephole connections to gates.
+    norm: 'none'
   });
   assert.ok(isPosInt(args.posdim));
   assert.ok(isPosInt(args.hdim));
@@ -357,6 +409,7 @@ var lstmGuide = function(a) {
   assert.ok(args.ctxdim % 2 === 0);
   assert.ok(_.isFunction(args.embed));
   assert.ok(_.isFunction(args.adapt));
+  assert.ok(_.includes(['none', 'layer', 'weight'], args.norm));
   return dict({
     initialCtx: zeros([args.ctxdim, 1]),
     embed: args.embed,
