@@ -99,7 +99,7 @@ module.exports = function(env) {
     var name = _.has(options, 'name') ? options.name : util.relativizeAddress(env, a);
     var init = options.init;
 
-    assert.ok(init === 'rand' || init === 'id');
+    assert.ok(init === 'rand' || init === 'id' || init === 'xavier', 'param: Unknown init. scheme specified.');
 
     if (init === 'id') {
       assert.ok(dims.length === 2 && dims[0] === dims[1]);
@@ -122,6 +122,21 @@ module.exports = function(env) {
         // Initialize to identity matrix.
         for (var j = 0; j < dims[0]; j++) {
           val.data[j * (dims[0] + 1)] = 1;
+        }
+      } else if (init === 'xavier') {
+        var scale;
+        if (val.rank === 1) {
+          // Init. biases to tiny values to avoid zero gradient warnings
+          // on first optimization step.
+          scale = 1e-5;
+        } else if (val.rank === 2) {
+          scale = 1 / Math.sqrt(val.dims[1]);
+        } else {
+          throw new Error('param: xavier init. can only be applied to vectors and matrices.');
+        }
+        var n = val.length;
+        while (n--) {
+          val.data[n] = dists.gaussianSample(0, scale);
         }
       } else {
         throw new Error('Unreachable.');
