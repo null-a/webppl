@@ -61,14 +61,14 @@ var adapt = function(h, args) {
 };
 
 
-var opt = function(task, n, guide, reparam, callback) {
+var opt = function(task, n, guide, reparam, annealFactors, callback) {
   return Optimize(function() {
     return model(task, n, guide, reparam);
   }, {
     steps: 20000,
     //showGradNorm: 1,
     //clip: 1,
-    estimator: {ELBO: {samples: 10, annealFactors: false}},
+    estimator: {ELBO: {samples: 10, annealFactors}},
     optMethod: {adam: {stepSize: .001}},
     onFinish: callback
   });
@@ -98,9 +98,9 @@ var test = function() {
   };
   var lengths = [2, 4, 8, 16, 32];
 
-  var guideName = 'rnn';
-  // var guideName = process.env.guide;
-  // assert.ok(guideName && _.has(guides, guideName));
+  //var guideName = 'lstm';
+  var guideName = process.env.guide;
+  assert.ok(guideName && _.has(guides, guideName));
   var guide = [guideName, guides[guideName]];
 
   // var reparam =
@@ -112,13 +112,18 @@ var test = function() {
 
   var reparam = true;
 
+  var anneal =
+      process.env.anneal === 'true' ? true :
+      process.env.anneal === 'false' ? false :
+      null;
+  assert.ok(anneal !== null);
 
   map(function(i) {
     map(function(len) {
       //var fn = [guide[0], reparam, len, i].join('-');
-      var fn = [guide[0], norm, init, len, i].join('-');
+      var fn = [guide[0], init, norm, 'anneal', anneal, len, i].join('-');
       display(fn);
-      opt(softEqTask, len, guide[1], reparam, function(data) {
+      opt(softEqTask, len, guide[1], reparam, anneal, function(data) {
         fs.write('out/' + fn + '.json', JSON.stringify(data.history));
       });
       return;
