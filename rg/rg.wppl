@@ -44,21 +44,21 @@ var softplus = function(x) {
 
 var dims = function(x) { return ad.value(x).dims; };
 
-var linear = function(name, o) {
+var linear = function(name, o, initw) {
   return function(x) {
     var i = dims(x)[0];
-    var w = param({name: name + 'w', dims: [o, i]});
-    var b = param({name: name + 'b', dims: [o, 1]});
+    var w = param({name: name + 'w', dims: [o, i], init: initw});
+    var b = param({name: name + 'b', dims: [o, 1], sigma: 0});
     return T.add(T.dot(w, x), b);
   };
 };
 
-var linearLayerNorm = function(name, o) {
+var linearLayerNorm = function(name, o, initw) {
   return function(x) {
     var i = dims(x)[0];
-    var g = param({name: name + 'g', dims: [o, 1]}); // gain
-    var w = param({name: name + 'w', dims: [o, i]});
-    var b = param({name: name + 'b', dims: [o, 1]});
+    var g = param({name: name + 'g', dims: [o, 1], mu: 1, sigma: 0}); // gain
+    var w = param({name: name + 'w', dims: [o, i], init: initw});
+    var b = param({name: name + 'b', dims: [o, 1], sigma: 0});
     var a = T.dot(w, x);
     var mu = T.sumreduce(a) / o;
     var acentered = T.sub(a, mu);
@@ -67,14 +67,14 @@ var linearLayerNorm = function(name, o) {
   };
 };
 
-var linearWeightNorm = function(name, o) {
+var linearWeightNorm = function(name, o, initv) {
   return function(x) {
     var i = dims(x)[0];
-    var g = Math.exp(param({name: name + 'g'})); // gain
-    var v = param({name: name + 'v', dims: [o, i]});
+    var g = Math.exp(param({name: name + 'g', sigma: 0})); // gain
+    var v = param({name: name + 'v', dims: [o, i], init: initv});
     var norm = Math.sqrt(T.sumreduce(T.pow(v, 2)));
     var w = T.mul(v, g / norm);
-    var b = param({name: name + 'b', dims: [o, 1]});
+    var b = param({name: name + 'b', dims: [o, 1], sigma: 0});
     return T.add(T.dot(w, x), b);
   };
 };
@@ -115,9 +115,9 @@ var predictmlp = function(state, args) {
   var hdim = args.hdim;
   var pos = param({name: 'pos' + i, dims: [args.posdim, 1]});
   var lin =
-        args.norm === 'none' ? linear('predict', hdim) :
-        args.norm === 'layer' ? linearLayerNorm('predict', hdim) :
-        args.norm === 'weight' ? linearWeightNorm('predict', hdim) :
+        args.norm === 'none' ? linear('predict', hdim, args.init) :
+        args.norm === 'layer' ? linearLayerNorm('predict', hdim, args.init) :
+        args.norm === 'weight' ? linearWeightNorm('predict', hdim, args.init) :
         null;
   assert.ok(lin);
   var x = concat(ctx, pos);
@@ -138,9 +138,9 @@ var updaternn = function(state, embededVal, args) {
   var ctxdim = args.ctxdim;
   var pos = param({name: 'pos' + i, dims: [args.posdim, 1]});
   var lin =
-        args.norm === 'none' ? linear('update', ctxdim) :
-        args.norm === 'layer' ? linearLayerNorm('update', ctxdim) :
-        args.norm === 'weight' ? linearWeightNorm('update', ctxdim) :
+        args.norm === 'none' ? linear('update', ctxdim, args.init) :
+        args.norm === 'layer' ? linearLayerNorm('update', ctxdim, args.init) :
+        args.norm === 'weight' ? linearWeightNorm('update', ctxdim, args.init) :
         null;
   assert.ok(lin);
   var net = compose(tanh, lin);
@@ -155,7 +155,8 @@ var rnnGuide = function(a) {
     ctxdim: 1,
     posdim: 1,
     hdim: 2,
-    norm: 'none'
+    norm: 'none',
+    init: 'rand'
   });
   assert.ok(isPosInt(args.ctxdim));
   assert.ok(isPosInt(args.posdim));
