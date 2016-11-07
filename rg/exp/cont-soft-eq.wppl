@@ -82,28 +82,41 @@ var test = function() {
   // sequences.
   var n = 4; // size of guide hidden state
 
+
+  var norm = process.env.norm;
+  assert.ok(norm, 'norm not specified');
+
+  var init = process.env.init;
+  assert.ok(init, 'init not specified');
+
+
   var guides = {
-    rnn: rnnGuide({ctxdim: n, hdim: n, posdim: n, embed, adapt}),
+    rnn: rnnGuide({ctxdim: n, hdim: n, posdim: n, embed, adapt, norm, init}),
     // ['irnn', irnnGuide({ctxdim: n, hdim: n, posdim: n, embed, adapt})],
     gru: gruGuide({ctxdim: n, hdim: n, posdim: n, embed, adapt}),
     lstm: lstmGuide({ctxdim: n * 2, hdim: n, posdim: n, embed, adapt})
   };
   var lengths = [2, 4, 8, 16, 32];
 
-
-  var guideName = process.env.guide;
-  assert.ok(guideName && _.has(guides, guideName));
+  var guideName = 'rnn';
+  // var guideName = process.env.guide;
+  // assert.ok(guideName && _.has(guides, guideName));
   var guide = [guideName, guides[guideName]];
 
-  var reparam =
-      process.env.reparam === 'true' ? true :
-      process.env.reparam === 'false' ? false :
-      null;
-  assert.ok(reparam !== null);
+  // var reparam =
+  //     process.env.reparam === 'true' ? true :
+  //     process.env.reparam === 'false' ? false :
+  //     null;
+  // assert.ok(reparam !== null);
+
+
+  var reparam = true;
+
 
   map(function(i) {
     map(function(len) {
-      var fn = [guide[0], reparam, len, i].join('-');
+      //var fn = [guide[0], reparam, len, i].join('-');
+      var fn = [guide[0], norm, init, len, i].join('-');
       display(fn);
       opt(softEqTask, len, guide[1], reparam, function(data) {
         fs.write('out/' + fn + '.json', JSON.stringify(data.history));
