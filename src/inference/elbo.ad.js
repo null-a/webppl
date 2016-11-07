@@ -22,7 +22,8 @@ module.exports = function(env) {
       // Use local weight of one for all sample and factor nodes. This
       // is useful in combination with the dumpGraph option for
       // understanding/debugging weight propagation.
-      debugWeights: false
+      debugWeights: false,
+      annealFactors: false
     });
 
     // The current values of all initialized parameters.
@@ -283,6 +284,17 @@ module.exports = function(env) {
       assert.ok(rootNode instanceof RootNode);
       assert.ok(_.isNumber(rootNode.weight));
 
+      // This implementation only makes sense when everything is
+      // reparameterized, as the annealing isn't accounted for in the
+      // node weights.
+      var t = this.opts.annealFactors ?
+            10 - (9 * Math.min(1, this.step / 10000)) :
+            1;
+
+      // if (this.step % 500 === 0) {
+      //   console.log([this.step, t]);
+      // }
+
       var objective = this.nodes.reduce(function(acc, node) {
         if (node instanceof SampleNode && node.reparam) {
           return acc + node.multiplier * (node.logq - node.logp);
@@ -293,7 +305,7 @@ module.exports = function(env) {
           var b = this.computeBaseline(node.address, weight);
           return acc + node.multiplier * ((node.logq * (weight - b)) - node.logp);
         } else if (node instanceof FactorNode) {
-          return acc - node.multiplier * node.score;
+          return acc - node.multiplier * node.score * (1 / t);
         } else {
           return acc;
         }

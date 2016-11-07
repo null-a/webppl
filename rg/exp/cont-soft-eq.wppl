@@ -68,7 +68,7 @@ var opt = function(task, n, guide, reparam, callback) {
     steps: 20000,
     //showGradNorm: 1,
     //clip: 1,
-    estimator: {ELBO: {samples: 10}},
+    estimator: {ELBO: {samples: 10, annealFactors: false}},
     optMethod: {adam: {stepSize: .001}},
     onFinish: callback
   });
