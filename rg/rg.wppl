@@ -136,10 +136,11 @@ var updaternn = function(state, embededVal, args) {
   var ctx = state.ctx;
   var ctxdim = args.ctxdim;
   var pos = param({name: 'pos' + i, dims: [args.posdim, 1]});
+  var name = 'update' + (args.tieWeights ? '' : i);
   var lin =
-        args.norm === 'none' ? linear('update', ctxdim, args.init) :
-        args.norm === 'layer' ? linearLayerNorm('update', ctxdim, args.init) :
-        args.norm === 'weight' ? linearWeightNorm('update', ctxdim, args.init) :
+        args.norm === 'none' ? linear(name, ctxdim, args.init) :
+        args.norm === 'layer' ? linearLayerNorm(name, ctxdim, args.init) :
+        args.norm === 'weight' ? linearWeightNorm(name, ctxdim, args.init) :
         null;
   assert.ok(lin);
   var net = compose(tanh, lin);
@@ -155,7 +156,8 @@ var rnnGuide = function(a) {
     posdim: 1,
     hdim: 2,
     norm: 'none',
-    init: 'rand'
+    init: 'rand',
+    tieWeights: true
   });
   assert.ok(isPosInt(args.ctxdim));
   assert.ok(isPosInt(args.posdim));
@@ -163,6 +165,7 @@ var rnnGuide = function(a) {
   assert.ok(_.isFunction(args.embed));
   assert.ok(_.isFunction(args.adapt));
   assert.ok(_.includes(['none', 'layer', 'weight'], args.norm));
+  assert.ok(_.isBoolean(args.tieWeights));
   return dict({
     initialCtx: zeros([args.ctxdim, 1]),
     embed: args.embed,
