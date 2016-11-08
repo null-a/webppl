@@ -70,12 +70,11 @@ var linearLayerNorm = function(name, o, initw) {
 var linearWeightNorm = function(name, o, initv) {
   return function(x) {
     var i = dims(x)[0];
-    var g = Math.exp(param({name: name + 'g', sigma: 0})); // gain
+    var g = T.exp(param({name: name + 'g', dims: [o, 1], sigma: 0})); // gain
     var v = param({name: name + 'v', dims: [o, i], init: initv});
-    var norm = Math.sqrt(T.sumreduce(T.pow(v, 2)));
-    var w = T.mul(v, g / norm);
+    var norm = T.sqrt(T.sumreduce0(T.pow(v, 2)));
     var b = param({name: name + 'b', dims: [o, 1], sigma: 0});
-    return T.add(T.dot(w, x), b);
+    return T.add(T.mul(T.dot(v, x), T.div(g, norm)), b);
   };
 };
 
