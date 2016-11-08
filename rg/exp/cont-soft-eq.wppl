@@ -184,12 +184,21 @@ var test2 = function() {
   var runs = 3; // per condition
   var lengths = [2, 4, 8, 16, 32];
 
+  // Get args from env.
   var n = _top.parseInt(process.env.n);
-  var guide = rnnGuide({ctxdim: n, hdim: n, posdim: n, embed, adapt});
+  assert.ok(isPosInt(n));
+
+  var tieWeights =
+      process.env.tie === 'true' ? true :
+      process.env.tie === 'false' ? false :
+      null;
+  assert.ok(tieWeights !== null);
+
+  var guide = rnnGuide({ctxdim: n, hdim: n, posdim: n, embed, adapt, tieWeights});
 
   map(function(i) {
     map(function(len) {
-      var fn = ['rnn', 'n', n, 'len', len, i].join('-');
+      var fn = ['rnn', 'n', n, 'len', len, 'tie', tieWeights, i].join('-');
       display(fn);
       opt2(softEqTask, len, guide, function(data) {
         fs.write('out/' + fn + '.json', JSON.stringify(data.history));
