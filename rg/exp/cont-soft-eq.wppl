@@ -60,6 +60,9 @@ var adapt = function(h, args) {
   return {mu: T.get(o, 0), sigma: softplus(T.get(o, 1))};
 };
 
+var mfadapt = function(pos) {
+  return {mu: T.get(pos, 0), sigma: softplus(T.get(pos, 1))};
+};
 
 var opt = function(task, n, guide, reparam, annealFactors, callback) {
   return Optimize(function() {
@@ -72,6 +75,52 @@ var opt = function(task, n, guide, reparam, annealFactors, callback) {
     optMethod: {adam: {stepSize: .001}},
     onFinish: callback
   });
+};
+
+var opt2 = function(task, n, guide, callback) {
+
+  var _model = function(g) {
+    return function() {
+      return model(task, n, g, true);
+    };
+  };
+
+  // Use the mean field guide when generating example traces to avoid
+  // wasting too much computation.
+  var mfg = mfGuide({posdim: 2, embed, adapt: mfadapt});
+
+  var m = Infer({
+    method: 'SMC',
+    particles: 1000,
+    rejuvKernel: 'HMC',
+    rejuvSteps: 10,
+    saveTraces: true,
+    ignoreGuide: true
+  }, _model(mfg));
+
+  var traces = m.traces;
+
+  var params = Optimize(_model(guide), {
+    steps: 4000,
+    estimator: {EUBO: {traces, miniBatchSize: 50}},
+    optMethod: {adam: {stepSize: 0.001}}, // i suspect bigger steps would be ok
+    onFinish: callback
+  });
+
+  // Optimize(_model(guide), {
+  //   steps: 1,
+  //   estimator: {ELBO: {samples: 1000}},
+  //   optMethod: {adam: {stepSize: 0}},
+  //   params,
+  //   verbose: 0,
+  //   onFinish(data) {
+  //     var elbo = data.history[0];
+  //     display(elbo);
+  //   }
+  // });
+
+  return params;
+
 };
 
 var test = function() {
@@ -131,4 +180,24 @@ var test = function() {
   }, _.range(runs));
 };
 
-test();
+var test2 = function() {
+  var runs = 3; // per condition
+  var lengths = [2, 4, 8, 16, 32];
+
+  var n = _top.parseInt(process.env.n);
+  var guide = rnnGuide({ctxdim: n, hdim: n, posdim: n, embed, adapt});
+
+  map(function(i) {
+    map(function(len) {
+      var fn = ['rnn', 'n', n, 'len', len, i].join('-');
+      display(fn);
+      opt2(softEqTask, len, guide, function(data) {
+        fs.write('out/' + fn + '.json', JSON.stringify(data.history));
+      });
+      return;
+    }, lengths);
+  }, _.range(runs));
+};
+
+//test();
+test2();
