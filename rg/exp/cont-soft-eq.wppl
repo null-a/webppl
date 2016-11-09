@@ -129,28 +129,33 @@ var test = function() {
   // TODO: Bumping up the number of hidden units looks like it might
   // help when length=4, but doesn't seem to be the fix for longer
   // sequences.
-  var n = 4; // size of guide hidden state
+  var n = 32; // size of guide hidden state
 
 
-  var norm = process.env.norm;
-  assert.ok(norm, 'norm not specified');
+  // var norm = process.env.norm;
+  // assert.ok(norm, 'norm not specified');
 
-  var init = process.env.init;
-  assert.ok(init, 'init not specified');
+  // var init = process.env.init;
+  // assert.ok(init, 'init not specified');
 
 
   var guides = {
-    rnn: rnnGuide({ctxdim: n, hdim: n, posdim: n, embed, adapt, norm, init}),
+    rnn: rnnGuide({ctxdim: n, hdim: n, posdim: n, embed, adapt}),
+    rnnut: rnnGuide({ctxdim: n, hdim: n, posdim: n, embed, adapt, tieWeights: false}),
     // ['irnn', irnnGuide({ctxdim: n, hdim: n, posdim: n, embed, adapt})],
     gru: gruGuide({ctxdim: n, hdim: n, posdim: n, embed, adapt}),
     lstm: lstmGuide({ctxdim: n * 2, hdim: n, posdim: n, embed, adapt})
   };
-  var lengths = [2, 4, 8, 16, 32];
+
+  //var lengths = [2, 4, 8, 16, 32];
+  var length = _top.parseInt(process.env.length);
+  assert.ok(isPosInt(length));
+
 
   //var guideName = 'lstm';
-  var guideName = process.env.guide;
-  assert.ok(guideName && _.has(guides, guideName));
-  var guide = [guideName, guides[guideName]];
+  // var guideName = process.env.guide;
+  // assert.ok(guideName && _.has(guides, guideName));
+  // var guide = [guideName, guides[guideName]];
 
   // var reparam =
   //     process.env.reparam === 'true' ? true :
@@ -159,24 +164,24 @@ var test = function() {
   // assert.ok(reparam !== null);
 
 
-  var reparam = true;
+  // var reparam = true;
 
-  var anneal =
-      process.env.anneal === 'true' ? true :
-      process.env.anneal === 'false' ? false :
-      null;
-  assert.ok(anneal !== null);
+  // var anneal =
+  //     process.env.anneal === 'true' ? true :
+  //     process.env.anneal === 'false' ? false :
+  //     null;
+  // assert.ok(anneal !== null);
 
   map(function(i) {
-    map(function(len) {
+    map(function(guideName) {
       //var fn = [guide[0], reparam, len, i].join('-');
-      var fn = [guide[0], init, norm, 'anneal', anneal, len, i].join('-');
+      var fn = [guideName, 'n', n, 'length', length, i].join('-');
       display(fn);
-      opt(softEqTask, len, guide[1], reparam, anneal, function(data) {
+      opt(softEqTask, length, guides[guideName], true, false, function(data) {
         fs.write('out/' + fn + '.json', JSON.stringify(data.history));
       });
       return;
-    }, lengths);
+    }, _.keys(guides));
   }, _.range(runs));
 };
 
@@ -221,5 +226,5 @@ var test2 = function() {
   }, _.range(runs));
 };
 
-//test();
-test2();
+test();
+//test2();
