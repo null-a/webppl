@@ -182,29 +182,35 @@ var test = function() {
 
 var test2 = function() {
   var runs = 3; // per condition
-  var lengths = [2, 4, 8, 16, 32];
+  var n = 32;
+  //var lengths = [2, 4, 8, 16, 32];
 
   // Get args from env.
-  var n = _top.parseInt(process.env.n);
-  assert.ok(isPosInt(n));
+  var length = _top.parseInt(process.env.length);
+  assert.ok(isPosInt(length));
 
-  var tieWeights =
-      process.env.tie === 'true' ? true :
-      process.env.tie === 'false' ? false :
-      null;
-  assert.ok(tieWeights !== null);
+  var guides = {
+    rnn: rnnGuide({ctxdim: n, hdim: n, posdim: n, embed, adapt}),
+    gru: gruGuide({ctxdim: n, hdim: n, posdim: n, embed, adapt}),
+    lstm: lstmGuide({ctxdim: n, hdim: n, posdim: n, embed, adapt})
+  };
 
-  var guide = rnnGuide({ctxdim: n, hdim: n, posdim: n, embed, adapt, tieWeights});
+  // var tieWeights =
+  //     process.env.tie === 'true' ? true :
+  //     process.env.tie === 'false' ? false :
+  //     null;
+  // assert.ok(tieWeights !== null);
+
 
   map(function(i) {
-    map(function(len) {
-      var fn = ['rnn', 'n', n, 'len', len, 'tie', tieWeights, i].join('-');
+    map(function(guideName) {
+      var fn = [guideName, 'length', length, i].join('-');
       display(fn);
-      opt2(softEqTask, len, guide, function(data) {
+      opt2(softEqTask, length, guides[guideName], function(data) {
         fs.write('out/' + fn + '.json', JSON.stringify(data.history));
       });
       return;
-    }, lengths);
+    }, _.keys(guides));
   }, _.range(runs));
 };
 
