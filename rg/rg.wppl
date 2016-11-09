@@ -26,6 +26,10 @@ var concat = function() {
   return tovec(T.concat(arguments));
 };
 
+var concat2 = function(arr) {
+  return tovec(T.concat(arr));
+};
+
 var isInt = function(i) {
   return _.isNumber(i) && Math.floor(i) === i;
 };
@@ -43,6 +47,44 @@ var softplus = function(x) {
 };
 
 var dims = function(x) { return ad.value(x).dims; };
+
+// Stitch two nets together, passing the nnparam to both.
+var nncompose = function(n1, n2) {
+  return function(x, nnparam) {
+    // Note, order reversed from math notation for function
+    // composition.
+    return n2(n1(x, nnparam), nnparam);
+  };
+};
+
+// Hide passing the correct parameter building method behind a
+// convenient helper.
+
+// It's kind of annoying we even need this, since the net is just a
+// function. One way to get rid of it would be to have a global
+// nnparam method that does the the right thing, depending on whether
+// we're in the guide or target. We might be able to make that work if
+// the sample takes a thunk for the guide? Even if it *is* possible,
+// it's not clear this is a good idea -- making the distinction
+// between guide and target as explicit as possible may this easier to
+// use, and programs easier to read.
+
+var nneval = function(net, x, inModel) {
+  return net(x, inModel ? modelParam : param);
+};
+
+var linear2 = function(name, o) {
+  // A net is a function with two parameters -- the input and the
+  // method for creating parameters.
+  return function(x, nnparam) {
+    var i = dims(x)[0];
+    var w = nnparam({name: name + 'w', dims: [o, i]});
+    var b = nnparam({name: name + 'b', dims: [o, 1]});
+    return T.add(T.dot(w, x), b);
+  };
+};
+
+
 
 var linear = function(name, o, initw) {
   return function(x) {
@@ -260,7 +302,6 @@ var updategru = function(state, embeddedVal, args) {
 
   return out;
 };
-
 
 var gruGuide = function(a) {
   var args = util.mergeDefaults(a, {
