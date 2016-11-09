@@ -182,18 +182,17 @@ var test = function() {
 
 var test2 = function() {
   var runs = 3; // per condition
-  var n = 32;
+  //var n = 32;
   //var lengths = [2, 4, 8, 16, 32];
+
+
+  var ns = [4, 8, 16];
 
   // Get args from env.
   var length = _top.parseInt(process.env.length);
   assert.ok(isPosInt(length));
 
-  var guides = {
-    rnn: rnnGuide({ctxdim: n, hdim: n, posdim: n, embed, adapt}),
-    gru: gruGuide({ctxdim: n, hdim: n, posdim: n, embed, adapt}),
-    lstm: lstmGuide({ctxdim: n, hdim: n, posdim: n, embed, adapt})
-  };
+
 
   // var tieWeights =
   //     process.env.tie === 'true' ? true :
@@ -204,13 +203,21 @@ var test2 = function() {
 
   map(function(i) {
     map(function(guideName) {
-      var fn = [guideName, 'length', length, i].join('-');
-      display(fn);
-      opt2(softEqTask, length, guides[guideName], function(data) {
-        fs.write('out/' + fn + '.json', JSON.stringify(data.history));
-      });
-      return;
-    }, _.keys(guides));
+      map(function(n) {
+        var guides = {
+          //rnn: rnnGuide({ctxdim: n, hdim: n, posdim: n, embed, adapt}),
+          gru: gruGuide({ctxdim: n, hdim: n, posdim: n, embed, adapt}),
+          lstm: lstmGuide({ctxdim: n, hdim: n, posdim: n, embed, adapt})
+        };
+
+        var fn = [guideName, 'n', n, 'length', length, i].join('-');
+        display(fn);
+        opt2(softEqTask, length, guides[guideName], function(data) {
+          fs.write('out/' + fn + '.json', JSON.stringify(data.history));
+        });
+        return;
+      }, ns);
+    }, ['gru', 'lstm']);
   }, _.range(runs));
 };
 
