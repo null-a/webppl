@@ -10,14 +10,17 @@ def thin(run, n):
             new.append(run[i])
     return new
 
-def load(n, length, tie, run):
-    fn = '-'.join(['rnn', 'n', n, 'len', length, 'tie', tie, run]) + '.json'
+def load(guide, n, length, run):
+    fn = '-'.join([guide, 'n', n, 'len', length, run]) + '.json'
     path = 'rg/exp/cont-soft-eq-eubo-results/'
-    with open(path + fn) as f:
-        return thin(json.load(f), 50)
+    try:
+        with open(path + fn) as f:
+            return thin(json.load(f), 50)
+    except:
+        print ('Missing file: %s' % fn)
+        return []
 
-
-
+guides = 'rnn rnnut lstm'.split(' ')
 numhids = [str(x) for x in [4, 8, 16, 32]]
 lengths = [str(x) for x in [2, 4, 8, 16, 32]]
 runs = [str(x) for x in range(3)]
@@ -72,12 +75,11 @@ for n in numhids:
         else:
             plt.gca().set_yticklabels([''] * 10)
 
-        for tie in ['true', 'false']:
-            c = 'darkorange' if tie == 'true' else 'purple'
-
+        for guide in guides:
+            c = {'rnn':'darkorange', 'rnnut': 'purple', 'gru':'olive', 'lstm':'grey'}[guide]
 
             for run in runs:
-                data = load(n, length, tie, run)
+                data = load(guide, n, length, run)
                 plt.plot(data, c=c)
 
 
@@ -91,6 +93,8 @@ for n in numhids:
 plt.suptitle('soft eq dependency between 2 continuous variables\n'
              + '(adam .001, ~10k examples traces, mini batch size=50, steps=4000)\n'
              + 'orange=rnn, purple=no weight sharing in update net, '
+#             + 'green=gru, '
+             + 'grey=lstm, '
              + 'hid=size of rnn state, len=size of model')
-plt.savefig('cont-soft-eq-eubo.png')
+plt.savefig('cont-soft-eq-eubo-lstm.png')
 plt.show()
