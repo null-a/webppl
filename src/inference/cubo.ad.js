@@ -73,7 +73,7 @@ module.exports = function(env) {
             paramStruct.mulEq(grad_i, Math.pow(ws[i], n));
             paramStruct.addEq(grad, grad_i);
           });
-          paramStruct.mulEq(grad, n / this.opts.samples);
+          paramStruct.mulEq(grad, (1-n) / this.opts.samples);
 
           var cubo = Math.log(util.sum(logws.map(function(logw) {
             return Math.pow(Math.exp(logw), n);
@@ -100,9 +100,9 @@ module.exports = function(env) {
       return this.wpplFn(_.clone(this.s), function() {
 
         var logweight = this.logp - this.logq;
-
-        if (ad.isLifted(logweight)) { // Handle programs with zero random choices.
-          logweight.backprop();
+        var obj = this.logq;
+        if (ad.isLifted(obj)) { // Handle programs with zero random choices.
+          obj.backprop();
         }
 
         var grads = _.mapObject(this.paramsSeen, function(params) {
@@ -132,8 +132,8 @@ module.exports = function(env) {
         }
       }
 
-      var val = this.sampleGuide(guideDist, options);
-
+      //var val = this.sampleGuide(guideDist, options);
+      var val = guideDist.sample();
       this.logp += dist.score(val);
       this.logq += guideDist.score(val);
 
