@@ -23,7 +23,8 @@ module.exports = function(env) {
 
   var estimators = {
     ELBO: require('./elbo')(env),
-    EUBO: require('./eubo')(env)
+    EUBO: require('./eubo')(env),
+    CUBO: require('./cubo')(env)
   };
 
   function Optimize(s, k, a, wpplFn, options) {
