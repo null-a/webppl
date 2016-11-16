@@ -20,7 +20,7 @@ def load(guide, n, length, run):
         print ('Missing file: %s' % fn)
         return []
 
-guides = 'rnn'.split(' ')
+guides = 'rnn rnnut gru lstm'.split(' ')
 numhids = [str(x) for x in [4, 8, 16, 32]]
 lengths = [str(x) for x in [2, 4, 8, 16, 32]]
 runs = [str(x) for x in range(3)]
@@ -54,7 +54,7 @@ def sd(xs):
 #fig = plt.gcf()
 #fig.set_size_inches(18.5, 10.5)
 
-plt.figure(figsize=(12,3))
+plt.figure(figsize=(12,10))
 
 
 ix = 0
@@ -93,7 +93,7 @@ for guide in guides:
 #             + 'orange=rnn, purple=no weight sharing in update net, '
 #             + 'hid=size of rnn state, len=size of model')
 
-plt.tight_layout()
+#plt.tight_layout()
 plt.suptitle('cubo (lr, hid=32, 2000 steps, 100 samples per step, adam=0.0005)')
 plt.savefig('cont-soft-eq-cubo.png')
 plt.show()
