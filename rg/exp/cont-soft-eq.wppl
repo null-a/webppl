@@ -53,7 +53,7 @@ var embed = function(x) {
 
 var adapt = function(h, args) {
   var hdim = args.hdim;
-  var w = param({name: 'adapt-w', dims: [2, hdim]});
+  var w = param({name: 'adapt-w', dims: [2, hdim], init: args.init});
   var b = param({name: 'adapt-b', dims: [2, 1]});
   var o = T.add(T.dot(w, h), b);
   //return toscalar(o);
@@ -64,180 +64,298 @@ var mfadapt = function(pos) {
   return {mu: T.get(pos, 0), sigma: softplus(T.get(pos, 1))};
 };
 
-var opt = function(task, n, guide, reparam, annealFactors, callback) {
-  return Optimize(function() {
-    return model(task, n, guide, reparam);
-  }, {
-    steps: 20000,
-    //showGradNorm: 1,
-    //clip: 1,
-    estimator: {ELBO: {samples: 10, annealFactors}},
-    optMethod: {adam: {stepSize: .001}},
-    onFinish: callback
-  });
-};
+// var opt = function(task, n, guide, reparam, annealFactors, callback) {
+//   return Optimize(function() {
+//     return model(task, n, guide, reparam);
+//   }, {
+//     steps: 20000,
+//     //showGradNorm: 1,
+//     //clip: 1,
+//     estimator: {ELBO: {samples: 10, annealFactors}},
+//     optMethod: {adam: {stepSize: .001}},
+//     onFinish: callback
+//   });
+// };
 
-var optCUBO = function(task, n, guide, callback) {
-  return Optimize(function() {
-    return model(task, n, guide, true);
-  }, {
-    steps: 2000,
-    //showGradNorm: 1,
-    //clip: 1,
-    estimator: {CUBO: {samples: 100}},
-    optMethod: {adam: {stepSize: .0005}},
-    onFinish: callback
-  });
-};
+// var optCUBO = function(task, n, guide, callback) {
+//   return Optimize(function() {
+//     return model(task, n, guide, true);
+//   }, {
+//     steps: 2000,
+//     //showGradNorm: 1,
+//     //clip: 1,
+//     estimator: {CUBO: {samples: 100}},
+//     optMethod: {adam: {stepSize: .0005}},
+//     onFinish: callback
+//   });
+// };
 
-var opt2 = function(task, n, guide, callback) {
+// var opt2 = function(task, n, guide, callback) {
 
-  var _model = function(g) {
-    return function() {
-      return model(task, n, g, true);
-    };
+//   var _model = function(g) {
+//     return function() {
+//       return model(task, n, g, true);
+//     };
+//   };
+
+//   // Use the mean field guide when generating example traces to avoid
+//   // wasting too much computation.
+//   var mfg = mfGuide({posdim: 2, embed, adapt: mfadapt});
+
+//   var m = Infer({
+//     method: 'SMC',
+//     particles: 1000,
+//     rejuvKernel: 'HMC',
+//     rejuvSteps: 10,
+//     saveTraces: true,
+//     ignoreGuide: true
+//   }, _model(mfg));
+
+//   var traces = m.traces;
+
+//   var params = Optimize(_model(guide), {
+//     steps: 4000,
+//     estimator: {EUBO: {traces, miniBatchSize: 50}},
+//     optMethod: {adam: {stepSize: 0.001}}, // i suspect bigger steps would be ok
+//     onFinish: callback
+//   });
+
+//   // Optimize(_model(guide), {
+//   //   steps: 1,
+//   //   estimator: {ELBO: {samples: 1000}},
+//   //   optMethod: {adam: {stepSize: 0}},
+//   //   params,
+//   //   verbose: 0,
+//   //   onFinish(data) {
+//   //     var elbo = data.history[0];
+//   //     display(elbo);
+//   //   }
+//   // });
+
+//   return params;
+
+// };
+
+// var test = function() {
+//   var runs = 3; // per condition
+
+//   // TODO: Bumping up the number of hidden units looks like it might
+//   // help when length=4, but doesn't seem to be the fix for longer
+//   // sequences.
+//   var n = 32; // size of guide hidden state
+
+
+//   // var norm = process.env.norm;
+//   // assert.ok(norm, 'norm not specified');
+
+//   // var init = process.env.init;
+//   // assert.ok(init, 'init not specified');
+
+
+//   var guides = {
+//     rnn: rnnGuide({ctxdim: n, hdim: n, posdim: n, embed, adapt, init: 'xavier', norm: 'weight'}),
+//     rnnut: rnnGuide({ctxdim: n, hdim: n, posdim: n, embed, adapt, tieWeights: false, init: 'xavier', norm: 'weight'}),
+//     // ['irnn', irnnGuide({ctxdim: n, hdim: n, posdim: n, embed, adapt})],
+//     gru: gruGuide({ctxdim: n, hdim: n, posdim: n, embed, adapt}),
+//     lstm: lstmGuide({ctxdim: n * 2, hdim: n, posdim: n, embed, adapt})
+//   };
+
+//   //var lengths = [2, 4, 8, 16, 32];
+//   var length = _top.parseInt(process.env.length);
+//   assert.ok(isPosInt(length));
+
+
+//   //var guideName = 'lstm';
+//   // var guideName = process.env.guide;
+//   // assert.ok(guideName && _.has(guides, guideName));
+//   // var guide = [guideName, guides[guideName]];
+
+//   // var reparam =
+//   //     process.env.reparam === 'true' ? true :
+//   //     process.env.reparam === 'false' ? false :
+//   //     null;
+//   // assert.ok(reparam !== null);
+
+
+//   // var reparam = true;
+
+//   // var anneal =
+//   //     process.env.anneal === 'true' ? true :
+//   //     process.env.anneal === 'false' ? false :
+//   //     null;
+//   // assert.ok(anneal !== null);
+
+
+//   map(function(guideName) {
+//     map(function(i) {
+//       var fn = ['cubo', guideName, 'n', n, 'length', length, i].join('-');
+//       display(fn);
+//       optCUBO(softEqTask, length, guides[guideName], function(data) {
+//         fs.write('out/' + fn + '.json', JSON.stringify(data.history));
+//       });
+//       return;
+//     }, _.range(runs));
+//   }, _.keys(guides));
+// };
+
+// var test2 = function() {
+//   var runs = 3; // per condition
+//   //var n = 32;
+//   //var lengths = [2, 4, 8, 16, 32];
+
+
+//   var ns = [4, 8, 16];
+
+//   // Get args from env.
+//   var length = _top.parseInt(process.env.length);
+//   assert.ok(isPosInt(length));
+
+
+
+//   // var tieWeights =
+//   //     process.env.tie === 'true' ? true :
+//   //     process.env.tie === 'false' ? false :
+//   //     null;
+//   // assert.ok(tieWeights !== null);
+
+
+//   map(function(i) {
+//     map(function(guideName) {
+//       map(function(n) {
+//         var guides = {
+//           //rnn: rnnGuide({ctxdim: n, hdim: n, posdim: n, embed, adapt}),
+//           gru: gruGuide({ctxdim: n, hdim: n, posdim: n, embed, adapt}),
+//           lstm: lstmGuide({ctxdim: n, hdim: n, posdim: n, embed, adapt})
+//         };
+
+//         var fn = [guideName, 'n', n, 'length', length, i].join('-');
+//         display(fn);
+//         opt2(softEqTask, length, guides[guideName], function(data) {
+//           fs.write('out/' + fn + '.json', JSON.stringify(data.history));
+//         });
+//         return;
+//       }, ns);
+//     }, ['gru', 'lstm']);
+//   }, _.range(runs));
+// };
+
+
+// allComb({a: [0,1], b: [10,20]})
+// =>
+// [ { a: 0, b: 10 },
+//   { a: 0, b: 20 },
+//   { a: 1, b: 10 },
+//   { a: 1, b: 20 } ]
+var allComb = function(obj) {
+  var f = function(pairs) {
+    assert.ok(pairs.length >= 1, 'Not defined for empty array.');
+    var fp = first(pairs);
+    var name = fp[0];
+    var opts = fp[1];
+    if (pairs.length === 1) {
+      return map(function(opt) {
+        return [[name, opt]];
+      }, opts);
+    } else {
+      var restCombs = f(rest(pairs));
+      return _.flatten(map(function(opt) {
+        return map(function(r) {
+          return ([[name, opt]].concat(r));
+        }, restCombs);
+      }, opts), 1);
+    }
   };
+  return map(function(x) {
+    return _.object(x);
+  }, f(_.pairs(obj)));
+};
 
+
+var filterByEnv = function(conditions) {
+  var keysPresent = _.intersection(_.keys(process.env), _.keys(conditions[0]));
+  return filter(function(condition) {
+    return all(function(key) {
+      return condition[key] === process.env[key];
+    }, keysPresent);
+  }, conditions);
+};
+
+var split = function(s) {
+  return s.split(' ');
+};
+
+
+var guides = dict({
+  rnn: rnnGuide,
+  gru: gruGuide,
+  lstm: lstmGuide
+});
+
+
+var makeTraces = function(makeModel) {
+  // Generate traces for EUBO
   // Use the mean field guide when generating example traces to avoid
   // wasting too much computation.
   var mfg = mfGuide({posdim: 2, embed, adapt: mfadapt});
-
-  var m = Infer({
+  return Infer({
     method: 'SMC',
     particles: 1000,
     rejuvKernel: 'HMC',
     rejuvSteps: 10,
     saveTraces: true,
     ignoreGuide: true
-  }, _model(mfg));
-
-  var traces = m.traces;
-
-  var params = Optimize(_model(guide), {
-    steps: 4000,
-    estimator: {EUBO: {traces, miniBatchSize: 50}},
-    optMethod: {adam: {stepSize: 0.001}}, // i suspect bigger steps would be ok
-    onFinish: callback
-  });
-
-  // Optimize(_model(guide), {
-  //   steps: 1,
-  //   estimator: {ELBO: {samples: 1000}},
-  //   optMethod: {adam: {stepSize: 0}},
-  //   params,
-  //   verbose: 0,
-  //   onFinish(data) {
-  //     var elbo = data.history[0];
-  //     display(elbo);
-  //   }
-  // });
-
-  return params;
-
+  }, makeModel(mfg)).traces;
 };
 
-var test = function() {
-  var runs = 3; // per condition
+var main = function() {
+  var conditions = filterByEnv(allComb({
+    guide: split('rnn'),
+    length: split('2 4 8 16 32'),
+    hid: split('4 8 16 32'),
+    init: split('rand xavier ortho')
+  }));
+  var numruns = _.has(process.env, 'runs') ? _top.parseInt(process.env.runs) : 1;
 
-  // TODO: Bumping up the number of hidden units looks like it might
-  // help when length=4, but doesn't seem to be the fix for longer
-  // sequences.
-  var n = 32; // size of guide hidden state
+  display(conditions);
+  display('runs: ' + numruns);
 
-
-  // var norm = process.env.norm;
-  // assert.ok(norm, 'norm not specified');
-
-  // var init = process.env.init;
-  // assert.ok(init, 'init not specified');
-
-
-  var guides = {
-    rnn: rnnGuide({ctxdim: n, hdim: n, posdim: n, embed, adapt, init: 'xavier', norm: 'weight'}),
-    rnnut: rnnGuide({ctxdim: n, hdim: n, posdim: n, embed, adapt, tieWeights: false, init: 'xavier', norm: 'weight'}),
-    // ['irnn', irnnGuide({ctxdim: n, hdim: n, posdim: n, embed, adapt})],
-    gru: gruGuide({ctxdim: n, hdim: n, posdim: n, embed, adapt}),
-    lstm: lstmGuide({ctxdim: n * 2, hdim: n, posdim: n, embed, adapt})
-  };
-
-  //var lengths = [2, 4, 8, 16, 32];
-  var length = _top.parseInt(process.env.length);
-  assert.ok(isPosInt(length));
-
-
-  //var guideName = 'lstm';
-  // var guideName = process.env.guide;
-  // assert.ok(guideName && _.has(guides, guideName));
-  // var guide = [guideName, guides[guideName]];
-
-  // var reparam =
-  //     process.env.reparam === 'true' ? true :
-  //     process.env.reparam === 'false' ? false :
-  //     null;
-  // assert.ok(reparam !== null);
-
-
-  // var reparam = true;
-
-  // var anneal =
-  //     process.env.anneal === 'true' ? true :
-  //     process.env.anneal === 'false' ? false :
-  //     null;
-  // assert.ok(anneal !== null);
-
-
-  map(function(guideName) {
+  map(function(condition) {
     map(function(i) {
-      var fn = ['cubo', guideName, 'n', n, 'length', length, i].join('-');
+      var hid = _top.parseInt(condition.hid);
+      var fn = _.flatten(_.pairs(condition)).concat(i).join('-');
       display(fn);
-      optCUBO(softEqTask, length, guides[guideName], function(data) {
-        fs.write('out/' + fn + '.json', JSON.stringify(data.history));
-      });
-      return;
-    }, _.range(runs));
-  }, _.keys(guides));
-};
 
-var test2 = function() {
-  var runs = 3; // per condition
-  //var n = 32;
-  //var lengths = [2, 4, 8, 16, 32];
-
-
-  var ns = [4, 8, 16];
-
-  // Get args from env.
-  var length = _top.parseInt(process.env.length);
-  assert.ok(isPosInt(length));
-
-
-
-  // var tieWeights =
-  //     process.env.tie === 'true' ? true :
-  //     process.env.tie === 'false' ? false :
-  //     null;
-  // assert.ok(tieWeights !== null);
-
-
-  map(function(i) {
-    map(function(guideName) {
-      map(function(n) {
-        var guides = {
-          //rnn: rnnGuide({ctxdim: n, hdim: n, posdim: n, embed, adapt}),
-          gru: gruGuide({ctxdim: n, hdim: n, posdim: n, embed, adapt}),
-          lstm: lstmGuide({ctxdim: n, hdim: n, posdim: n, embed, adapt})
+      var makeModel = function(guide) {
+        return function() {
+          return model(
+            softEqTask,
+            _top.parseInt(condition.length),
+            guide,
+            true); // reparam
         };
+      };
 
-        var fn = [guideName, 'n', n, 'length', length, i].join('-');
-        display(fn);
-        opt2(softEqTask, length, guides[guideName], function(data) {
-          fs.write('out/' + fn + '.json', JSON.stringify(data.history));
+      Optimize(
+        makeModel(
+          guides(condition.guide)({
+            ctxdim: hid,
+            hdim: hid,
+            posdim: hid,
+            init: condition.init,
+            embed,
+            adapt
+          })),
+        {
+          steps: 4000,
+          estimator: {EUBO: {traces: makeTraces(makeModel), miniBatchSize: 50}},
+          optMethod: {adam: {stepSize: .001}},
+          onFinish: function(data) {
+            fs.write('out/' + fn + '.json', JSON.stringify(data.history));
+          }
         });
-        return;
-      }, ns);
-    }, ['gru', 'lstm']);
-  }, _.range(runs));
+    }, _.range(numruns));
+  }, conditions);
+  return 'done';
 };
 
-test();
-//test2();
+main();
