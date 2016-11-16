@@ -8,6 +8,7 @@ var ad = require('./ad');
 var assert = require('assert');
 var util = require('./util');
 var dists = require('./dists');
+var ortho = require('./math/ortho');
 
 module.exports = function(env) {
 
@@ -99,7 +100,7 @@ module.exports = function(env) {
     var name = _.has(options, 'name') ? options.name : util.relativizeAddress(env, a);
     var init = options.init;
 
-    assert.ok(init === 'rand' || init === 'id' || init === 'xavier', 'param: Unknown init. scheme specified.');
+    assert.ok(_.contains('rand id xavier ortho'.split(' '), init), 'Unknown initialization specified.');
 
     if (init === 'id') {
       assert.ok(dims.length === 2 && dims[0] === dims[1]);
@@ -138,6 +139,14 @@ module.exports = function(env) {
         while (n--) {
           val.data[n] = dists.gaussianSample(0, scale);
         }
+      } else if (init === 'ortho') {
+        if (dims.length !== 2) {
+          throw new Error('ortho init. can only be applied to matrices.');
+        }
+        for (var i = 0; i < val.length; i++) {
+          val.data[i] = dists.gaussianSample(0, 1);
+        }
+        val = ortho(val);
       } else {
         throw new Error('Unreachable.');
       }
