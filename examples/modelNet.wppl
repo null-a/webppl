@@ -1,0 +1,40 @@
+// Since 'net' is used in the model, this is a *prior* over nets.
+// Evaluating `net(x)` samples the weights for the network, then
+// returns the result of passing `x` through the net.
+var net = stack([
+  function(x) { Vector([x]); },
+  linear(1, 'linear'),
+  sigmoid,
+  function(x) { T.get(x, 0); }
+]);
+
+var data = [
+  {x: -2, label: false},
+  {x: -3, label: false},
+  {x: -2, label: false},
+  {x: 1, label: true},
+  {x: 2, label: true},
+  {x: 1.5, label: true},
+  {x: 2.5, label: true}];
+
+var model = function() {
+  mapData({data}, function(datum) {
+    var p = net(datum.x);
+    observe(Bernoulli({p}), datum.label);
+  });
+};
+
+var params = Optimize({
+  model,
+  steps: 1000,
+  optMethod: {adam: {stepSize: .1}}});
+
+// Here we create a function that runs the net using the optimized
+// parameters. More precisely, we get a function that samples from the
+// approximate posterior over nets. However, since we optimize point
+// estimates for the weights in the net by default, this function is
+// deterministic.
+
+var optNet = getGuide(params, net);
+
+map(function(x) { return [x, optNet(x)]; }, _.range(-3, 4));

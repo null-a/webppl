@@ -518,6 +518,15 @@ var modelParam = function(options) {
   }});
 };
 
+var modelParamL2 = function(options) {
+  var prior = (options && options.dims) ?
+      TensorGaussian({mu: 0, sigma: 1, dims: options.dims}) :
+      Gaussian({mu: 0, sigma: 1});
+  return sample(prior, {guide() {
+    return Delta({v: param(options)});
+  }});
+};
+
 // Convenience functions for building tensors out of scalars
 var Vector = function(arr) {
   var n = arr.length;
@@ -533,4 +542,81 @@ var Matrix = function(arr) {
 var Tensor = function(dims, arr) {
   var t = ad.tensor.fromScalars(arr);
   return ad.tensor.reshape(t, dims);
+};
+
+// Simple neural networks.
+// TODO: Move into separate file?
+
+var dims = function(x) {
+  return ad.value(x).dims;
+};
+
+var sigmoid = function(x) {
+  return T.sigmoid(x);
+};
+
+var tanh = function(x) {
+  return T.tanh(x);
+};
+
+var concat = function(arr) {
+  var out = T.concat(arr);
+  return T.reshape(out, [dims(out)[0], 1]);
+};
+
+// TODO:
+// * Check name arg. is given.
+// * Figure out weight decay.
+// * We'll run into trouble if the input changes across calls to the
+//   net. Pretty much the same problem can come up with regular
+//   parameter use if you accidentally use the same name in two
+//   places, and when it does it's not obvious what the problem is.
+//   One possible solution is to have `param` complain when the `dims`
+//   option doesn't match the dimension of parameters that already
+//   exist.
+// * affine?
+var linear = function(nout, name) {
+  return function(x) {
+    var nin = dims(x)[0];
+    var w = nnparam({name: name + 'w', dims: [nout, nin]});
+    var b = nnparam({name: name + 'b', dims: [nout, 1]});
+    return T.add(T.dot(w, x), b);
+  };
+};
+
+// e.g.
+// var net = stack([linear(10), tanh, linear(10), sigmoid])
+var stack = function(arr) {
+  var iter = function(i) {
+    return (arr.length === i) ?
+        idF :
+        compose(iter(i + 1), arr[i]);
+  };
+  return iter(0);
+};
+
+// We create model parameters with Gaussian prior so that it's
+// possible to evaluate networks at the top-level while still doing
+// something principled. This is useful because it makes it easy to
+// tinker with nets. e.g. on webppl.org.
+
+var nnparam = function(opts) {
+  return inGuide() ? param(opts) : modelParamL2(opts);
+};
+
+// Calling the regular function `fn` evaluates the function, sampling
+// from the target. Calling the result of getGuide(params, fn)
+// evaluates the function sampling from the guide using the parameters
+// given by 'params'.
+
+// (There's a much better way to implement this, but this will do for
+// now.)
+
+var getGuide = function(params, fn) {
+  return function() {
+    var args = arguments;
+    sample(Infer({params, method: 'forward', samples: 1, guide: true, model() {
+      return ad.valueRec(apply(fn, args));
+    }}));
+  };
 };
