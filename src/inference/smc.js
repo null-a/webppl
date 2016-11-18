@@ -39,8 +39,6 @@ module.exports = function(env) {
 
   function SMC(s, k, a, wpplFn, options) {
     util.throwUnlessOpts(options, 'SMC');
-    // TODO: Assign to this.opts, use this throughout coroutine rather
-    // than assigning individucal properties of options in ctor.
     var options = util.mergeDefaults(options, {
       particles: 100,
       rejuvSteps: 0,
@@ -51,7 +49,6 @@ module.exports = function(env) {
       importance: 'default',
       params: {}
     });
-    this.opts = options;
 
     if (!_.includes(validImportanceOptVals, options.importance)) {
       var msg = options.importance + ' is not a valid importance option. ' +
@@ -69,6 +66,7 @@ module.exports = function(env) {
     this.debug = options.debug;
     this.saveTraces = options.saveTraces;
     this.onlyMAP = options.onlyMAP;
+    this.importanceOpt = options.importance;
 
     // Perform a copy to avoid modifying the input when SMC causes
     // previously unseen params to be initialized.
@@ -102,7 +100,7 @@ module.exports = function(env) {
     options = options || {};
 
     var getGuide =
-        this.opts.importance === 'ignoreGuide' ?
+        this.importanceOpt === 'ignoreGuide' ?
         function(guide, s, a, k) { return k(s, null); } :
         guide.runThunkOrNull;
 
@@ -113,7 +111,7 @@ module.exports = function(env) {
 
       // Auto guide if requested.
       var importanceDist =
-          !maybeDist && (this.opts.importance === 'autoGuide') ?
+          !maybeDist && (this.importanceOpt === 'autoGuide') ?
           guide.independent(dist, a, env) :
           maybeDist;
 
