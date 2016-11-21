@@ -1,0 +1,55 @@
+var net = stack([
+  function(x) { Vector([x]); },
+  linear(1, 'linear'),
+  sigmoid,
+  function(x) { T.get(x, 0); }
+]);
+
+var data = [
+  -.45, -.42, -.38, -.35,
+  1, 1.1, 1.05, .95
+];
+
+// A mixture model that uses a net to map from observations to the
+// component assignment probability.
+
+var model = function() {
+  var means = repeat(2, function() { gaussian(0, 1); });
+  mapData({data}, function(datum) {
+    var c = sample(Bernoulli({p: .5}), {guide() {
+      Bernoulli({p: net(datum)});
+    }});
+    observe(Gaussian({mu: means[c ? 0 : 1], sigma: .1}), datum);
+  });
+  return means;
+};
+
+var params = Optimize({
+  model,
+  steps: 1000,
+  optMethod: {adam: {stepSize: .01}}
+});
+
+// Create a function that binds the optimized parameters to the net.
+
+// (There something kinda odd about getGuide. What's happening here is
+// that we run the net that is only used in the *guide* (above) in a
+// *model*, and rely on the fact that sampling the guide does the
+// right thing given the implementation of `modelParam`. (Which we
+// automatically use because of the way `nnparam` is implemented.)
+// This seems fishy. A more obvious thing to do is to have another
+// helper that runs `net` inside the guide thunk of some prior,
+// although right now that would be no different to what's already
+// happening. I suppose a difference might come in at some point
+// because the `getGuide` behavior relies on the fact that
+// `modelParam` uses a delta distribution? (Which might be OK?)
+// However, what about the case where parameters are created with
+// `param`? Here, we won't have `nnparam` making things work. Maybe
+// have `param` works like `nnparam` so this works everywhere? If not,
+// maybe we need both helpers? If we did, would it be at all clear
+// what the difference is between the two?
+
+var optNet = getGuide(params, net);
+
+// Inspect the optimized net.
+map(function(x) { return [x, optNet(x)]; }, _.range(-2, 2, .5));
