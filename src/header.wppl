@@ -575,11 +575,16 @@ var concat = function(arr) {
 //   option doesn't match the dimension of parameters that already
 //   exist.
 // * affine?
+
+// The weight initialization used here is based on "Understanding the
+// difficulty of training deep feedforward neural networks".
+
 var linear = function(nout, name) {
   return function(x) {
     var nin = dims(x)[0];
-    var w = nnparam({name: name + 'w', dims: [nout, nin]});
-    var b = nnparam({name: name + 'b', dims: [nout, 1]});
+    var sigma = Math.sqrt(2 / (nin + nout));
+    var w = nnparam({name: name + 'w', dims: [nout, nin], sigma});
+    var b = nnparam({name: name + 'b', dims: [nout, 1], sigma: 0});
     return T.add(T.dot(w, x), b);
   };
 };
