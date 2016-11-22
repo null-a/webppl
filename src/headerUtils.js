@@ -100,7 +100,7 @@ module.exports = function(env) {
     var name = _.has(options, 'name') ? options.name : util.relativizeAddress(env, a);
     var init = options.init;
 
-    assert.ok(_.contains('rand id xavier ortho'.split(' '), init), 'Unknown initialization specified.');
+    assert.ok(_.contains('rand id xavier xavier2 xavier3 ortho'.split(' '), init), 'Unknown initialization specified.');
 
     if (init === 'id') {
       assert.ok(dims.length === 2 && dims[0] === dims[1]);
@@ -139,6 +139,45 @@ module.exports = function(env) {
         while (n--) {
           val.data[n] = dists.gaussianSample(0, scale);
         }
+      } else if (init === 'xavier2') {
+
+        var scale;
+        if (val.rank === 1) {
+          // Init. biases to tiny values to avoid zero gradient warnings
+          // on first optimization step.
+          scale = 1e-5;
+        } else if (val.rank === 2) {
+          scale = Math.sqrt(2 / (val.dims[0] + val.dims[1]));
+        } else {
+          throw new Error('param: xavier init. can only be applied to vectors and matrices.');
+        }
+        var n = val.length;
+        while (n--) {
+          val.data[n] = dists.gaussianSample(0, scale);
+        }
+
+
+      } else if (init === 'xavier3') {
+
+        var n = val.length;
+        if (val.rank === 1) {
+          // Init. biases to tiny values to avoid zero gradient warnings
+          // on first optimization step.
+          var scale = 1e-5;
+          while (n--) {
+            val.data[n] = dists.gaussianSample(0, scale);
+          }
+        } else if (val.rank === 2) {
+          var b = Math.sqrt(6 / (val.dims[0] + val.dims[1]));
+          var a = -b;
+          while (n--) {
+            var u = util.random();
+            val.data[n] = (1 - u) * a + u * b;
+          }
+        } else {
+          throw new Error('param: xavier init. can only be applied to vectors and matrices.');
+        }
+
       } else if (init === 'ortho') {
         if (dims.length !== 2) {
           throw new Error('ortho init. can only be applied to matrices.');

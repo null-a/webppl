@@ -312,7 +312,7 @@ var main = function() {
     guide: split('rnn'),
     length: split('2 4 8 16 32'),
     hid: split('4 8 16 32'),
-    init: split('rand xavier ortho')
+    init: split('rand xavier xavier2 xavier3 ortho')
   }));
   var numruns = _.has(process.env, 'runs') ? _top.parseInt(process.env.runs) : 1;
 
