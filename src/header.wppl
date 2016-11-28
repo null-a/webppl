@@ -512,20 +512,34 @@ var Infer = function(options, maybeFn) {
 
 // Convenience function for creating maximum likelihood model
 // parameters.
+
+// We can safely skip `mem` here if we wish? (Since we can't sample
+// from this anyway, and since the prior is flat, adding multiple
+// terms does no harm.)
 var modelParam = function(options) {
   return sample(ImproperUniform(), {guide() {
     return Delta({v: param(options)});
   }});
 };
 
-var modelParamL2 = function(options) {
+// We memoize here so that `modelParam` behaves analogously to `param`
+// i.e. we want multiple calls to `modelParam` using the same name to
+// return the same value. This also gives behavior expected for weight
+// decay, since without `mem` we effectively add a weight decay term
+// each time `modelParamL2` is called.
+
+// TODO: Make this work for anonymous params. (It doesn't at present
+// because the stack address used to name such parameters isn't part
+// of the cache key used by `mem`.
+
+var modelParamL2 = mem(function(options) {
   var prior = (options && options.dims) ?
       TensorGaussian({mu: 0, sigma: 1, dims: options.dims}) :
       Gaussian({mu: 0, sigma: 1});
   return sample(prior, {guide() {
     return Delta({v: param(options)});
   }});
-};
+});
 
 // Convenience functions for building tensors out of scalars
 var Vector = function(arr) {
