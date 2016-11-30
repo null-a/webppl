@@ -110,6 +110,21 @@ var mem = function(f) {
   };
 };
 
+var mem1 = function(f) {
+  globalStore.mem1Index = 1 + (globalStore.mem1Index || 0);
+  var key = 'mem1-' + globalStore.mem1Index;
+  return function(arg) {
+    var stringedArg = key + util.serialize(arg);
+    if (_.has(globalStore, stringedArg)) {
+      return globalStore[stringedArg];
+    } else {
+      var val = apply(f, arguments);
+      globalStore[stringedArg] = val;
+      return val;
+    }
+  };
+};
+
 var isEven = function(v) {
   return v % 2 === 0;
 };
@@ -516,11 +531,11 @@ var Infer = function(options, maybeFn) {
 // We can safely skip `mem` here if we wish? (Since we can't sample
 // from this anyway, and since the prior is flat, adding multiple
 // terms does no harm.)
-var modelParam = function(options) {
-  return sample(ImproperUniform(), {guide() {
-    return Delta({v: param(options)});
-  }});
-};
+// var modelParam = function(options) {
+//   return sample(ImproperUniform(), {guide() {
+//     return Delta({v: param(options)});
+//   }});
+// };
 
 // We memoize here so that `modelParam` behaves analogously to `param`
 // i.e. we want multiple calls to `modelParam` using the same name to
@@ -532,14 +547,82 @@ var modelParam = function(options) {
 // because the stack address used to name such parameters isn't part
 // of the cache key used by `mem`.
 
-var modelParamL2 = mem(function(options) {
-  var prior = (options && options.dims) ?
-      TensorGaussian({mu: 0, sigma: 1, dims: options.dims}) :
-      Gaussian({mu: 0, sigma: 1});
+// var modelParamL2 = mem(function(options) {
+//   var prior = (options && options.dims) ?
+//       TensorGaussian({mu: 0, sigma: 1, dims: options.dims}) :
+//       Gaussian({mu: 0, sigma: 1});
+//   return sample(prior, {guide() {
+//     return Delta({v: param(options)});
+//   }});
+// });
+
+
+
+
+// We only memoize on name. This is somewhat unsatisfactory as if a
+// name is reused with a different model, then the value returned on
+// the second call will be a value created under the first model. This
+// approach is convenient, but could cause tricky to spot bugs. One
+// possible solution would be split into two step the definition and
+// retrival of parameters. This would require use of the global store
+// I think, but that's no different to using mem1. Fetching a
+// parameter would only require the name to be given, and defining a
+// parameter that already exists could throw an error. I guess these
+// two could be put together to recover what we have now if definition
+// were to silently fail if the name is taken. This seems like a
+// useful way of thinking about what's happening. This problem seems
+// affect everything build on parameters -- from `param` up to the nn
+// helpers.
+
+var paramModelHelper = mem1(function(name, opts, getPrior) {
+  var prior = getPrior(opts);
   return sample(prior, {guide() {
-    return Delta({v: param(options)});
+    return Delta({v: param(opts)});
   }});
 });
+
+// This name kinda makes sense, but the similarity with modelParam is
+// bound to cause confusion.
+var paramModel = function(getPrior) {
+  return function(opts) {
+    // TODO: Handle address based names.
+    assert.ok(opts.name, 'A name must be given.');
+    return paramModelHelper(opts.name, opts, getPrior);
+  };
+};
+
+
+// TODO: Does it make sense to arrange things so that the result of
+// calling `l2()` can be passed directly to the net helpers?
+
+var l2 = function(sigma) {
+  return function(opts) {
+    return opts.dims ?
+        TensorGaussian({mu: 0, sigma, dims: opts.dims}) :
+        Gaussian({mu: 0, sigma});
+  };
+};
+
+// If we want to maintain uncertainty over weight we can pass
+// something like this to the nn helpers as the model.
+var vb = function(sigma) {
+  return function(opts) {
+    // TODO: Requires mem1 on name. Really this should share the same
+    // cache as the param helper so that we get the behavior we see
+    // elsewhere, of having a net share params based on name, even
+    // when the parameter model changes.
+    sample(TensorGaussian({mu: 0, sigma, dims: opts.dims}), {guide() {
+      return TensorGaussian({
+        mu: param(),
+        sigma: param(),
+        dims: opts.dims
+      });
+    }});
+  };
+};
+
+// Anaolgous to `param` but for direct use in a model.
+var modelParam = paramModel(constF(ImproperUniform()));
 
 // Convenience functions for building tensors out of scalars
 var Vector = function(arr) {
@@ -593,12 +676,12 @@ var concat = function(arr) {
 // The weight initialization used here is based on "Understanding the
 // difficulty of training deep feedforward neural networks".
 
-var linear = function(nout, name) {
+var linear = function(nout, name, model) {
   return function(x) {
     var nin = dims(x)[0];
     var sigma = Math.sqrt(2 / (nin + nout));
-    var w = nnparam({name: name + 'w', dims: [nout, nin], sigma});
-    var b = nnparam({name: name + 'b', dims: [nout, 1], sigma: 0});
+    var w = nnparam(model, {name: name + 'w', dims: [nout, nin], sigma});
+    var b = nnparam(model, {name: name + 'b', dims: [nout, 1], sigma: 0});
     return T.add(T.dot(w, x), b);
   };
 };
@@ -614,13 +697,8 @@ var stack = function(arr) {
   return iter(0);
 };
 
-// We create model parameters with Gaussian prior so that it's
-// possible to evaluate networks at the top-level while still doing
-// something principled. This is useful because it makes it easy to
-// tinker with nets. e.g. on webppl.org.
-
-var nnparam = function(opts) {
-  return inGuide() ? param(opts) : modelParamL2(opts);
+var nnparam = function(model, opts) {
+  return model ? model(opts) : param(opts);
 };
 
 // Calling the regular function `fn` evaluates the function, sampling

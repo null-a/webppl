@@ -1,9 +1,10 @@
-// Since 'net' is used in the model, this is a *prior* over nets.
-// Evaluating `net(x)` samples the weights for the network, then
-// returns the result of passing `x` through the net.
+// Since we specify a model for the parameters of this net, this is a
+// *prior* over nets. The first time `net(x)` is evaluated weights are
+// sampled for the network, then the result of passing `x` through the
+// net is returned.
 var net = stack([
   function(x) { Vector([x]); },
-  linear(1, 'linear'),
+  linear(1, 'linear', paramModel(l2(1))),
   sigmoid,
   function(x) { T.get(x, 0); }
 ]);
