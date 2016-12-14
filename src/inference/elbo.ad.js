@@ -24,6 +24,7 @@ module.exports = function(env) {
       avgBaselineDecay: 0.9,
       // Weight all factors in the LR term by log p/q.
       naiveLR: false,
+      reducedPW: false,
       // Write a DOT file representation of first graph to disk.
       dumpGraph: false,
       // Use local weight of one for all sample and factor nodes. This
@@ -252,8 +253,26 @@ module.exports = function(env) {
         var ret = this.sampleGuide(guideDist, options);
         var val = ret.val;
 
+        var guideDistForScore;
+        if (ret.reparam && this.opts.reducedPW) {
+          // Block gradients from flowing directly to parameters, so
+          // that gradients only reach parameters through val. This has
+          // the effect of removing a score function term from the PW
+          // estimator. This gives PW gradient estimates the nice
+          // property that the variance reduces as the guide gets closer
+          // to the true posterior, allowing parameters to converge,
+          // rather than bump around the optima. (Note, the LR estimator
+          // already has the property.) See the following for details:
+          // http://approximateinference.org/accepted/RoederEtAl2016.pdf
+          var unliftedParams = _.mapObject(guideDist.params, ad.value);
+          guideDistForScore = new guideDist.constructor(unliftedParams);
+        } else {
+          guideDistForScore = guideDist;
+        }
+
         var logp = dist.score(val);
-        var logq = guideDist.score(val);
+        var logq = guideDistForScore.score(val);
+
         checkScoreIsFinite(logp, 'target');
         checkScoreIsFinite(logq, 'guide');
 
