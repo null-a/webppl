@@ -197,7 +197,7 @@ function getValAndOpts(obj, cont) {
     args = [obj, {}];
   } else {
     if (_.size(obj) !== 1) {
-      throw 'Expected an object with a single key but received: ' + JSON.stringify(obj);
+      throw new Error('Expected an object with a single key but received: ' + JSON.stringify(obj));
     }
     var key = _.keys(obj)[0];
     args = [key, obj[key]];

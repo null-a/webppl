@@ -13,6 +13,7 @@ src/inference/enumerate.js
 src/inference/elbo.js
 src/inference/eubo.js
 src/inference/dream/gradients.js
+src/inference/svgd.js
 src/aggregation/ScoreAggregator.js
 src/dists/*.js
 !/src/dists/*.ad.js
