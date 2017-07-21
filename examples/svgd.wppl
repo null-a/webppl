@@ -1,0 +1,22 @@
+// webppl examples/svgd.wppl --require webppl-viz
+
+var mix = Mixture({
+  dists: [
+    Gaussian({mu: -2, sigma: 1}),
+    Gaussian({mu: 2, sigma: 0.5})
+  ],
+  ps: [0.3, 0.7]
+});
+
+var model = function() {
+  var x = sample(mix);
+  return x;
+};
+
+var m = SVGD(model, {
+  optMethod: {gd: {stepSize: 0.1}},
+  steps: 200,
+  particles: 20
+});
+
+viz(m);
