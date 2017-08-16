@@ -10,13 +10,14 @@ function RootNode() {
   this.weight = 0;
 }
 
-function SampleNode(parent, logp, logq, reparam, address, targetDist, guideDist, value, multiplier, debug) {
+function SampleNode(parent, logp, logq, logr, reparam, address, targetDist, guideDist, value, multiplier, debug) {
   this.id = nodeid++;
   var _logp = ad.value(logp);
   var _logq = ad.value(logq);
   this.parents = [parent];
   this.logp = logp;
   this.logq = logq;
+  this.logr = logr;
   this.weight = debug ? 1 : _logq - _logp;
   this.reparam = reparam;
   this.address = address;

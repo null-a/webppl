@@ -135,7 +135,7 @@ var noHMC = {
   noHMC: true
 };
 
-var methodNames = ['sample', 'score', 'support', 'print', 'base', 'transform'];
+var methodNames = ['sample', 'score', 'support', 'print', 'base', 'transform', 'sampleReparam', 'scoreBase'];
 
 function makeDistributionType(options) {
   options = util.mergeDefaults(options, {

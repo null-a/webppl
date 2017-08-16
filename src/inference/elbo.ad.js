@@ -177,8 +177,12 @@ module.exports = function(env) {
       assert.ok(_.isNumber(rootNode.weight));
 
       var objective = this.nodes.reduce(function(acc, node) {
+        // Note that this breaks support for the previous
+        // reparameterization interface.
         if (node instanceof SampleNode && node.reparam) {
-          return acc + node.multiplier * (node.logq - node.logp);
+          // I assume it's correct to only weight logr by downstream
+          // nodes here?
+          return acc + node.multiplier * (node.weight * node.logr + node.logq - node.logp);
         } else if (node instanceof SampleNode) {
           var weight = naiveLR ? rootNode.weight : node.weight;
           assert.ok(_.isNumber(weight));
@@ -255,15 +259,21 @@ module.exports = function(env) {
         var ret = this.sampleGuide(guideDist, options);
         var val = ret.val;
 
+        // "Stick the landing." Makes it easier to check that optimal
+        // parameters are found.
+        var unliftedParams = _.mapValues(guideDist.params, ad.value);
+        var guideDist2 = new guideDist.constructor(unliftedParams);
+
         var logp = dist.score(val);
-        var logq = guideDist.score(val);
+        var logq = guideDist2.score(val);
+
         checkScoreIsFinite(logp, 'target');
         checkScoreIsFinite(logq, 'guide');
 
         var m = top(this.mapDataStack).multiplier;
 
         var node = new SampleNode(
-            this.prevNode, logp, logq,
+            this.prevNode, logp, logq, ret.logr,
             ret.reparam, a, dist, guideDist, val, m, this.opts.debugWeights);
 
         this.prevNode = node;
@@ -275,14 +285,19 @@ module.exports = function(env) {
     },
 
     sampleGuide: function(dist, options) {
-      var val, reparam;
+      var val, reparam, logr;
 
       if ((!_.has(options, 'reparam') || options.reparam) &&
-          dist.base && dist.transform) {
-        // Use the reparameterization trick.
-        var baseDist = dist.base();
-        var z = baseDist.sample();
-        val = dist.transform(z);
+          dist.sampleReparam && dist.scoreBase) {
+        // This only supports dists that implement the new interface.
+
+        // TODO: Distinguish between fully and partially
+        // reparameterized dists.
+
+        var obj = dist.sampleReparam();
+        val = obj.val;
+        logr = dist.scoreBase(obj.aux);
+
         reparam = true;
       } else if (options.reparam && !(dist.base && dist.transform)) {
         throw dist + ' does not support reparameterization.';
@@ -296,7 +311,7 @@ module.exports = function(env) {
         util.warn(msg, true);
       }
 
-      return {val: val, reparam: reparam};
+      return {val: val, reparam: reparam, logr: logr};
     },
 
     factor: function(s, k, a, score, name) {
