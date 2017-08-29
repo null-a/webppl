@@ -1,0 +1,7 @@
+all(idF, [
+  parseInt('110') === 110,
+  parseInt('110', 10) === 110,
+  parseInt('110', 2) === 6,
+  parseInt('1.1') === 1,
+  parseFloat('1.1') === 1.1
+]);

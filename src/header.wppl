@@ -615,3 +615,11 @@ var kde = function(marginal, width) {
   var data = _.map(marginal.samples, 'value');
   return KDE(width === undefined ? {data} : {data, width});
 };
+
+var parseInt = function(str, radix) {
+  return _top.parseInt(str, radix);
+};
+
+var parseFloat = function(str) {
+  return _top.parseFloat(str);
+};

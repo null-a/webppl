@@ -134,3 +134,11 @@ Other
 
    Constructs a :js:func:`KDE` distribution from a sample based
    marginal distribution.
+
+.. js:function:: parseInt(str, radix)
+
+   A wrapper around Javascript's ``parseInt`` function.
+
+.. js:function:: parseFloat(str)
+
+   A wrapper around Javascript's ``parseFloat`` function.
