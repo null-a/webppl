@@ -1,0 +1,16 @@
+var model = function() {
+  var x = sample(Gaussian({mu: 1, sigma: 1}), {guide() {
+    var mu = param({name: 'mu'});
+    //display(mu);
+    return Gaussian({mu, sigma: 1});
+  }, reparam: false});
+  return x;
+};
+
+Optimize({model,
+          steps: 1000,
+          optMethod: {adam: {stepSize: 0.01}}
+         });
+
+// this reliably returns an optimized parameter value of close to 1
+param({name: 'mu'});
