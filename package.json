@@ -13,6 +13,7 @@
     "test": "tests"
   },
   "dependencies": {
+    "@tensorflow/tfjs": "^0.14.2",
     "adnn": "^2.0.8",
     "amdefine": "^1.0.0",
     "ast-types": "^0.9.11",
