@@ -208,11 +208,15 @@ module.exports = function(env) {
     // grads.mu.print();
     // params.mu.print();
 
-    _.forEach(grads, function(grad, name) {
-      //console.log('££££££££££££££££££££££££££££££');
-      var param = params[name];
-      param.assign(tf.sub(param, tf.mul(stepSize, grad)));
+    tf.tidy(function() { // dispose of intermediate values computed while taking a step
+      _.forEach(grads, function(grad, name) {
+        //console.log('££££££££££££££££££££££££££££££');
+        var param = params[name];
+        param.assign(tf.sub(param, tf.mul(stepSize, grad)));
+        grad.dispose(); // now we've updated that parameter, dispose of the gradient vector
+      });
     });
+
 
     // grads.mu.print();
     // params.mu.print();
