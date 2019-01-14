@@ -8,12 +8,17 @@ var model = function() {
   return x;
 };
 
+tf.zeros([2,2]); // force tf.js to do its init (this appears to take ~0.1s
+console.time('opt');
+
 Optimize({model,
           steps: 1000,
           estimator: {ELBO: {avgBaselines: false}},
           checkGradients: false,
           optMethod: {sgd: {stepSize: 0.01}}
          });
+
+console.timeEnd('opt');
 
 // this reliably returns an optimized parameter value of close to 1
 param({name: 'mu'}).print();
