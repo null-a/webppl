@@ -1,4 +1,5 @@
 var tf = require('@tensorflow/tfjs-core');
+require('@tensorflow/tfjs-node');
 
 // f(x) = x^2 + 2x + 1
 
