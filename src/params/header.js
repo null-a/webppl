@@ -1,7 +1,8 @@
 'use strict';
 
 var _ = require('lodash');
-var ad = require('../ad');
+//var ad = require('../ad');
+var tf = require('@tensorflow/tfjs-core');
 var Tensor = require('../tensor');
 var util = require('../util');
 var tensorGaussian = require('../dists/tensorGaussian');
@@ -45,8 +46,11 @@ function deserializeParams(s, k, a, str) {
 }
 
 function defaultInit(mu, sigma) {
+  // return function(s, k, a, dims) {
+  //   return k(s, tensorGaussian.sample(mu, sigma, dims));
+  // };
   return function(s, k, a, dims) {
-    return k(s, tensorGaussian.sample(mu, sigma, dims));
+    return k(s, tf.truncatedNormal(dims));
   };
 }
 
@@ -54,7 +58,7 @@ module.exports = function(env) {
 
   var forward = require('../inference/forwardSample')(env).forward;
 
-  var dimsForScalarParam = [1];
+  var dimsForScalarParam = []; // no longer [1], since in tf.js scalars are rank 0 tensors
 
   var param = function(s, k, a, options) {
     options = util.mergeDefaults(options, {
@@ -88,7 +92,7 @@ module.exports = function(env) {
 
       var next = function(k, initialVal) {
         params.create(name, initialVal);
-        if (!_.isEqual(dims, initialVal.dims)) {
+        if (!_.isEqual(dims, initialVal.shape)) {
           var msg = 'The init function did not return a tensor with the expected shape.';
           throw new Error(msg);
         }
@@ -100,7 +104,7 @@ module.exports = function(env) {
 
     function finish(s) {
       var val = params.fetch(name, env);
-      var valDims = ad.value(val).dims;
+      var valDims = val.shape; // ad.value(val).dims;
       if (!_.isEqual(dims, valDims)) {
         var msg = 'The dims specified here (' + JSON.stringify(dims) +
             ') do not match the dims of the current parameter value (' +
@@ -109,7 +113,16 @@ module.exports = function(env) {
             'execution when a persistent parameter store is used.';
         throw new Error(msg);
       }
-      return k(s, dims === dimsForScalarParam ? ad.tensor.get(val, 0) : val);
+      // in adnn this extracts a (potentially lifted) scalar from a
+      // tensor. under tf.js, in the setting where `fetch` has
+      // "lifted" the parameter, we need to return a rank 0 tensor
+      // (and not extract a js number) so that ad continues to work.
+      // there's probably a choice to be made about what to do when
+      // lifting is not required. contune to return a rank 0 tensor
+      // for consistency, or extract scalar for (potential -- and it's
+      // not clear there is any) convenience.
+      //return k(s, dims === dimsForScalarParam ? ad.tensor.get(val, 0) : val);
+      return k(s, val);
     }
   };
 

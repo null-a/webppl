@@ -3,7 +3,8 @@
 var assert = require('assert');
 var _ = require('lodash');
 var fs = require('fs');
-var ad = require('../ad');
+//var ad = require('../ad');
+var tf = require('@tensorflow/tfjs-core');
 var util = require('../util');
 var config = require('./config');
 var serializeParams = require('./serialize').serializeParams;
@@ -80,8 +81,11 @@ function create(name, initialVal) {
   if (exists(name)) {
     throw new Error('Parameter "' + name + '" already exists.');
   }
-  if (!util.isTensor(initialVal)) {
-    throw new Error('Expected an (unlifted) tensor.');
+  // if (!util.isTensor(initialVal)) {
+  //   throw new Error('Expected an (unlifted) tensor.');
+  // }
+  if (!(initialVal instanceof tf.Tensor)) {
+    throw new Error('Expected an (unlifted) tf.js tensor.');
   }
   var paramTable = get();
   paramTable[name] = initialVal;
@@ -110,7 +114,8 @@ function fetch(name, env) {
     // Fetch the value and lift. Add to paramsSeen so that the
     // coroutine knows to update this parameter.
     var _param = paramTable[name];
-    var param = ad.lift(_param);
+    //var param = ad.lift(_param);
+    var param = tf.variable(_param);
     paramsSeen[name] = param;
     return param;
   }

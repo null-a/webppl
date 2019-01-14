@@ -1,10 +1,19 @@
-// var model = function() {
-//   var p = param({name: "mu"});
-//   console.log(p);
-//   return p;
-// };
+// Basic (scalar) parameter use outside of optimisation.
+param({name: 'x'});
+//console.log(getParams());
+getParams().x.print();
+param({name: 'x'}).print();
+assert.ok(false);
 
-// Optimize({model, steps: 1});
+// ==================================================
+
+var model = function() {
+  var p = param({name: "mu"});
+  console.log(p);
+  return p;
+};
+
+Optimize({model, steps: 1});
 
 // ==================================================
 
