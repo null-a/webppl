@@ -184,12 +184,15 @@ module.exports = function(env) {
           ret.objective = tf.scalar(ret.objective);
         }
 
+        var xs = Object.values(this.paramsSeen);
+        var filteredTape = tape.getFilteredNodesXToY(engine.activeTape, xs, ret.objective);
+
 
         var accumulatedGradientMap = {};
         accumulatedGradientMap[ret.objective.id] = tf.ones([]); // we know the objective is a scalar, hence []
 
-        // TODO: filter the active tape? (whatever that does...)
-        tape.backpropagateGradients(accumulatedGradientMap, engine.activeTape);
+
+        tape.backpropagateGradients(accumulatedGradientMap, filteredTape);
         //console.log(accumulatedGradientMap);
 
         // if (ad.isLifted(ret.objective)) { // Handle programs with zero random choices.
