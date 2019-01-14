@@ -20,7 +20,8 @@
 
 var assert = require('assert');
 var _ = require('lodash');
-var nn = require('adnn/nn');
+//var nn = require('adnn/nn');
+var tf = require('@tensorflow/tfjs-core');
 
 try {
   var util = require('./util');
@@ -40,7 +41,7 @@ try {
   var headerUtils = require('./headerUtils');
   var params = require('./params/header');
   var Query = require('./query').Query;
-  var ad = require('./ad');
+  //var ad = require('./ad');
   var Tensor = require('./tensor');
   var numeric = require('./math/numeric');
 } catch (e) {
@@ -177,9 +178,10 @@ module.exports = function(env) {
     _: _,
     util: util,
     assert: assert,
-    ad: ad,
-    nn: nn,
-    T: ad.tensor,
+    //ad: ad,
+    //nn: nn,
+    //T: ad.tensor,
+    tf: tf,
     dists: dists,
     numeric: numeric
   });

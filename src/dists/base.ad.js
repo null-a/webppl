@@ -186,9 +186,10 @@ function makeDistributionType(options) {
       parameterNames.forEach(function(p, i) {
         if (params.hasOwnProperty(p)) {
           var type = parameterTypes[i];
-          if (type && !type.check(ad.valueRec(params[p]))) {
-            throw new Error('Parameter \"' + p + '\" should be of type "' + type.desc + '".');
-          }
+          // TODO: Would need modifying to work with tf.
+          // if (type && !type.check(ad.valueRec(params[p]))) {
+          //   throw new Error('Parameter \"' + p + '\" should be of type "' + type.desc + '".');
+          // }
         } else {
           if (!parameterOptionalFlags[i]) {
             throw new Error('Parameter \"' + p + '\" missing from ' + this.meta.name + ' distribution.');

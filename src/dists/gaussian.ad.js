@@ -1,10 +1,13 @@
 'use strict';
 
-var ad = require('../ad');
+//var ad = require('../ad');
+var tf = require('@tensorflow/tfjs-core');
 var base = require('./base');
 var types = require('../types');
 var util = require('../util');
 var numeric = require('../math/numeric');
+
+var toNumber = require('../tfUtils').toNumber;
 
 var LOG_2PI = numeric.LOG_2PI;
 
@@ -34,7 +37,7 @@ var Gaussian = base.makeDistributionType({
   wikipedia: 'Normal_distribution',
   mixins: [base.continuousSupport],
   sample: function() {
-    return sample(ad.value(this.params.mu), ad.value(this.params.sigma));
+    return sample(toNumber(this.params.mu), toNumber(this.params.sigma));
   },
   score: function(x) {
     return score(this.params.mu, this.params.sigma, x);

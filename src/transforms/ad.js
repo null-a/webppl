@@ -8,24 +8,24 @@ var rules = function(node) {
     case 'UnaryExpression':
       switch (node.operator) {
         // ad.scalar.plus is defined in src/ad.js
-        case '+': return 'ad.scalar.plus';
-        case '-': return 'ad.scalar.neg';
+        //case '+': return 'ad.scalar.plus';
+        case '-': return 'tf.neg';
       }
       break;
     case 'BinaryExpression':
       switch (node.operator) {
-        case '*': return 'ad.scalar.mul';
-        case '/': return 'ad.scalar.div';
-        case '+': return 'ad.scalar.add';
-        case '-': return 'ad.scalar.sub';
-        case '<': return 'ad.scalar.lt';
-        case '<=': return 'ad.scalar.leq';
-        case '>': return 'ad.scalar.gt';
-        case '>=': return 'ad.scalar.geq';
-        case '==': return 'ad.scalar.eq';
-        case '!=': return 'ad.scalar.neq';
-        case '===': return 'ad.scalar.peq';
-        case '!==': return 'ad.scalar.pneq';
+        case '*': return 'tf.mul';
+        case '/': return 'tf.div';
+        case '+': return 'tf.add';
+        case '-': return 'tf.sub';
+        // case '<': return 'ad.scalar.lt';
+        // case '<=': return 'ad.scalar.leq';
+        // case '>': return 'ad.scalar.gt';
+        // case '>=': return 'ad.scalar.geq';
+        // case '==': return 'ad.scalar.eq';
+        // case '!=': return 'ad.scalar.neq';
+        // case '===': return 'ad.scalar.peq';
+        // case '!==': return 'ad.scalar.pneq';
       }
       break;
   }
@@ -64,17 +64,17 @@ function ad(ast) {
         return rewrite(node, fn);
       }
       // Expand in-place assignment operators
-      if (node.type === 'AssignmentExpression' &&
-          isInplaceAssignmentOp(node.operator)) {
-        return build.assignmentExpression(
-            '=', node.left,
-            build.binaryExpression(node.operator[0], node.left, node.right));
-      }
+      // if (node.type === 'AssignmentExpression' &&
+      //     isInplaceAssignmentOp(node.operator)) {
+      //   return build.assignmentExpression(
+      //       '=', node.left,
+      //       build.binaryExpression(node.operator[0], node.left, node.right));
+      // }
       // Re-write Math.*
       if (node.type === 'MemberExpression' &&
           node.object.type === 'Identifier' &&
           node.object.name === 'Math') {
-        return build.memberExpression(parse('ad.scalar'), node.property, node.computed);
+        return build.memberExpression(build.identifier('tf'), node.property, node.computed);
       }
     }
   });
