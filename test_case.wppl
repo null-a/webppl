@@ -9,7 +9,7 @@ var model = function() {
 
 Optimize({model,
           steps: 1000,
-          optMethod: {adam: {stepSize: 0.01}}
+          optMethod: {sgd: {stepSize: 0.01}}
          });
 
 // this reliably returns an optimized parameter value of close to 1
