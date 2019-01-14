@@ -109,16 +109,4 @@ engine.endScope(result, true);
 //y.print(); // requires result (passed to `endScope`) to include y
 
 // Q: which tensors are disposed of by `endScope`?
-
-// Possible answer: The behaviour I'm seeing is consistent with the
-// following:
-
-// 1. tensors explicitly created (e.g. with tf.scalar/tf.tensor) are
-//    not disposed automatically.
-// 2. tensors returned as results of e.g. `tf.add` are disposed of
-//    automatically. this potentially includes the thing which we diff.
-//    w.r.t. e.g. y in this example. (this can be avoided by adding
-//    e.g. `y` to `result` when calling `endScope`.)
-
-// note that tensors in `accumulatedGradientMap` will also be disposed
-// of by `endScope`.
+// Possible answer: Only tensors belonging to a tf.variable are retained.
