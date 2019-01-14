@@ -88,7 +88,13 @@ function create(name, initialVal) {
     throw new Error('Expected an (unlifted) tf.js tensor.');
   }
   var paramTable = get();
-  paramTable[name] = initialVal;
+
+  // NOTE: i'm storing tf.variables here, since this way, the things
+  // that the paramTable references won't be automatically displosed
+  // of by `tf.tidy`. this is a little different from the adnn case,
+  // though because variables are not analogous to graph nodes, it's
+  // not the same things as storing lifted values under adnn.
+  paramTable[name] = tf.variable(initialVal); // TODO: assuming scalar
 }
 
 function fetch(name, env) {
@@ -115,7 +121,7 @@ function fetch(name, env) {
     // coroutine knows to update this parameter.
     var _param = paramTable[name];
     //var param = ad.lift(_param);
-    var param = tf.variable(_param);
+    var param = _param; // tf.variable(_param); // NOTE: already made into variables by `create`
     paramsSeen[name] = param;
     return param;
   }

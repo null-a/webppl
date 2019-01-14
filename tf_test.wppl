@@ -1,9 +1,8 @@
 // Basic (scalar) parameter use outside of optimisation.
-param({name: 'x'});
+//param({name: 'x'});
 //console.log(getParams());
-getParams().x.print();
-param({name: 'x'}).print();
-assert.ok(false);
+//getParams().x.print();
+//param({name: 'x'}).print();
 
 // ==================================================
 
@@ -14,6 +13,7 @@ var model = function() {
 };
 
 Optimize({model, steps: 1});
+assert.ok(false);
 
 // ==================================================
 

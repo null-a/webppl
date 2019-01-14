@@ -4,7 +4,14 @@ var _ = require('lodash');
 var assert = require('assert');
 var fs = require('fs');
 var util = require('../util');
-var ad = require('../ad');
+//var ad = require('../ad');
+
+var tf = require('@tensorflow/tfjs-core');
+var tape = require('@tensorflow/tfjs-core/dist/tape');
+var engine = tf.ENV.engine;
+
+var toNumber = require('../tfUtils').toNumber;
+
 var paramStruct = require('../params/struct');
 var guide = require('../guide');
 var graph = require('./elbograph');
@@ -84,7 +91,8 @@ module.exports = function(env) {
   // corresponding grad logq factor of the objective.
 
   function checkScoreIsFinite(score, source) {
-    var _score = ad.value(score);
+    //var _score = ad.value(score);
+    var _score = toNumber(score);
     if (!isFinite(_score)) { // Also catches NaN.
       var msg = 'ELBO: The score of the previous sample under the ' +
           source + ' program was ' + _score + '.';
@@ -107,6 +115,7 @@ module.exports = function(env) {
 
           // Loop body.
           function(i, next) {
+            //console.log('ELBO - loop body');
             this.iter = i;
             return this.estimateGradient(function(g, elbo_i) {
               paramStruct.addEq(grad, g); // Accumulate gradient estimates.
@@ -117,9 +126,14 @@ module.exports = function(env) {
 
           // Loop continuation.
           function() {
-            paramStruct.divEq(grad, this.opts.samples);
-            elbo /= this.opts.samples;
-            this.updateBaselines();
+            //console.log('ELBO - loop continuation');
+            // TODO: reinstate support for multiple samples
+            assert.ok(this.opts.samples === 1);
+            //paramStruct.divEq(grad, this.opts.samples);
+            //elbo /= this.opts.samples;
+            // TODO: reinstate baselines
+            assert.ok(!this.opts.avgBaselines);
+            //this.updateBaselines();
             env.coroutine = this.oldCoroutine;
             return this.cont(grad, elbo);
           }.bind(this));
@@ -129,6 +143,9 @@ module.exports = function(env) {
     // Compute a single sample estimate of the gradient.
 
     estimateGradient: function(cont) {
+
+      //console.log('ELBO - estimate gradient');
+
       // paramsSeen tracks the AD nodes of all parameters seen during
       // a single execution. These are the parameters for which
       // gradients will be computed.
@@ -142,26 +159,69 @@ module.exports = function(env) {
       this.prevNode = root; // prevNode becomes the parent of the next node.
       this.nodes.push(root);
 
+      //console.log(tf.memory());
+
+      engine.startScope('gradients', true);
+
       return this.wpplFn(_.clone(this.s), function() {
 
-        graph.propagateWeights(this.nodes);
+        graph.propagateWeights(this.nodes); // propagates regular values no graph built here
 
-        if (this.step === 0 && this.iter === 0 && this.opts.dumpGraph) {
-          // To vizualize with Graphviz use:
-          // dot -Tpng -O deps.dot
-          var dot = graph.generateDot(this.nodes);
-          fs.writeFileSync('deps.dot', dot);
+        // if (this.step === 0 && this.iter === 0 && this.opts.dumpGraph) {
+        //   // To vizualize with Graphviz use:
+        //   // dot -Tpng -O deps.dot
+        //   var dot = graph.generateDot(this.nodes);
+        //   fs.writeFileSync('deps.dot', dot);
+        // }
+
+        var ret = this.buildObjective(); // need to back prop through this.
+
+        if (typeof(ret.objective) === 'number') {
+          // it's possible that the object doesn't depend on the
+          // parameters, and is just a number. in such a case we turn
+          // the objective into a tensor in order to avoid special
+          // casing below.
+          ret.objective = tf.scalar(ret.objective);
         }
 
-        var ret = this.buildObjective();
 
-        if (ad.isLifted(ret.objective)) { // Handle programs with zero random choices.
-          ret.objective.backprop();
-        }
+        var accumulatedGradientMap = {};
+        accumulatedGradientMap[ret.objective.id] = tf.ones([]); // we know the objective is a scalar, hence []
 
-        var grads = _.mapValues(this.paramsSeen, ad.derivative);
+        // TODO: filter the active tape? (whatever that does...)
+        tape.backpropagateGradients(accumulatedGradientMap, engine.activeTape);
+        //console.log(accumulatedGradientMap);
 
-        return cont(grads, ret.elbo);
+        // if (ad.isLifted(ret.objective)) { // Handle programs with zero random choices.
+        //   ret.objective.backprop();
+        // }
+
+        var grads = _.mapValues(this.paramsSeen, function(param, name) {
+          // param will be a tf.Variable
+          if (_.has(accumulatedGradientMap, param.id)) {
+            return accumulatedGradientMap[param.id];
+          }
+          else {
+            // TODO: handle this. (happens when param is not used.)
+            // options include:
+            // * just drop this key from `grads` (seems like the best option)
+            // * return zero tensor
+            // * return some other value that indicates zero. (but then optimisers have to handle)
+            throw 'no grad found for param "' + name + '"';
+          }
+        });
+
+        //console.log(tf.memory());
+        engine.endScope({grads}, true); // pass grads here so that they aren't disposed
+        //console.log(tf.memory());
+
+        //grads.mu.print(); // is no disposed
+        //this.paramsSeen.mu.print(); // neither is this
+
+        //console.log('ELBO - done estimate gradient');
+
+        return cont(grads, -ret.negElbo);
+
 
       }.bind(this), this.a);
 
@@ -188,7 +248,8 @@ module.exports = function(env) {
         }
       }.bind(this), 0);
       var elbo = -rootNode.weight;
-      return {objective: objective, elbo: elbo};
+      var negElbo = rootNode.weight; // i'm returning this for now, to avoid turning the js number `root.weight` into a rank 0 tensor
+      return {objective: objective, elbo: elbo, negElbo};
     },
 
     computeBaseline: function(address, weight) {

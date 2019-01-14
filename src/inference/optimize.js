@@ -5,6 +5,7 @@
 var _ = require('lodash');
 var nodeutil = require('util');
 var present = require('present');
+var tf = require('@tensorflow/tfjs-core');
 var util = require('../util');
 var optMethods = require('adnn/opt');
 var paramStruct = require('../params/struct');
@@ -124,6 +125,11 @@ module.exports = function(env) {
         function(i, next) {
 
           return estimator(i, function(gradObj, objective) {
+
+            // console.log('$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$');
+            // console.log(gradObj);
+            // console.log(objective);
+
             if (options.checkGradients) {
               checkGradients(gradObj);
             }
@@ -152,7 +158,8 @@ module.exports = function(env) {
               }
 
               // Update local copy of params
-              optimizer(gradObj, paramsObj, i);
+              //optimizer(gradObj, paramsObj, i);
+              sgd(gradObj, paramsObj, i);
 
               // Send updated params to store
               return params.set(paramsObj, function() {
@@ -193,6 +200,23 @@ module.exports = function(env) {
 
   function logGradWarning(name, problem) {
     util.warn('Gradient for param ' + name + ' is ' + problem + '.', true);
+  }
+
+
+  function sgd(grads, params, i) {
+    var stepSize = 0.01; // TODO: don't hard code
+    // grads.mu.print();
+    // params.mu.print();
+
+    _.forEach(grads, function(grad, name) {
+      //console.log('££££££££££££££££££££££££££££££');
+      var param = params[name];
+      param.assign(tf.sub(param, tf.mul(stepSize, grad)));
+    });
+
+    // grads.mu.print();
+    // params.mu.print();
+
   }
 
   return {

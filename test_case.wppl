@@ -2,6 +2,7 @@ var model = function() {
   var x = sample(Gaussian({mu: 1, sigma: 1}), {guide() {
     var mu = param({name: 'mu'});
     //display(mu);
+    //mu.print();
     return Gaussian({mu, sigma: 1});
   }, reparam: false});
   return x;
@@ -9,8 +10,10 @@ var model = function() {
 
 Optimize({model,
           steps: 1000,
+          estimator: {ELBO: {avgBaselines: false}},
+          checkGradients: false,
           optMethod: {sgd: {stepSize: 0.01}}
          });
 
 // this reliably returns an optimized parameter value of close to 1
-param({name: 'mu'});
+param({name: 'mu'}).print();

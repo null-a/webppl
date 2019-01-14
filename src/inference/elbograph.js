@@ -1,6 +1,8 @@
 'use strict';
 
-var ad = require('../ad');
+//var ad = require('../ad');
+
+var toNumber = require('../tfUtils').toNumber;
 
 var nodeid = 0;
 
@@ -12,8 +14,8 @@ function RootNode() {
 
 function SampleNode(parent, logp, logq, reparam, address, targetDist, guideDist, value, multiplier, debug) {
   this.id = nodeid++;
-  var _logp = ad.value(logp);
-  var _logq = ad.value(logq);
+  var _logp = toNumber(logp);
+  var _logq = toNumber(logq);
   this.parents = [parent];
   this.logp = logp;
   this.logq = logq;
@@ -35,7 +37,7 @@ SampleNode.prototype.label = function() {
 
 function FactorNode(parent, score, multiplier, debug) {
   this.id = nodeid++;
-  var _score = ad.value(score);
+  var _score = toNumber(score);
   this.parents = [parent];
   this.score = score;
   this.weight = debug ? 1 : -_score;
