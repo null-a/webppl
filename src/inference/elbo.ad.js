@@ -166,12 +166,12 @@ module.exports = function(env) {
 
         graph.propagateWeights(this.nodes); // propagates regular values no graph built here
 
-        // if (this.step === 0 && this.iter === 0 && this.opts.dumpGraph) {
-        //   // To vizualize with Graphviz use:
-        //   // dot -Tpng -O deps.dot
-        //   var dot = graph.generateDot(this.nodes);
-        //   fs.writeFileSync('deps.dot', dot);
-        // }
+        if (this.step === 0 && this.iter === 0 && this.opts.dumpGraph) {
+          // To vizualize with Graphviz use:
+          // dot -Tpng -O deps.dot
+          var dot = graph.generateDot(this.nodes);
+          fs.writeFileSync('deps.dot', dot);
+        }
 
         var ret = this.buildObjective(); // need to back prop through this.
 
