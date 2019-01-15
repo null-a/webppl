@@ -27,10 +27,29 @@ var model3 = function() {
   return x;
 };
 
+var model4 = function() {
+  var mu = sample(Gaussian({mu: 0, sigma: 2}), {guide() {
+    var mu_param = param({name: 'mu_param'});
+    var sigma_param = Math.exp(param({name: 'sigma_param'}));
+    mu_param.print();
+    sigma_param.print();
+    console.log('--------------------');
+    return Gaussian({mu: mu_param, sigma: sigma_param});
+  }, reparam: true});
+  factor(Gaussian({mu: mu, sigma: 1}).score(5.5));
+  factor(Gaussian({mu: mu, sigma: 1}).score(6.5));
+  return mu;
+};
+// {
+//   "mean": 5.333333,
+//   "std": 0.666667
+// }
+
+
 tf.zeros([2,2]); // force tf.js to do its init (this appears to take ~0.1s
 console.time('opt');
 
-Optimize({model: model3,
+Optimize({model: model4,
           steps: 10000,
           estimator: {ELBO: {avgBaselines: false}},
           checkGradients: false,
@@ -40,4 +59,5 @@ Optimize({model: model3,
 console.timeEnd('opt');
 
 // this reliably returns an optimized parameter value of close to 1
-param({name: 'mu', dims: [1,1]}).print();
+getParams().mu_param.print();
+getParams().sigma_param.print();

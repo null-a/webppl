@@ -22,6 +22,7 @@ var assert = require('assert');
 var _ = require('lodash');
 //var nn = require('adnn/nn');
 var tf = require('./tf');
+var tfUtils = require('./tfUtils');
 
 try {
   var util = require('./util');
@@ -99,7 +100,7 @@ module.exports = function(env) {
   };
 
   env.factor = function(s, k, a, score) {
-    var _score = ad.value(score);
+    var _score = tfUtils.toNumber(score); //ad.value(score);
     if (typeof _score !== 'number' || isNaN(_score)) {
       throw new Error('The score argument is not a number.');
     }

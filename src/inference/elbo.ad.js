@@ -365,9 +365,14 @@ module.exports = function(env) {
     },
 
     factor: function(s, k, a, score, name) {
-      if (!isFinite(ad.value(score))) {
-        throw new Error('ELBO: factor score is not finite.');
-      }
+      // TODO: reinstate this for tf.js
+
+      // (note that the caller, header.js, has just done `toNumber`,
+      // so it would be a shame to have to recompute that here.
+
+      // if (!isFinite(ad.value(score))) {
+      //   throw new Error('ELBO: factor score is not finite.');
+      // }
       var m = top(this.mapDataStack).multiplier;
       var node = new FactorNode(
           this.prevNode, score, m, this.opts.debugWeights);
