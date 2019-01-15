@@ -1,7 +1,9 @@
 'use strict';
 
 var _ = require('lodash');
-var ad = require('../ad');
+//var ad = require('../ad');
+var tf = require('../tf');
+var toNumber = require('../tfUtils').toNumber;
 var base = require('./base');
 var types = require('../types');
 var util = require('../util');
@@ -12,28 +14,29 @@ var gaussian = require('./gaussian');
 var LOG_2PI = numeric.LOG_2PI;
 
 function sample(mu, sigma, dims) {
-  var x = new Tensor(dims);
-  var n = x.length;
+  var buf = tf.buffer(dims);
+  var n = buf.size;
   while (n--) {
-    x.data[n] = gaussian.sample(mu, sigma);
+    buf.values[n] = gaussian.sample(mu, sigma);
   }
-  return x;
+  return buf.toTensor();
 }
 
 function score(mu, sigma, dims, x) {
-  var _x = ad.value(x);
-  if (!util.isTensor(_x) || !_.isEqual(_x.dims, dims)) {
-    return -Infinity;
-  }
+  // TODO: reinstate for tf.js
+  // var _x = ad.value(x);
+  // if (!util.isTensor(_x) || !_.isEqual(_x.dims, dims)) {
+  //   return -Infinity;
+  // }
 
-  var d = _x.length;
+  var d = x.size;
   var dLog2Pi = d * LOG_2PI;
-  var _2dLogSigma = ad.scalar.mul(2 * d, ad.scalar.log(sigma));
-  var sigma2 = ad.scalar.pow(sigma, 2);
-  var xSubMu = ad.tensor.sub(x, mu);
-  var z = ad.scalar.div(ad.tensor.sumreduce(ad.tensor.mul(xSubMu, xSubMu)), sigma2);
+  var _2dLogSigma = tf.mulStrict(2 * d, tf.log(sigma));
+  var sigma2 = tf.pow(sigma, 2);
+  var xSubMu = tf.sub(x, mu);
+  var z = tf.divStrict(tf.sum(tf.square(xSubMu)), sigma2);
 
-  return ad.scalar.mul(-0.5, ad.scalar.sum(dLog2Pi, _2dLogSigma, z));
+  return tf.mulStrict(-0.5, tf.addN([dLog2Pi, _2dLogSigma, z]));
 }
 
 var TensorGaussian = base.makeDistributionType({
@@ -46,8 +49,8 @@ var TensorGaussian = base.makeDistributionType({
   ],
   mixins: [base.continuousSupport],
   sample: function() {
-    var mu = ad.value(this.params.mu);
-    var sigma = ad.value(this.params.sigma);
+    var mu = toNumber(this.params.mu);
+    var sigma = toNumber(this.params.sigma);
     var dims = this.params.dims;
     return sample(mu, sigma, dims);
   },
@@ -61,7 +64,7 @@ var TensorGaussian = base.makeDistributionType({
   transform: function(x) {
     var mu = this.params.mu;
     var sigma = this.params.sigma;
-    return ad.tensor.add(ad.tensor.mul(x, sigma), mu);
+    return tf.add(tf.mul(x, sigma), mu);
   }
 });
 

@@ -45,4 +45,11 @@ var d = DiagCovGaussian({mu, sigma});
 var x = d.sample();
 x.print();
 d.score(x).print();
-'done';
+display('----------------------------------------');
+
+// ==================================================
+
+var d = TensorGaussian({mu: 0, sigma: 1, dims: [2, 3]});
+var x = d.transform(d.base().sample());
+x.print();
+d.score(x).print();
