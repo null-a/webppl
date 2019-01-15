@@ -2,16 +2,19 @@
 
 var _ = require('lodash');
 var serialize = require('./util').serialize
-var Tensor = require('./tensor');
+// var Tensor = require('./tensor');
 var LRU = require('lru-cache');
-var ad = require('./ad');
+// var ad = require('./ad');
+var tf = require('./tf');
 var assert = require('assert');
 var runThunk = require('./guide').runThunk;
 
 module.exports = function(env) {
 
   function display(s, k, a, x) {
-    return k(s, console.log(ad.valueRec(x)));
+    // TODO: Reinstate for tf.js
+    //return k(s, console.log(ad.valueRec(x)));
+    return k(s, console.log(x));
   }
 
   var dp = {};
@@ -26,10 +29,11 @@ module.exports = function(env) {
     var cf = function(s, k, a) {
       var args = Array.prototype.slice.call(arguments, 3);
 
-      if (_.some(args, ad.isLifted)) {
-        throw new Error('Cannot cache functions of scalar/tensor arguments ' +
-                        'when performing automatic differentiation.');
-      }
+      // TODO: Reinstate for tf.js
+      // if (_.some(args, ad.isLifted)) {
+      //   throw new Error('Cannot cache functions of scalar/tensor arguments ' +
+      //                   'when performing automatic differentiation.');
+      // }
 
       var stringedArgs = serialize(args);
       if (c.has(stringedArgs)) {
@@ -116,11 +120,13 @@ module.exports = function(env) {
   };
 
   var zeros = function(s, k, a, dims) {
-    return k(s, new Tensor(dims));
+    //return k(s, new Tensor(dims));
+    return k(s, tf.zeros(dims));
   };
 
   var ones = function(s, k, a, dims) {
-    return k(s, new Tensor(dims).fill(1));
+    //return k(s, new Tensor(dims).fill(1));
+    return k(s, tf.ones(dims));
   };
 
   // It is the responsibility of individual coroutines to implement
