@@ -21,7 +21,7 @@
 var assert = require('assert');
 var _ = require('lodash');
 //var nn = require('adnn/nn');
-var tf = require('@tensorflow/tfjs-core');
+var tf = require('./tf');
 
 try {
   var util = require('./util');

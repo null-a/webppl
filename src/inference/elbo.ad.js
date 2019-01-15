@@ -5,8 +5,7 @@ var assert = require('assert');
 var fs = require('fs');
 var util = require('../util');
 //var ad = require('../ad');
-
-var tf = require('@tensorflow/tfjs-core');
+var tf = require('../tf');
 var tape = require('@tensorflow/tfjs-core/dist/tape');
 var engine = tf.ENV.engine;
 

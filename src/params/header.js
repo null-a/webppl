@@ -2,7 +2,7 @@
 
 var _ = require('lodash');
 //var ad = require('../ad');
-var tf = require('@tensorflow/tfjs-core');
+var tf = require('../tf');
 var Tensor = require('../tensor');
 var util = require('../util');
 var tensorGaussian = require('../dists/tensorGaussian');

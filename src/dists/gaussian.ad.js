@@ -1,7 +1,7 @@
 'use strict';
 
 //var ad = require('../ad');
-var tf = require('@tensorflow/tfjs-core');
+var tf = require('../tf');
 var base = require('./base');
 var types = require('../types');
 var util = require('../util');

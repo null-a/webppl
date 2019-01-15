@@ -1,7 +1,7 @@
 'use strict';
 
 var assert = require('assert');
-var tf = require('@tensorflow/tfjs-core');
+var tf = require('./tf');
 
 function toNumber(x) {
   if (typeof(x) === 'number') {
