@@ -29,21 +29,22 @@ function sample(mu, sigma) {
 }
 
 function score(mu, sigma, x) {
-  var _x = ad.value(x);
-  var _mu = ad.value(mu);
-  if (!util.isTensor(_x) || !util.tensorEqDims(_x, _mu)) {
-    return -Infinity;
-  }
+  'use ad';
+  //var _x = ad.value(x);
+  //var _mu = ad.value(mu);
+  // TODO: Reinstate for tf.js
+  // if (!util.isTensor(_x) || !util.tensorEqDims(_x, _mu)) {
+  //   return -Infinity;
+  // }
 
-  var d = _mu.length;
+  var d = mu.size;
   var dLog2Pi = d * LOG_2PI;
-  var logDetCov = ad.scalar.mul(2, ad.tensor.sumreduce(ad.tensor.log(sigma)));
-  var z = ad.tensor.div(ad.tensor.sub(x, mu), sigma);
-
-  return ad.scalar.mul(-0.5, ad.scalar.add(
-      dLog2Pi, ad.scalar.add(
+  var logDetCov = tf.mulStrict(2, tf.sum(tf.log(sigma)));
+  var z = tf.divStrict(tf.subStrict(x, mu), sigma);
+  return tf.mul(-0.5, tf.addStrict(
+      dLog2Pi, tf.addStrict(
       logDetCov,
-      ad.tensor.sumreduce(ad.tensor.mul(z, z)))));
+      tf.sum(tf.square(z)))));
 }
 
 var DiagCovGaussian = base.makeDistributionType({

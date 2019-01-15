@@ -40,8 +40,9 @@ display('----------------------------------------');
 
 var mu = zeros([2,1]);
 var sigma = ones([2,1]);
-mu.print();
-sigma.print();
 var d = DiagCovGaussian({mu, sigma});
 
-d.sample().print();
+var x = d.sample();
+x.print();
+d.score(x).print();
+'done';
