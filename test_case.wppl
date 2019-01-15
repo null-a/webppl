@@ -2,8 +2,27 @@ var model = function() {
   var x = sample(Gaussian({mu: 1, sigma: 1}), {guide() {
     var mu = param({name: 'mu'});
     //display(mu);
-    //mu.print();
+    mu.print();
     return Gaussian({mu, sigma: 1});
+  }, reparam: false});
+  return x;
+};
+
+var model2 = function() {
+  var x = sample(TensorGaussian({mu: 1, sigma: 1, dims: [1]}), {guide() {
+    var mu = param({name: 'mu'});
+    mu.print();
+    return TensorGaussian({mu, sigma: 1, dims: [1]});
+  }, reparam: false});
+  return x;
+};
+
+var model3 = function() {
+  var mu0 = tf.tensor([0.5, 1.0, 10.0]);
+  var x = sample(DiagCovGaussian({mu: mu0, sigma: ones([3])}), {guide() {
+    var mu = param({name: 'mu', dims: [3]});
+    mu.print();
+    return DiagCovGaussian({mu, sigma: ones([3])});
   }, reparam: false});
   return x;
 };
@@ -11,8 +30,8 @@ var model = function() {
 tf.zeros([2,2]); // force tf.js to do its init (this appears to take ~0.1s
 console.time('opt');
 
-Optimize({model,
-          steps: 1000,
+Optimize({model: model3,
+          steps: 10000,
           estimator: {ELBO: {avgBaselines: false}},
           checkGradients: false,
           optMethod: {sgd: {stepSize: 0.01}}
@@ -21,4 +40,4 @@ Optimize({model,
 console.timeEnd('opt');
 
 // this reliably returns an optimized parameter value of close to 1
-param({name: 'mu'}).print();
+param({name: 'mu', dims: [1,1]}).print();
