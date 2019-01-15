@@ -3,6 +3,7 @@
 var _ = require('lodash');
 //var ad = require('../ad');
 var tf = require('../tf');
+var stopGrad = require('../tfUtils').stopGrad;
 var base = require('./base');
 var types = require('../types');
 var util = require('../util');
@@ -67,9 +68,7 @@ var DiagCovGaussian = base.makeDistributionType({
     }
   },
   sample: function() {
-    // TODO: block gradients
-    return sample(this.params.mu, this.params.sigma);
-    //return sample(ad.value(this.params.mu), ad.value(this.params.sigma));
+    return sample(stopGrad(this.params.mu), stopGrad(this.params.sigma));
   },
   score: function(x) {
     return score(this.params.mu, this.params.sigma, x);

@@ -39,6 +39,23 @@ require('@tensorflow/tfjs-node');
 //console.log(tf.memory());
 
 
+// TODO: why doesn't this work as expected?
+
+// This probably isn't what we want anyway. Ideally we'd like to avoid
+// back prop through e.g. samplers entirely, not just back propagate
+// zeros.
+
+// var stopGradient = tf.customGrad(function(value) {
+//   var gradFunc = function(dy) {
+//     return tf.zerosLike(dy);
+//   };
+//   return {value, gradFunc};
+// });
+// var x = tf.valueAndGrad(function(x) { return stopGradient(tf.add(x, 0)); })(tf.tensor([1,2]));
+// x.value.print();
+// x.grad.print();
+// throw 'halt';
+
 
 
 // ========================================
