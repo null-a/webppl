@@ -29,7 +29,6 @@ function sample(mu, sigma) {
 }
 
 function score(mu, sigma, x) {
-  'use ad';
   //var _x = ad.value(x);
   //var _mu = ad.value(mu);
   // TODO: Reinstate for tf.js
