@@ -74,13 +74,13 @@ var DiagCovGaussian = base.makeDistributionType({
     return score(this.params.mu, this.params.sigma, x);
   },
   base: function() {
-    var dims = ad.value(this.params.mu).dims;
+    var dims = this.params.mu.shape;
     return new TensorGaussian({mu: 0, sigma: 1, dims: dims});
   },
   transform: function(x) {
     var mu = this.params.mu;
     var sigma = this.params.sigma;
-    return ad.tensor.add(ad.tensor.mul(sigma, x), mu);
+    return tf.addStrict(tf.mulStrict(sigma, x), mu);
   }
 });
 
