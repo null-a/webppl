@@ -176,7 +176,7 @@ module.exports = function(env) {
         var ret = this.buildObjective(); // need to back prop through this.
 
         if (typeof(ret.objective) === 'number') {
-          // it's possible that the object doesn't depend on the
+          // it's possible that the objective doesn't depend on the
           // parameters, and is just a number. in such a case we turn
           // the objective into a tensor in order to avoid special
           // casing below.
@@ -209,6 +209,9 @@ module.exports = function(env) {
             // * just drop this key from `grads` (seems like the best option)
             // * return zero tensor
             // * return some other value that indicates zero. (but then optimisers have to handle)
+
+            // it might be useful to continue to warn when we notice
+            // this.
             throw 'no grad found for param "' + name + '"';
           }
         });
@@ -250,7 +253,9 @@ module.exports = function(env) {
         }
       }.bind(this), 0);
       var elbo = -rootNode.weight;
-      var negElbo = rootNode.weight; // i'm returning this for now, to avoid turning the js number `root.weight` into a rank 0 tensor
+      // i'm returning this for now, to avoid turning the js number
+      // `root.weight` into a rank 0 tensor when negating.
+      var negElbo = rootNode.weight;
       return {objective: objective, elbo: elbo, negElbo};
     },
 
