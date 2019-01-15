@@ -46,11 +46,8 @@ function deserializeParams(s, k, a, str) {
 }
 
 function defaultInit(mu, sigma) {
-  // return function(s, k, a, dims) {
-  //   return k(s, tensorGaussian.sample(mu, sigma, dims));
-  // };
   return function(s, k, a, dims) {
-    return k(s, tf.truncatedNormal(dims));
+    return k(s, tensorGaussian.sample(mu, sigma, dims));
   };
 }
 

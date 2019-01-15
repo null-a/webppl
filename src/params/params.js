@@ -84,8 +84,8 @@ function create(name, initialVal) {
   // if (!util.isTensor(initialVal)) {
   //   throw new Error('Expected an (unlifted) tensor.');
   // }
-  if (!(initialVal instanceof tf.Tensor)) {
-    throw new Error('Expected an (unlifted) tf.js tensor.');
+  if (!(initialVal instanceof tf.Tensor) || (initialVal instanceof tf.Variable)) {
+    throw new Error('Expected a tf.js tensor.');
   }
   var paramTable = get();
 
@@ -94,7 +94,7 @@ function create(name, initialVal) {
   // of by `tf.tidy`. this is a little different from the adnn case,
   // though because variables are not analogous to graph nodes, it's
   // not the same things as storing lifted values under adnn.
-  paramTable[name] = tf.variable(initialVal); // TODO: assuming scalar
+  paramTable[name] = tf.variable(initialVal);
 }
 
 function fetch(name, env) {
