@@ -6,14 +6,14 @@
 
 // ==================================================
 
-var model = function() {
-  var p = param({name: "mu"});
-  console.log(p);
-  return p;
-};
+// var model = function() {
+//   var p = param({name: "mu"});
+//   console.log(p);
+//   return p;
+// };
 
-Optimize({model, steps: 1});
-assert.ok(false);
+// Optimize({model, steps: 1});
+// assert.ok(false);
 
 // ==================================================
 
@@ -36,3 +36,12 @@ display(d.sample());
 display('----------------------------------------');
 
 // ==================================================
+
+
+var mu = zeros([2,1]);
+var sigma = ones([2,1]);
+mu.print();
+sigma.print();
+var d = DiagCovGaussian({mu, sigma});
+
+d.sample().print();

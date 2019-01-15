@@ -1,6 +1,8 @@
 'use strict';
 
-var ad = require('../ad');
+var _ = require('lodash');
+//var ad = require('../ad');
+var tf = require('../tf');
 var base = require('./base');
 var types = require('../types');
 var util = require('../util');
@@ -12,13 +14,17 @@ var TensorGaussian = require('./tensorGaussian').TensorGaussian;
 var LOG_2PI = numeric.LOG_2PI;
 
 function sample(mu, sigma) {
-  var dims = mu.dims;
-  var x = new Tensor(dims);
-  var n = x.length;
+  var shape = mu.shape;
+  var buf = tf.buffer(shape);
+  var n = buf.size;
   while (n--) {
-    x.data[n] = gaussian.sample(mu.data[n], sigma.data[n]);
+    buf.values[n] = gaussian.sample(0, 1);
   }
-  return x;
+  var z = buf.toTensor();
+  // Here I'm shifting and scaling the whole sample at once, rather
+  // than pulling out individual mu and sigma and passing them to
+  // `gaussian.sample`. This might be worth doing for adnn too.
+  return tf.addStrict(tf.mulStrict(z, sigma), mu);
 }
 
 function score(mu, sigma, x) {
@@ -51,14 +57,19 @@ var DiagCovGaussian = base.makeDistributionType({
   ],
   mixins: [base.continuousSupport],
   constructor: function() {
-    var _mu = ad.value(this.params.mu);
-    var _sigma = ad.value(this.params.sigma);
-    if (!util.tensorEqDims(_mu, _sigma)) {
+    // var _mu = ad.value(this.params.mu);
+    // var _sigma = ad.value(this.params.sigma);
+    // if (!util.tensorEqDims(_mu, _sigma)) {
+    //   throw new Error(this.meta.name + ': mu and sigma should be the same shape.');
+    // }
+    if (!_.isEqual(this.params.mu.shape, this.params.sigma.shape)) {
       throw new Error(this.meta.name + ': mu and sigma should be the same shape.');
     }
   },
   sample: function() {
-    return sample(ad.value(this.params.mu), ad.value(this.params.sigma));
+    // TODO: block gradients
+    return sample(this.params.mu, this.params.sigma);
+    //return sample(ad.value(this.params.mu), ad.value(this.params.sigma));
   },
   score: function(x) {
     return score(this.params.mu, this.params.sigma, x);
