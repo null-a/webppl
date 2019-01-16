@@ -2,27 +2,29 @@
 
 var _ = require('lodash');
 var assert = require('assert');
-var ad = require('../ad');
+//var ad = require('../ad');
+var tf = require('../tf');
 var base = require('./base');
 var types = require('../types');
 var util = require('../util');
 var Tensor = require('../tensor');
 
 function mvBernoulliScore(ps, x) {
-  var _x = ad.value(x);
-  var _ps = ad.value(ps);
-  if (!util.isVector(_x) || !util.tensorEqDim0(_x, _ps)) {
-    return -Infinity;
-  }
+  // TODO: reinstate for tf.js
+  // var _x = ad.value(x);
+  // var _ps = ad.value(ps);
+  // if (!util.isVector(_x) || !util.tensorEqDim0(_x, _ps)) {
+  //   return -Infinity;
+  // }
 
-  var xSub1 = ad.tensor.sub(x, 1);
-  var pSub1 = ad.tensor.sub(ps, 1);
+  var xSub1 = tf.sub(x, 1);
+  var pSub1 = tf.sub(ps, 1);
 
-  return ad.tensor.sumreduce(
-      ad.tensor.log(
-      ad.tensor.add(
-      ad.tensor.mul(x, ps),
-      ad.tensor.mul(xSub1, pSub1))));
+  return tf.sum(
+      tf.log(
+      tf.addStrict(
+      tf.mulStrict(x, ps),
+      tf.mulStrict(xSub1, pSub1))));
 }
 
 var MultivariateBernoulli = base.makeDistributionType({
@@ -33,24 +35,25 @@ var MultivariateBernoulli = base.makeDistributionType({
   params: [{name: 'ps', desc: 'probabilities', type: types.unitIntervalVector}],
   mixins: [base.finiteSupport],
   sample: function() {
-    var ps = ad.value(this.params.ps);
-    var d = ps.dims[0];
-    var x = new Tensor([d, 1]);
-    var n = x.length;
+    // TODO: Is there a way to implement this that avoids this (sync.)
+    // fetch of the data in the buffer?
+    var ps_buf = this.params.ps.buffer();
+    var buf = tf.buffer(this.params.ps.shape, 'bool');
+    var n = buf.size;
     while (n--) {
-      x.data[n] = util.random() < ps.data[n];
+      buf.values[n] = util.random() < ps_buf.values[n];
     }
-    return x;
+    return buf.toTensor();
   },
   score: function(x) {
     return mvBernoulliScore(this.params.ps, x);
   },
   support: function() {
-    var dims = this.params.ps.dims;
+    var dims = this.params.ps.shape;
     var d = dims[0];
     var n = Math.pow(2, d);
     return _.times(n, function(x) {
-      return new Tensor(dims).fromFlatArray(toBinaryArray(x, d));
+      return tf.tensor(toBinaryArray(x, d), dims,  'bool');
     });
   }
 });
