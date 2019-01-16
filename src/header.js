@@ -23,6 +23,7 @@ var _ = require('lodash');
 //var nn = require('adnn/nn');
 var tf = require('./tf');
 var tfUtils = require('./tfUtils');
+var ops = require('./math/ops');
 
 try {
   var util = require('./util');
@@ -183,6 +184,7 @@ module.exports = function(env) {
     //nn: nn,
     //T: ad.tensor,
     tf: tf,
+    ops: ops,
     dists: dists,
     numeric: numeric
   });

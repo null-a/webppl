@@ -9,15 +9,15 @@ var rules = function(node) {
       switch (node.operator) {
         // ad.scalar.plus is defined in src/ad.js
         //case '+': return 'ad.scalar.plus';
-        case '-': return 'tf.neg';
+        case '-': return 'ops.neg';
       }
       break;
     case 'BinaryExpression':
       switch (node.operator) {
-        case '*': return 'tf.mul';
-        case '/': return 'tf.div';
-        case '+': return 'tf.add';
-        case '-': return 'tf.sub';
+        case '*': return 'ops.mul';
+        case '/': return 'ops.div';
+        case '+': return 'ops.add';
+        case '-': return 'ops.sub';
         // case '<': return 'ad.scalar.lt';
         // case '<=': return 'ad.scalar.leq';
         // case '>': return 'ad.scalar.gt';
@@ -74,7 +74,7 @@ function ad(ast) {
       if (node.type === 'MemberExpression' &&
           node.object.type === 'Identifier' &&
           node.object.name === 'Math') {
-        return build.memberExpression(build.identifier('tf'), node.property, node.computed);
+        return build.memberExpression(build.identifier('ops'), node.property, node.computed);
       }
     }
   });
