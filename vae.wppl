@@ -1,0 +1,96 @@
+// run with:
+//   webppl vae.wppl --require fs -- --mnist-path path/to/mnist.json
+
+// code to generate mnist can be found here:
+// https://github.com/null-a/webppl-nn/tree/master/examples/data
+
+var load_data = function(path) {
+  display('loading data...');
+  var images = JSON.parse(fs.readFileSync(path));
+  assert.ok(images.length === 60000);
+  var t = tf.tensor(images, [60000, 784], 'bool');
+  display('done');
+  return t;
+};
+
+// load_data(argv['mnist-path']);
+
+var dummy_data = function(n, m) {
+  return repeat(n, function() {
+    // I'm continuing to use WebPPL's convention of representing
+    // vectors as n-by-1 tensors.
+    return tf.multinomial(tf.tensor([0.9, 0.1]).log(), m).toBool().reshape([m, 1]);
+  });
+};
+
+var zDim = 100;
+var hDim = 200;
+var xDim = 800;
+
+var images = dummy_data(10, xDim);
+
+var decode = function(z) {
+  var W0 = param({name: 'W0d', dims: [hDim, zDim]});
+  var b0 = param({name: 'b0d', dims: [hDim, 1]});
+  var W1 = param({name: 'W1d', dims: [xDim, hDim]});
+  var b1 = param({name: 'b1d', dims: [xDim, 1]});
+  var hid = tf.tanh(tf.dot(W0, z) + b0);
+  // We have to transpose here to get softmax to do the right thing
+  // for our choice of vector representation.
+  var ps = tf.softmax((tf.dot(W1, hid) + b1).transpose()).transpose();
+  return ps;
+};
+
+var zPrior = TensorGaussian({mu: 0, sigma: 1, dims: [zDim, 1]});
+
+var zGuideParams = function(image) {
+  var W0 = param({name: 'W0e', dims: [hDim, xDim]});
+  var b0 = param({name: 'b0e', dims: [hDim, 1]});
+  var Wm = param({name: 'W1e', dims: [zDim, hDim]});
+  var bm = param({name: 'b1e', dims: [zDim, 1]});
+  var Ws = param({name: 'W2e', dims: [zDim, hDim]});
+  var bs = param({name: 'b2e', dims: [zDim, 1]});
+  var hid = tf.tanh(tf.dot(W0, image) + b0);
+  var mu = tf.dot(Wm, hid) + bm;
+  var sigma = tf.softplus(tf.dot(Ws, hid) + bs);
+  return {mu, sigma};
+};
+
+var vae = function(obsImg) {
+  var z = sample(zPrior, {guide() {
+    return DiagCovGaussian(zGuideParams(obsImg));
+  }});
+  var img = observe(MultivariateBernoulli({ps: decode(z)}), obsImg);
+  return {z, img};
+};
+
+var model = function(data, batchSize) {
+  return mapData({data, batchSize}, vae);
+};
+
+// sample from the prior:
+// var sample = vae();
+// sample.z.print();
+// sample.img.print();
+
+// run the guide on the first input:
+// var params = zGuideParams(images[0]);
+// params.mu.print();
+// params.sigma.print();
+
+//var samples = forward(function() { return model(images.slice(0, 2), 2); });
+// var samples = forwardGuide(function() { return model(images.slice(0, 2), 2); });
+// samples[0].z.print();
+// samples[1].z.print();
+
+Optimize({
+  model() { return model(images, 10); },
+  optMethod: {adam: {stepSize: 0.01}},
+  estimator: {ELBO: {avgBaselines: false}},
+  steps: 50,
+  verbose: true,
+  checkGradients: false
+});
+
+//getParams();
+'done';
