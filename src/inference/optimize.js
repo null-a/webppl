@@ -75,8 +75,9 @@ module.exports = function(env) {
     });
 
     var optimizer = util.getValAndOpts(options.optMethod, function(name, opts) {
-      name = (name === 'gd') ? 'sgd' : name;
-      return optMethods[name](opts);
+      //name = (name === 'gd') ? 'sgd' : name;
+      //return optMethods[name](opts);
+      return {adam, gd}[name](opts);
     });
 
     var showProgress = _.throttle(function(i, objective) {
@@ -158,8 +159,7 @@ module.exports = function(env) {
               }
 
               // Update local copy of params
-              //optimizer(gradObj, paramsObj, i);
-              sgd(gradObj, paramsObj, i);
+              optimizer(gradObj, paramsObj, i);
 
               // Send updated params to store
               return params.set(paramsObj, function() {
@@ -202,25 +202,66 @@ module.exports = function(env) {
     util.warn('Gradient for param ' + name + ' is ' + problem + '.', true);
   }
 
-
-  function sgd(grads, params, i) {
-    var stepSize = 0.01; // TODO: don't hard code
-    // grads.mu.print();
-    // params.mu.print();
-
-    tf.tidy(function() { // dispose of intermediate values computed while taking a step
-      _.forEach(grads, function(grad, name) {
-        //console.log('££££££££££££££££££££££££££££££');
-        var param = params[name];
-        param.assign(tf.sub(param, tf.mul(stepSize, grad)));
-        grad.dispose(); // now we've updated that parameter, dispose of the gradient vector
+  function gd(opts) {
+    //console.log('using gd ' + JSON.stringify(opts));
+    var stepSize = opts.stepSize;
+    return function(grads, params, i) {
+      tf.tidy(function() { // dispose of intermediate values computed while taking a step
+        _.forEach(grads, function(grad, name) {
+          var param = params[name];
+          param.assign(tf.sub(param, tf.mul(stepSize, grad)));
+          grad.dispose(); // now we've updated that parameter, dispose of the gradient vector
+        });
       });
-    });
+    };
+  }
 
+  // https://github.com/dritchie/adnn/blob/53be4b8e4975d0d9e8349d4dc5f8bb11b0e88179/opt/methods.js#L111
+  function adam(opts) {
+    //console.log('using adam ' + JSON.stringify(opts));
+    var stepSize = opts.stepSize; // alpha
+    var decayRate1 = 0.9;         // beta1
+    var decayRate2 = 0.999;       // beta2,
 
-    // grads.mu.print();
-    // params.mu.print();
+    // TODO: dispose of the final ms/vs once optimisation has finished
+    var ms = {};
+    var vs = {};
 
+    return function(grads, params, i) {
+      var t = i + 1;
+      var alpha_t = stepSize * Math.sqrt(1 - Math.pow(decayRate2, t)) / (1 - Math.pow(decayRate1, t));
+
+      _.forEach(grads, function(g, name) {
+
+        if (!_.has(ms, name)) {
+          ms[name] = tf.zerosLike(g);
+        }
+        if (!_.has(vs, name)) {
+          vs[name] = tf.zerosLike(g);
+        }
+
+        var p = params[name];
+        var m = ms[name];
+        var v = vs[name];
+
+        var _new = tf.tidy(function() {
+          m = tf.addStrict(m.mul(decayRate1), g.mul(1 - decayRate1));
+          v = tf.addStrict(v.mul(decayRate2), tf.square(g).mul(1 - decayRate2));
+          var p_new = tf.subStrict(p, tf.mul(alpha_t, tf.divStrict(m, tf.add(v.sqrt(), 1e-8))));
+          p.assign(p_new);
+          return {m, v}; // don't dispose of the new m and v, we need them for the next step.
+        });
+
+        g.dispose();
+        ms[name].dispose();
+        vs[name].dispose();
+
+        ms[name] = _new.m;
+        vs[name] = _new.v;
+
+      });
+
+    };
   }
 
   return {
