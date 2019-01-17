@@ -67,7 +67,8 @@ var zGuideParams = function(image) {
   var bs = param({name: 'b2e', dims: [zDim, 1]});
   var hid = T.tanh(T.add(T.dot(W0, image), b0));
   var mu = T.add(T.dot(Wm, hid), bm);
-  var sigma = T.softplus(T.add(T.dot(Ws, hid), bs));
+  // Use `exp` for portability.
+  var sigma = T.exp(T.add(T.dot(Ws, hid), bs));
   return {mu, sigma};
 };
 
