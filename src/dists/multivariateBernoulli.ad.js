@@ -36,7 +36,8 @@ var MultivariateBernoulli = base.makeDistributionType({
   mixins: [base.finiteSupport],
   sample: function() {
     // TODO: Is there a way to implement this that avoids this (sync.)
-    // fetch of the data in the buffer?
+    // fetch of the data in the buffer? Maybe look at:
+    // https://js.tensorflow.org/api/0.14.1/#multinomial
     var ps_buf = this.params.ps.buffer();
     var buf = tf.buffer(this.params.ps.shape, 'bool');
     var n = buf.size;
