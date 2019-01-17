@@ -20,10 +20,11 @@ var load_mnist = function(path) {
 
 var dummy_data = function(N, xDim) {
   display('generating dummy data...');
+  var ps = tf.mul(ones([xDim, 1]), 0.1);
   var images = repeat(N, function() {
     // I'm continuing to use WebPPL's convention of representing
     // vectors as n-by-1 tensors.
-    return tf.multinomial(tf.tensor([0.9, 0.1]).log(), xDim).toBool().reshape([xDim, 1]);
+    return multivariateBernoulli(ps);
   });
   display('done');
   return {images, N, xDim};
