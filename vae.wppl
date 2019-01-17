@@ -7,13 +7,15 @@
 var load_data = function(path) {
   display('loading data...');
   var images = JSON.parse(fs.readFileSync(path));
-  assert.ok(images.length === 60000);
-  var t = tf.tensor(images, [60000, 784], 'bool');
+  // Return an array of tensors because rather than a single tensor as
+  // this is what `mapData` currently expects.
+  var arr = map(function(img) {
+    return tf.tensor(img, [784, 1], 'bool');
+  }, images);
+  assert.ok(arr.length === 60000);
   display('done');
-  return t;
+  return arr;
 };
-
-// load_data(argv['mnist-path']);
 
 var dummy_data = function(n, m) {
   return repeat(n, function() {
@@ -23,11 +25,12 @@ var dummy_data = function(n, m) {
   });
 };
 
-var zDim = 100;
-var hDim = 200;
-var xDim = 800;
+//var images = dummy_data(10, 10); // num images, image size
+var images = load_data(argv['mnist-path']);
 
-var images = dummy_data(10, xDim);
+var zDim = 10;
+var hDim = 100;
+var xDim = images[0].shape[0];
 
 var decode = function(z) {
   var W0 = param({name: 'W0d', dims: [hDim, zDim]});
@@ -82,12 +85,15 @@ var model = function(data, batchSize) {
 // samples[1].z.print();
 
 Optimize({
-  model() { return model(images, 10); },
-  optMethod: {adam: {stepSize: 0.01}},
+  model() { return model(images, 100); },
+  optMethod: {adam: {stepSize: 0.001}},
   estimator: {ELBO: {avgBaselines: false}},
-  steps: 50,
-  verbose: true,
-  checkGradients: false
+  steps: 1000,
+  verbose: false,
+  checkGradients: false,
+  onStep(i, elbo) {
+    display(i + ': ' + elbo / images.length);
+  }
 });
 
 //getParams();
