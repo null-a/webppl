@@ -1,5 +1,5 @@
 // run with:
-//   webppl vae.wppl --require fs -- --mnist-path path/to/mnist.json
+//   webppl benchmark/vae.wppl --require fs -- --mnist-path path/to/mnist.json
 
 // code to generate mnist can be found here:
 // https://github.com/null-a/webppl-nn/tree/master/examples/data
