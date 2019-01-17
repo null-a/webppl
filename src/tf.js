@@ -2,10 +2,12 @@
 
 var process = require('process');
 
-var tf = require('@tensorflow/tfjs-core');
-
+var tf;
 if (process.env.WEBPPL_TFJS_NODE === '1') {
-  require('@tensorflow/tfjs-node');
+  tf = require('@tensorflow/tfjs-node');
+}
+else {
+  tf = require('@tensorflow/tfjs-core');
 }
 
 module.exports = tf;
