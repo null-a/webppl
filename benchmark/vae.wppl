@@ -4,6 +4,13 @@
 // code to generate mnist can be found here:
 // https://github.com/null-a/webppl-nn/tree/master/examples/data
 
+var getNumParams = function() {
+  return sum(Object.values(mapObject(function(key, val) {
+    var shape = _.has(val, 'shape') ? val.shape : val.dims;
+    return product(shape);
+  }, getParams())));
+};
+
 var load_mnist = function(path) {
   display('loading mnist...');
   var images = JSON.parse(fs.readFileSync(path));
@@ -113,10 +120,10 @@ Optimize({
   onFinish(obj) {
     var history = obj.history;
     var elapsed = _.now() - t0;
+    var numParams = getNumParams();
     fs.writeFileSync('./benchmark/results/' + _.now() + '.json',
-                     JSON.stringify({condition, elapsed, history}));
+                     JSON.stringify({condition, elapsed, numParams, history}));
   }
 });
 
-//getParams();
 'done';
