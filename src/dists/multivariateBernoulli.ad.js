@@ -10,12 +10,12 @@ var util = require('../util');
 var Tensor = require('../tensor');
 
 function mvBernoulliScore(ps, x) {
-  // TODO: reinstate for tf.js
-  // var _x = ad.value(x);
-  // var _ps = ad.value(ps);
-  // if (!util.isVector(_x) || !util.tensorEqDim0(_x, _ps)) {
-  //   return -Infinity;
-  // }
+  if (!((x instanceof tf.Tensor) &&
+        (x.rank === 2) &&
+        (x.shape[1] === 1) &&
+        (x.shape[0] === ps.shape[0]))) {
+    return -Infinity;
+  }
 
   var xSub1 = tf.sub(x, 1);
   var pSub1 = tf.sub(ps, 1);

@@ -23,11 +23,9 @@ function sample(mu, sigma, dims) {
 }
 
 function score(mu, sigma, dims, x) {
-  // TODO: reinstate for tf.js
-  // var _x = ad.value(x);
-  // if (!util.isTensor(_x) || !_.isEqual(_x.dims, dims)) {
-  //   return -Infinity;
-  // }
+  if (!(x instanceof tf.Tensor) || !_.isEqual(x.shape, dims)) {
+    return -Infinity;
+  }
 
   var d = x.size;
   var dLog2Pi = d * LOG_2PI;
