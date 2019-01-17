@@ -10,6 +10,7 @@ var _ = require('lodash');
 var util = require('./util');
 var numeric = require('./math/numeric');
 var interval = require('./math/interval');
+var tf = require('./tf');
 
 var isInterval = interval.isInterval;
 var parseInterval = interval.parse;
@@ -54,7 +55,15 @@ var real = function(interval) {
     desc: appendInterval('real', interval),
     bounds: interval,
     check: function(val) {
-      return typeof val === 'number' && checkBounds(val);
+      if (typeof val === 'number') {
+        return checkBounds(val);
+      }
+      else if (val instanceof tf.Tensor && val.rank === 0) {
+        return checkBounds(val.buffer().values[0]);
+      }
+      else {
+        return false;
+      }
     }
   };
 };
@@ -84,8 +93,13 @@ var vector = function(interval, performBoundsCheck) {
     desc: appendInterval('vector', interval),
     bounds: interval,
     check: performBoundsCheck ?
-        function(val) { return util.isVector(val) && _.every(val.data, checkBounds); } :
-        util.isVector
+        function(val) {
+          throw 'not yet implemented for tf.js';
+          return util.isVector(val) && _.every(val.data, checkBounds);
+        } :
+        function(val) {
+          return (val instanceof tf.Tensor) && (val.rank === 2) && (val.shape[1] === 1);
+        }
   };
 };
 
@@ -125,8 +139,11 @@ var tensor = function(interval, performBoundsCheck) {
     desc: appendInterval('tensor', interval),
     bounds: interval,
     check: performBoundsCheck ?
-        function(val) { return util.isTensor(val) && _.every(val.data, checkBounds); } :
-        util.isTensor
+        function(val) {
+          throw "not implemented for jtf.js";
+          return util.isTensor(val) && _.every(val.data, checkBounds);
+        } :
+        function(val) { return val instanceof tf.Tensor; }
   };
 };
 
