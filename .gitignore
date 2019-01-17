@@ -17,3 +17,4 @@ src/aggregation/ScoreAggregator.js
 src/dists/*.js
 !/src/dists/*.ad.js
 src/math/numeric.js
+benchmark/results/*

@@ -4,33 +4,46 @@
 // code to generate mnist can be found here:
 // https://github.com/null-a/webppl-nn/tree/master/examples/data
 
-var load_data = function(path) {
-  display('loading data...');
+var load_mnist = function(path) {
+  display('loading mnist...');
   var images = JSON.parse(fs.readFileSync(path));
+  assert.ok(images.length === 60000);
   // Return an array of tensors because rather than a single tensor as
   // this is what `mapData` currently expects.
   var arr = map(function(img) {
     return tf.tensor(img, [784, 1], 'bool');
-  }, images);
-  assert.ok(arr.length === 60000);
+  }, images.slice(0, 50000)); // typical training set
+  assert.ok(arr.length === 50000);
   display('done');
-  return arr;
+  return {images: arr, N: arr.length, xDim: arr[0].shape[0]};
 };
 
-var dummy_data = function(n, m) {
-  return repeat(n, function() {
+var dummy_data = function(N, xDim) {
+  display('generating dummy data...');
+  var images = repeat(N, function() {
     // I'm continuing to use WebPPL's convention of representing
     // vectors as n-by-1 tensors.
-    return tf.multinomial(tf.tensor([0.9, 0.1]).log(), m).toBool().reshape([m, 1]);
+    return tf.multinomial(tf.tensor([0.9, 0.1]).log(), xDim).toBool().reshape([xDim, 1]);
   });
+  display('done');
+  return {images, N, xDim};
 };
 
-//var images = dummy_data(10, 10); // num images, image size
-var images = load_data(argv['mnist-path']);
+var dataObj = argv['mnist-path'] ?
+    load_mnist(argv['mnist-path']) :
+    dummy_data(argv['N'] || 10, argv['xDim'] || 10);
 
-var zDim = 10;
-var hDim = 100;
-var xDim = images[0].shape[0];
+var images = dataObj.images;
+var N = dataObj.N;
+var xDim = dataObj.xDim;
+var zDim = argv['zDim'] || 10;
+var hDim = argv['hDim'] || 10;
+var batchSize = argv['batchSize'] || 10;
+var numSteps = argv['numSteps'] || 10;
+var stepSize = argv['stepSize'] || 0.001;
+var adBackend = 'tfjs-' + tf.ENV.backendName;
+var condition = {N, xDim, hDim, zDim, batchSize, numSteps, stepSize, adBackend};
+display(condition);
 
 var decode = function(z) {
   var W0 = param({name: 'W0d', dims: [hDim, zDim]});
@@ -84,15 +97,22 @@ var model = function(data, batchSize) {
 // samples[0].z.print();
 // samples[1].z.print();
 
+var t0 = _.now();
 Optimize({
-  model() { return model(images, 100); },
-  optMethod: {adam: {stepSize: 0.001}},
+  model() { return model(images, batchSize); },
+  optMethod: {adam: {stepSize}},
   estimator: {ELBO: {avgBaselines: false}},
-  steps: 1000,
+  steps: numSteps,
   verbose: false,
   checkGradients: false,
   onStep(i, elbo) {
     display(i + ': ' + elbo / images.length);
+  },
+  onFinish(obj) {
+    var history = obj.history;
+    var elapsed = _.now() - t0;
+    fs.writeFileSync('./benchmark/results/' + _.now() + '.json',
+                     JSON.stringify({condition, elapsed, history}));
   }
 });
 
