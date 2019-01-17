@@ -35,9 +35,7 @@ var decode = function(z) {
   var W1 = param({name: 'W1d', dims: [xDim, hDim]});
   var b1 = param({name: 'b1d', dims: [xDim, 1]});
   var hid = tf.tanh(tf.dot(W0, z) + b0);
-  // We have to transpose here to get softmax to do the right thing
-  // for our choice of vector representation.
-  var ps = tf.softmax((tf.dot(W1, hid) + b1).transpose()).transpose();
+  var ps = tf.sigmoid((tf.dot(W1, hid) + b1));
   return ps;
 };
 
