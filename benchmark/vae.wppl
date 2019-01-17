@@ -42,7 +42,7 @@ var hDim = argv['hDim'] || 10;
 var batchSize = argv['batchSize'] || 10;
 var numSteps = argv['numSteps'] || 10;
 var stepSize = argv['stepSize'] || 0.001;
-var adBackend = 'tfjs-' + tf.ENV.backendName;
+var adBackend = _.has(global, 'tf') ? 'tfjs-' + tf.ENV.backendName : 'adnn';
 var condition = {N, xDim, hDim, zDim, batchSize, numSteps, stepSize, adBackend};
 display(condition);
 
