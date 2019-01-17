@@ -184,6 +184,7 @@ module.exports = function(env) {
     //nn: nn,
     //T: ad.tensor,
     tf: tf,
+    T: tf,
     ops: ops,
     dists: dists,
     numeric: numeric

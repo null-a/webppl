@@ -20,7 +20,7 @@ var load_mnist = function(path) {
 
 var dummy_data = function(N, xDim) {
   display('generating dummy data...');
-  var ps = tf.mul(ones([xDim, 1]), 0.1);
+  var ps = T.mul(ones([xDim, 1]), 0.1);
   var images = repeat(N, function() {
     // I'm continuing to use WebPPL's convention of representing
     // vectors as n-by-1 tensors.
@@ -51,8 +51,8 @@ var decode = function(z) {
   var b0 = param({name: 'b0d', dims: [hDim, 1]});
   var W1 = param({name: 'W1d', dims: [xDim, hDim]});
   var b1 = param({name: 'b1d', dims: [xDim, 1]});
-  var hid = tf.tanh(tf.dot(W0, z) + b0);
-  var ps = tf.sigmoid((tf.dot(W1, hid) + b1));
+  var hid = T.tanh(T.add(T.dot(W0, z), b0));
+  var ps = T.sigmoid((T.add(T.dot(W1, hid), b1)));
   return ps;
 };
 
@@ -65,9 +65,9 @@ var zGuideParams = function(image) {
   var bm = param({name: 'b1e', dims: [zDim, 1]});
   var Ws = param({name: 'W2e', dims: [zDim, hDim]});
   var bs = param({name: 'b2e', dims: [zDim, 1]});
-  var hid = tf.tanh(tf.dot(W0, image) + b0);
-  var mu = tf.dot(Wm, hid) + bm;
-  var sigma = tf.softplus(tf.dot(Ws, hid) + bs);
+  var hid = T.tanh(T.add(T.dot(W0, image), b0));
+  var mu = T.add(T.dot(Wm, hid), bm);
+  var sigma = T.softplus(T.add(T.dot(Ws, hid), bs));
   return {mu, sigma};
 };
 
