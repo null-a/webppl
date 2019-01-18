@@ -22,14 +22,14 @@ class Encoder(nn.Module):
         self.fc21 = nn.Linear(hidden_dim, z_dim)
         self.fc22 = nn.Linear(hidden_dim, z_dim)
         # setup the non-linearities
-        self.softplus = nn.Softplus()
+        self.tanh = nn.Tanh()
 
     def forward(self, x):
         # define the forward computation on the image x
         # first shape the mini-batch to have pixels in the rightmost dimension
         #x = x.reshape(-1, 784)
         # then compute the hidden units
-        hidden = self.softplus(self.fc1(x))
+        hidden = self.tanh(self.fc1(x))
         # then return a mean vector and a (positive) square root covariance
         # each of size batch_size x z_dim
         z_loc = self.fc21(hidden)
@@ -46,12 +46,12 @@ class Decoder(nn.Module):
         self.fc1 = nn.Linear(z_dim, hidden_dim)
         self.fc21 = nn.Linear(hidden_dim, x_dim)
         # setup the non-linearities
-        self.softplus = nn.Softplus()
+        self.tanh = nn.Tanh()
 
     def forward(self, z):
         # define the forward computation on the latent z
         # first compute the hidden units
-        hidden = self.softplus(self.fc1(z))
+        hidden = self.tanh(self.fc1(z))
         # return the parameter for the output Bernoulli
         # each is of size batch_size x x_dim
         loc_img = torch.sigmoid(self.fc21(hidden))
