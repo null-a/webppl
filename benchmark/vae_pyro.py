@@ -62,7 +62,7 @@ class Decoder(nn.Module):
 class VAE(nn.Module):
     # by default our latent space is 50-dimensional
     # and we use 400 hidden units
-    def __init__(self, z_dim, hidden_dim, x_dim, use_cuda=False):
+    def __init__(self, z_dim, hidden_dim, x_dim, vectorize, use_cuda=False):
         super(VAE, self).__init__()
         # create the encoder and decoder networks
         self.encoder = Encoder(z_dim, hidden_dim, x_dim)
@@ -75,25 +75,40 @@ class VAE(nn.Module):
         self.use_cuda = use_cuda
         self.z_dim = z_dim
         self.x_dim = x_dim
+        self.vectorize = vectorize
 
     # define the model p(x|z)p(z)
     def model(self, x):
         assert x.shape[1] == self.x_dim
         pyro.module("decoder", self.decoder)
-        with pyro.plate("data", x.shape[0]):
-            z_loc = x.new_zeros(torch.Size((x.shape[0], self.z_dim)))
-            z_scale = x.new_ones(torch.Size((x.shape[0], self.z_dim)))
-            z = pyro.sample("latent", dist.Normal(z_loc, z_scale).to_event(1))
-            loc_img = self.decoder.forward(z)
-            pyro.sample("obs", dist.Bernoulli(loc_img).to_event(1), obs=x.reshape(-1, self.x_dim))
-            return loc_img
+        if self.vectorize:
+            with pyro.plate("data", x.shape[0]):
+                z_loc = x.new_zeros(torch.Size((x.shape[0], self.z_dim)))
+                z_scale = x.new_ones(torch.Size((x.shape[0], self.z_dim)))
+                z = pyro.sample("latent", dist.Normal(z_loc, z_scale).to_event(1))
+                loc_img = self.decoder.forward(z)
+                pyro.sample("obs", dist.Bernoulli(loc_img).to_event(1), obs=x.reshape(-1, self.x_dim))
+                return loc_img
+        else:
+            z_loc = x.new_zeros(self.z_dim)
+            z_scale = x.new_ones(self.z_dim)
+            for i in pyro.plate('data', x.shape[0]):
+                z = pyro.sample("latent%d" % i, dist.Normal(z_loc, z_scale).to_event(1))
+                loc_img = self.decoder.forward(z)
+                pyro.sample("obs%d" % i, dist.Bernoulli(loc_img).to_event(1), obs=x[i])
 
     # define the guide (i.e. variational distribution) q(z|x)
     def guide(self, x):
         pyro.module("encoder", self.encoder)
-        with pyro.plate("data", x.shape[0]):
-            z_loc, z_scale = self.encoder.forward(x)
-            pyro.sample("latent", dist.Normal(z_loc, z_scale).to_event(1))
+        if self.vectorize:
+            with pyro.plate("data", x.shape[0]):
+                z_loc, z_scale = self.encoder.forward(x)
+                pyro.sample("latent", dist.Normal(z_loc, z_scale).to_event(1))
+        else:
+            for i in pyro.plate('data', x.shape[0]):
+                z_loc, z_scale = self.encoder(x[i])
+                pyro.sample("latent%d" % i, dist.Normal(z_loc, z_scale).to_event(1))
+
 
 
 def dummy_data(N, x_dim):
@@ -109,7 +124,7 @@ def main(args):
 
     t0 = time.time()
 
-    vae = VAE(args.z_dim, args.h_dim, args.x_dim, use_cuda=args.cuda)
+    vae = VAE(args.z_dim, args.h_dim, args.x_dim, args.vectorize, use_cuda=args.cuda)
     elbo = JitTrace_ELBO() if args.jit else Trace_ELBO()
     svi = SVI(vae.model, vae.guide, Adam({"lr": args.step_size}), loss=elbo)
 
@@ -132,7 +147,7 @@ def main(args):
             batchSize=args.batch_size,
             numSteps=args.num_steps,
             stepSize=args.step_size,
-            adBackend='pyro-vectorized'
+            adBackend='pyro-vectorized' if args.vectorize else 'pyro-not-vectorized'
         ),
         elapsed=elapsed * 1e3,
         numParams=num_params,
@@ -154,6 +169,7 @@ if __name__ == '__main__':
     parser.add_argument('--x-dim', default=10, type=int)
     parser.add_argument('-N',      default=10, type=int)
     parser.add_argument('--step-size', default=1.0e-3, type=float)
+    parser.add_argument('--vectorize', action='store_true', default=False)
     # ------------------------------------------------------------
     parser.add_argument('--cuda', action='store_true', default=False, help='whether to use cuda')
     parser.add_argument('--jit', action='store_true', default=False, help='whether to use PyTorch jit')

@@ -18,4 +18,12 @@ do
     python3 benchmark/vae_pyro.py -N 50 --batch-size 50 --num-steps 10 --x-dim 300  --h-dim 300  --z-dim 300
     python3 benchmark/vae_pyro.py -N 50 --batch-size 50 --num-steps 10 --x-dim 1000 --h-dim 1000 --z-dim 1000
 
+    python3 benchmark/vae_pyro.py -N 50 --batch-size 50 --num-steps 10 --x-dim 1    --h-dim 1    --z-dim 1    --vectorize
+    python3 benchmark/vae_pyro.py -N 50 --batch-size 50 --num-steps 10 --x-dim 3    --h-dim 3    --z-dim 3    --vectorize
+    python3 benchmark/vae_pyro.py -N 50 --batch-size 50 --num-steps 10 --x-dim 10   --h-dim 10   --z-dim 10   --vectorize
+    python3 benchmark/vae_pyro.py -N 50 --batch-size 50 --num-steps 10 --x-dim 30   --h-dim 30   --z-dim 30   --vectorize
+    python3 benchmark/vae_pyro.py -N 50 --batch-size 50 --num-steps 10 --x-dim 100  --h-dim 100  --z-dim 100  --vectorize
+    python3 benchmark/vae_pyro.py -N 50 --batch-size 50 --num-steps 10 --x-dim 300  --h-dim 300  --z-dim 300  --vectorize
+    python3 benchmark/vae_pyro.py -N 50 --batch-size 50 --num-steps 10 --x-dim 1000 --h-dim 1000 --z-dim 1000 --vectorize
+
 done
