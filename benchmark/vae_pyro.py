@@ -36,6 +36,23 @@ class Encoder(nn.Module):
         z_scale = torch.exp(self.fc22(hidden))
         return z_loc, z_scale
 
+# class Encoder2(nn.Module):
+#     def __init__(self, z_dim, h_dim, x_dim):
+#         super(Encoder2, self).__init__()
+#         self.W0 = nn.Parameter(torch.empty(h_dim, x_dim))
+#         self.b0 = nn.Parameter(torch.empty(h_dim))
+#         self.Wm = nn.Parameter(torch.empty(z_dim, h_dim))
+#         self.bm = nn.Parameter(torch.empty(z_dim))
+#         self.Ws = nn.Parameter(torch.empty(z_dim, h_dim))
+#         self.bs = nn.Parameter(torch.empty(z_dim))
+#         for name, p in self.named_parameters():
+#             nn.init.normal_(p, std=0.01)
+
+#     def forward(self, x):
+#         hidden = torch.tanh(torch.matmul(self.W0, x) + self.b0)
+#         z_loc = torch.matmul(self.Wm, hidden) + self.bm
+#         z_scale = torch.exp(torch.matmul(self.Ws, hidden) + self.bs)
+#         return z_loc, z_scale
 
 # define the PyTorch module that parameterizes the
 # observation likelihood p(x|z)
