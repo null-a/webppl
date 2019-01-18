@@ -52,7 +52,7 @@ for key, results_for_group in grouped_results.items():
 
 for backend, pairs in results.items():
     xs, ys = zip(*sorted(pairs))
-    plt.plot(xs, [y/1000.0 for y in ys], label=backend)
+    plt.plot(xs, [y/1000.0 for y in ys], label=backend, marker='.')
 
 plt.title('WebPPL VAE (num_steps=10, batch size=50)')
 plt.xscale('log')
