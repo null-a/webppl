@@ -7,10 +7,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 
-# NOTE: I've not checked that this actually works as expected. I'm
-# only interested in benchmarking the against e.g. Pyro, so as long as
-# this preform roughly the same amount of computation as a correct
-# implementation, which I think it does, then I'm happy.
+from torchvision import datasets, transforms
 
 def dummy_data(N, x_dim):
     return torch.bernoulli(torch.tensor(0.1).expand(N, x_dim))
@@ -49,6 +46,29 @@ def loss(x, ps, z, z_mu, z_sigma, z_log_sigma):
     logpx = torch.sum(x * torch.log(ps) + (1 - x) * torch.log(1 - ps), 1)
     L = torch.mean(logpz + logpx - logqz)
     return -L
+
+# Sanity check on MNIST.
+def mnist(args):
+    mnist = datasets.MNIST('./data', train=True, download=True,
+                           transform=transforms.Compose([
+                               transforms.ToTensor(),
+                               transforms.Lambda(lambda x: torch.bernoulli(x))
+                           ]))
+    train_loader = torch.utils.data.DataLoader(mnist, batch_size=args.batch_size, shuffle=True)
+
+    model = Model(args.z_dim, args.h_dim, 28**2)
+    optimizer = optim.Adam(model.parameters(), lr=args.step_size)
+
+    for epoch in range(100):
+        for i, (images, _) in enumerate(train_loader):
+            images = images.reshape(-1, 28**2)
+            optimizer.zero_grad()
+            output = model(images)
+            objective = loss(images, *output)
+            objective.backward()
+            optimizer.step()
+        print('%d: %f' % (epoch, objective))
+
 
 def main(args):
     images = dummy_data(args.N, args.x_dim)
@@ -106,3 +126,4 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     main(args)
+    #mnist(args)
